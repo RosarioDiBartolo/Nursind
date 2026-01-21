@@ -10,6 +10,7 @@ import pandas as pd
 from cartellino_parser.extract import extract_text
 from cartellino_parser.models import CartellinoParseError, DayRecord, ParsedCartellino
 from cartellino_parser.parse_days import parse_days
+from cartellino_parser.parse_pairs import parse_pairs
 from cartellino_parser.parse_totals import parse_totals
 from cartellino_parser.utils import parse_employee, parse_month_year
 from cartellino_parser.validate import validate_cartellino
@@ -54,12 +55,15 @@ def parse_pdf(pdf_path: str | Path) -> ParsedCartellino:
         raise CartellinoParseError(f"No day lines found in {pdf_path}")
 
     days_df = _records_to_df(records)
+    pairs_df = parse_pairs(lines, meta.get("year"), meta.get("month"))
     totals = parse_totals(text)
     validation = validate_cartellino(days_df, totals)
-
+    
+    #Each document has different sections
     return ParsedCartellino(
         meta=meta,
         days_df=days_df,
+        pairs_df=pairs_df,
         totals=totals,
         validation=validation,
     )

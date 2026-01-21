@@ -5,7 +5,7 @@ import re
 from typing import Iterable, List
 
 from cartellino_parser.models import DayRecord
-from cartellino_parser.utils import NUMBER_RE, parse_number
+from cartellino_parser.utils import extract_numeric_tokens, hhmm_to_decimal, parse_number
 
 LOGGER = logging.getLogger(__name__)
 
@@ -18,12 +18,15 @@ def _parse_day_line(line: str, year: int | None, month: int | None) -> DayRecord
         return None
 
     rest = line[match.end() :].strip()
-    numbers = NUMBER_RE.findall(rest)
+    numbers = extract_numeric_tokens(rest)
     if len(numbers) < 3:
         LOGGER.debug("Day line has fewer than 3 numeric tokens: %s", line)
         return None
 
-    mo_f, mo_t, mo_lav = (parse_number(value) for value in numbers[-3:])
+    mo_f_raw, mo_t_raw, mo_lav_raw = (parse_number(value) for value in numbers[-3:])
+    mo_f = hhmm_to_decimal(mo_f_raw)
+    mo_t = hhmm_to_decimal(mo_t_raw)
+    mo_lav = hhmm_to_decimal(mo_lav_raw)
     return DayRecord(
         year=year,
         month=month,

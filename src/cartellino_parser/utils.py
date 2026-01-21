@@ -24,8 +24,28 @@ MONTHS_IT = {
 NUMBER_RE = re.compile(r"[+-]?\d+(?:\.\d+)?")
 
 
+def extract_numeric_tokens(text: str) -> list[str]:
+    tokens: list[str] = []
+    for token in text.split():
+        if ":" in token:
+            continue
+        if NUMBER_RE.fullmatch(token):
+            tokens.append(token)
+    return tokens
+
+
 def parse_number(value: str) -> float:
     return float(value)
+
+
+def hhmm_to_decimal(value: float) -> float:
+    if value == 0:
+        return 0.0
+    sign = -1.0 if value < 0 else 1.0
+    abs_value = abs(value)
+    hours = int(abs_value)
+    minutes = int(round((abs_value - hours) * 100))
+    return sign * (hours + minutes / 60.0)
 
 
 def parse_month_year(text: str) -> tuple[Optional[int], Optional[int], Optional[str]]:

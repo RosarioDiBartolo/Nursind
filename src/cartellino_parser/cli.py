@@ -30,15 +30,18 @@ def main() -> int:
     input_path = Path(args.input)
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
-
     for pdf_path in _iter_pdfs(input_path):
         parsed = parse_pdf(pdf_path)
         stem = pdf_path.stem
-        days_path = out_dir / f"{stem}.days.csv"
-        totals_path = out_dir / f"{stem}.totals.json"
-        report_path = out_dir / f"{stem}.report.json"
-    
+        doc_dir = out_dir / stem
+        doc_dir.mkdir(parents=True, exist_ok=True)
+        days_path = doc_dir / f"{stem}.days.csv"
+        pairs_path = doc_dir / f"{stem}.pairs.csv"
+        totals_path = doc_dir / f"{stem}.totals.json"
+        report_path = doc_dir / f"{stem}.report.json"
+
         parsed.days_df.to_csv(days_path, index=False)
+        parsed.pairs_df.to_csv(pairs_path, index=False)
         totals_path.write_text(json.dumps(parsed.totals, indent=2, ensure_ascii=False))
         report = {
             "meta": parsed.meta,

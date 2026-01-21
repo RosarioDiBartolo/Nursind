@@ -23,8 +23,24 @@ class DayRecord:
 
 
 @dataclass(frozen=True)
+class PairRecord:
+    year: Optional[int]
+    month: Optional[int]
+    day: int
+    dow: str
+    pair_index: int
+    entry_time: Optional[str]
+    exit_time: Optional[str]
+    duration_hhmm: Optional[str]
+    turno: Optional[str]
+    entry_raw: Optional[str]
+    exit_raw: Optional[str]
+
+
+@dataclass(frozen=True)
 class ParsedCartellino:
     meta: Dict[str, Any]
     days_df: pd.DataFrame
+    pairs_df: pd.DataFrame
     totals: Dict[str, Any]
     validation: Dict[str, Any]

@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from typing import Dict
 
-from cartellino_parser.utils import parse_number
+from cartellino_parser.utils import hhmm_to_decimal, parse_number
 
 TOTAL_LABELS = {
     "ore_lavorate": "ORE LAVORATE",
@@ -22,5 +22,5 @@ def parse_totals(text: str) -> Dict[str, float]:
         pattern = rf"{re.escape(label)}\s+(?P<val>[+-]?\d+(?:\.\d+)?)"
         match = re.search(pattern, text)
         if match:
-            totals[key] = parse_number(match.group("val"))
+            totals[key] = hhmm_to_decimal(parse_number(match.group("val")))
     return totals
