@@ -1,0 +1,20 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug cartellino_parser (module)",
+      "type": "python",
+      "request": "launch",
+      "module": "cartellino_parser.cli",
+      "args": [
+        "parse",
+        "--input",
+        "documents",
+        "--out",
+        "output"
+      ],
+      "console": "integratedTerminal",
+      "justMyCode": true
+    }
+  ]
+}

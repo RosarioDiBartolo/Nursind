@@ -3,6 +3,9 @@ __pycache__/
 *.py[codz]
 *$py.class
 
+downloads_out
+cartellini_out
+token.json
 # C extensions
 *.so
 output

@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import asdict
+from datetime import datetime, timedelta
 from typing import Iterable, List, Optional, Tuple
 
 import pandas as pd
@@ -28,8 +29,12 @@ def _append_pair(
 ) -> None:
     entry_time = entry[0] if entry else None
     entry_raw = entry[1] if entry else None
-    duration_hhmm = _compute_duration(entry_time, exit_time)
-    turno = _compute_turno(entry_time)
+    entry_ts = _build_datetime(year, month, day, entry_time)
+    exit_ts = _build_datetime(year, month, day, exit_time)
+    if entry_ts and exit_ts and exit_ts < entry_ts:
+        exit_ts = exit_ts + timedelta(days=1)
+    duration_hhmm = _compute_duration(entry_ts, exit_ts)
+    turno = _compute_turno(entry_ts)
     pairs.append(
         PairRecord(
             year=year,
@@ -37,8 +42,8 @@ def _append_pair(
             day=day,
             dow=dow,
             pair_index=pair_index,
-            entry_time=entry_time,
-            exit_time=exit_time,
+            entry_ts=entry_ts,
+            exit_ts=exit_ts,
             duration_hhmm=duration_hhmm,
             turno=turno,
             entry_raw=entry_raw,
@@ -47,28 +52,29 @@ def _append_pair(
     )
 
 
-def _time_to_minutes(value: str) -> int:
-    hours, minutes = value.split(":")
-    return int(hours) * 60 + int(minutes)
-
-
-def _compute_duration(entry_time: Optional[str], exit_time: Optional[str]) -> Optional[str]:
-    if not entry_time or not exit_time:
+def _build_datetime(
+    year: int | None, month: int | None, day: int, time_value: Optional[str]
+) -> Optional[datetime]:
+    if not time_value or year is None or month is None:
         return None
-    start = _time_to_minutes(entry_time)
-    end = _time_to_minutes(exit_time)
-    if end < start:
-        end += 24 * 60
-    minutes = end - start
+    hours, minutes = time_value.split(":")
+    return datetime(year, month, day, int(hours), int(minutes))
+
+
+def _compute_duration(entry_ts: Optional[datetime], exit_ts: Optional[datetime]) -> Optional[str]:
+    if not entry_ts or not exit_ts:
+        return None
+    delta = exit_ts - entry_ts
+    minutes = int(delta.total_seconds() // 60)
     hours = minutes // 60
     mins = minutes % 60
     return f"{hours:02d}:{mins:02d}"
 
 
-def _compute_turno(entry_time: Optional[str]) -> Optional[str]:
-    if not entry_time:
+def _compute_turno(entry_ts: Optional[datetime]) -> Optional[str]:
+    if not entry_ts:
         return None
-    entry_minutes = _time_to_minutes(entry_time)
+    entry_minutes = entry_ts.hour * 60 + entry_ts.minute
     targets = {
         "Mattina": 8 * 60,
         "Pomeriggio": 14 * 60,
@@ -83,6 +89,7 @@ def parse_pairs(lines: Iterable[str], year: int | None, month: int | None) -> pd
     current_day: Optional[int] = None
     current_dow: Optional[str] = None
     current_entry: Optional[Tuple[str, str]] = None
+    # pair_index orders emitted pairs within the current day; it resets on day change.
     pair_index = 0
 
     for line in lines:
@@ -171,8 +178,8 @@ def parse_pairs(lines: Iterable[str], year: int | None, month: int | None) -> pd
             "day",
             "dow",
             "pair_index",
-            "entry_time",
-            "exit_time",
+            "entry_ts",
+            "exit_ts",
             "duration_hhmm",
             "turno",
             "entry_raw",

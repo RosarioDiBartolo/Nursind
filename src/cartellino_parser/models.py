@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any, Dict, Optional
 
 import pandas as pd
@@ -29,8 +30,8 @@ class PairRecord:
     day: int
     dow: str
     pair_index: int
-    entry_time: Optional[str]
-    exit_time: Optional[str]
+    entry_ts: Optional[datetime]
+    exit_ts: Optional[datetime]
     duration_hhmm: Optional[str]
     turno: Optional[str]
     entry_raw: Optional[str]
