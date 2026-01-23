@@ -10,6 +10,7 @@ def write_manifest(out_dir: str, root_id: str, reports: list[dict]):
             {
                 "root_id": root_id,
                 "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                "employee_count": len(reports),
                 "employees": reports,
             },
             f,

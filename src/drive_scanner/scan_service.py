@@ -1,10 +1,12 @@
 from typing import Iterable, List, Tuple
 
-from drive_client import get_drive_service, list_children
-from logging_utils import get_logger
+from .drive_client import get_drive_service, list_children
+from .logging_utils import get_logger
 
 logger = get_logger()
 
+PDF_MIME = "application/pdf"
+ZIP_MIME_TYPES = {"application/zip", "application/x-zip-compressed"}
 
 def normalize_term(value: str) -> str:
     value = value.lower().strip().replace("_", " ").replace("-", " ")
@@ -25,11 +27,11 @@ def folder_excluded(name: str, exclude_terms: Iterable[str]) -> str | None:
     return find_excluding_term(name, exclude_terms)
 
 
-def collect_pdfs_recursive(
+def collect_files_recursive(
     drive, emp, exclude_terms: Iterable[str]
-) -> Tuple[List[Tuple[str, str]], List[dict]]:
+) -> Tuple[List[dict], List[dict]]:
     stack = [(emp["id"], emp["name"])]
-    pdfs = []
+    files = []
     excluded_folders = []
 
     while stack:
@@ -44,10 +46,25 @@ def collect_pdfs_recursive(
         for item in list_children(drive, fid):
             if item["mimeType"] == "application/vnd.google-apps.folder":
                 stack.append((item["id"], item["name"]))
-            elif item["mimeType"] == "application/pdf":
-                pdfs.append((item["id"], item["name"]))
+            elif item["mimeType"] == PDF_MIME:
+                files.append(
+                    {
+                        "file_id": item["id"],
+                        "file_name": item["name"],
+                        "mimeType": item["mimeType"],
+                    }
+                )
+            elif item["mimeType"] in ZIP_MIME_TYPES or item["name"].lower().endswith(".zip"):
+                files.append(
+                    {
+                        "file_id": item["id"],
+                        "file_name": item["name"],
+                        "mimeType": item["mimeType"],
+                        "container": "zip",
+                    }
+                )
 
-    return pdfs, excluded_folders
+    return files, excluded_folders
 
 
 def file_excluded(filename: str, exclude_terms: Iterable[str]) -> str | None:
@@ -62,16 +79,32 @@ def file_excluded(filename: str, exclude_terms: Iterable[str]) -> str | None:
 
 def build_employee_report(creds, emp, exclude_terms: Iterable[str]):
     drive = get_drive_service(creds)
-    pdfs, excluded_folders = collect_pdfs_recursive(drive, emp, exclude_terms)
+    files, excluded_folders = collect_files_recursive(drive, emp, exclude_terms)
     included = []
     skipped = []
 
-    for fid, fname in pdfs:
+    for item in files:
+        fname = item["file_name"]
         term = file_excluded(fname, exclude_terms)
         if term:
-            skipped.append({"file_id": fid, "file_name": fname, "reason": term})
+            skipped.append(
+                {
+                    "file_id": item["file_id"],
+                    "file_name": fname,
+                    "mimeType": item.get("mimeType"),
+                    "container": item.get("container"),
+                    "reason": term,
+                }
+            )
         else:
-            included.append({"file_id": fid, "file_name": fname})
+            included.append(
+                {
+                    "file_id": item["file_id"],
+                    "file_name": fname,
+                    "mimeType": item.get("mimeType"),
+                    "container": item.get("container"),
+                }
+            )
 
     return {
         "employee": emp["name"],

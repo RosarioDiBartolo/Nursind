@@ -13,6 +13,10 @@ dependencies = [
   "pandas>=2.1.0",
 ]
 
+[project.scripts]
+drive-scan = "drive_scanner.scan_directory:main"
+drive-filter = "drive_scanner.filter_scan:main"
+
 [project.optional-dependencies]
 dev = [
   "pytest>=7.4",

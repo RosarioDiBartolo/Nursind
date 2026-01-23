@@ -2,13 +2,13 @@ import time
 import argparse
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-import config
-from auth_service import load_creds
-from drive_client import get_drive_service, list_children
-from fs_utils import ensure_dir
-from logging_utils import setup_logging, get_logger
-from report_service import write_manifest
-from scan_service import build_employee_report, normalize_term
+from . import config
+from .auth_service import load_creds
+from .drive_client import get_drive_service, list_children
+from .fs_utils import ensure_dir
+from .logging_utils import setup_logging, get_logger
+from .report_service import write_manifest
+from .scan_service import build_employee_report, normalize_term
 
 logger = get_logger()
 
@@ -16,7 +16,7 @@ logger = get_logger()
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", default=config.DRIVE_ROOT_FOLDER_ID)
-    parser.add_argument("--out", default="./")
+    parser.add_argument("--out", default=config.SCAN_REPORT_PATH)
     parser.add_argument("--workers", type=int, default=6)
     parser.add_argument("--verbose", "-v", action="store_true")
     args = parser.parse_args()

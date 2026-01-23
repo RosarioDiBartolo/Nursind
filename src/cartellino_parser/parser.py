@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 from dataclasses import asdict
-from pathlib import Path
 from typing import Any, Dict, Iterable, List
 
 import pandas as pd
@@ -43,16 +42,15 @@ def _records_to_df(records: Iterable[DayRecord]) -> pd.DataFrame:
     )
 
 
-def parse_pdf(pdf_path: str | Path) -> ParsedCartellino:
-    pdf_path = Path(pdf_path)
-    text = extract_text(pdf_path)
+def parse_pdf(source) -> ParsedCartellino:
+    text = extract_text(source)
     lines = text.splitlines()
 
     meta = _build_meta(text)
     records = parse_days(lines, meta.get("year"), meta.get("month"))
     if not records:
-        LOGGER.error("No day lines found in %s", pdf_path)
-        raise CartellinoParseError(f"No day lines found in {pdf_path}")
+        LOGGER.error("No day lines found in %s", source)
+        raise CartellinoParseError(f"No day lines found in {source}")
 
     days_df = _records_to_df(records)
     pairs_df = parse_pairs(lines, meta.get("year"), meta.get("month"))
