@@ -58,7 +58,11 @@ def _build_datetime(
     if not time_value or year is None or month is None:
         return None
     hours, minutes = time_value.split(":")
-    return datetime(year, month, day, int(hours), int(minutes))
+    hours_i = int(hours)
+    minutes_i = int(minutes)
+    if hours_i == 24 and minutes_i == 0:
+        return datetime(year, month, day, 0, 0) + timedelta(days=1)
+    return datetime(year, month, day, hours_i, minutes_i)
 
 
 def _compute_duration(entry_ts: Optional[datetime], exit_ts: Optional[datetime]) -> Optional[str]:
@@ -93,20 +97,35 @@ def parse_pairs(lines: Iterable[str], year: int | None, month: int | None) -> pd
     pair_index = 0
 
     for line in lines:
-        match = DAY_LINE_RE.match(line.strip())
-        if not match:
-            continue
+        stripped = line.strip()
+        match = DAY_LINE_RE.match(stripped)
+        if match:
+            day = int(match.group("day"))
+            dow = match.group("dow")
+            if current_day is None:
+                current_day, current_dow, pair_index = day, dow, 0
+            elif day != current_day or dow != current_dow:
+                if current_entry is not None:
+                    _append_pair(
+                        pairs,
+                        year,
+                        month,
+                        current_day,
+                        current_dow,
+                        pair_index,
+                        current_entry,
+                        None,
+                        None,
+                    )
+                    pair_index += 1
+                    current_entry = None
+                current_day, current_dow, pair_index = day, dow, 0
 
-        day = int(match.group("day"))
-        dow = match.group("dow")
         if current_day is None:
-            current_day, current_dow, pair_index = day, dow, 0
-        elif day != current_day or dow != current_dow:
-            current_day, current_dow, pair_index = day, dow, 0
+            continue
 
         events = list(EVENT_RE.finditer(line))
         if not events:
-            LOGGER.debug("No E/U events found for day line: %s", line)
             continue
 
         for event in events:
