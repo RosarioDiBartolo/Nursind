@@ -4,7 +4,7 @@ import logging
 import re
 from typing import Iterable, List
 
-from cartellino_parser.models import DayRecord
+from parser_shared.models import DayRecord
 from cartellino_parser.utils import extract_numeric_tokens, hhmm_to_decimal, parse_number
 
 LOGGER = logging.getLogger(__name__)

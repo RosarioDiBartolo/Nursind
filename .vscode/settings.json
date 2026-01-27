@@ -1,5 +1,27 @@
 {
-    "python.analysis.extraPaths": [
-        "./src/drive-scanner"
-    ]
+  "python.analysis.diagnosticMode": "openFilesOnly",
+  "python.analysis.exclude": [
+    "**/node_modules",
+    "**/.venv",
+    "**/venv",
+    "**/__pycache__",
+    "**/dist",
+    "**/output",
+    "**/initial",
+    "**/build",
+    "**/.git",
+    "**/.next",
+    "**/.turbo"
+  ],
+  "files.watcherExclude": {
+    "**/.git/**": true,
+    "**/output/**": true,
+    "**/initial/**": true,
+    "**/node_modules/**": true,
+    "**/.venv/**": true,
+    "**/venv/**": true,
+    "**/__pycache__/**": true,
+    "**/dist/**": true,
+    "**/build/**": true
+  }
 }

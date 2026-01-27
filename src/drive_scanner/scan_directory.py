@@ -1,14 +1,16 @@
 import time
 import argparse
+import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from . import config
 from .auth_service import load_creds
 from .drive_client import get_drive_service, list_children
-from .fs_utils import ensure_dir
+from .fs_utils import ensure_dir, ensure_parent_dir
 from .logging_utils import setup_logging, get_logger
-from .report_service import write_manifest
-from .scan_service import build_employee_report, normalize_term
+from .index_service import write_index_separated
+from .scan_service import build_employee_report
+from .names import normalize_term
 
 logger = get_logger()
 
@@ -23,7 +25,11 @@ def main():
 
     setup_logging(args.verbose)
     config.validate_env()
-    ensure_dir(args.out)
+    out_dir = args.out
+    if out_dir.lower().endswith(".json"):
+        ensure_parent_dir(out_dir)
+    else:
+        ensure_dir(out_dir)
     creds = load_creds()
 
     drive = get_drive_service(creds)
@@ -54,7 +60,7 @@ def main():
             )
 
     logger.info("Done in %.1fs", time.time() - t0)
-    write_manifest(args.out, args.root, reports)
+    write_index_separated(args.out, args.root, reports)
 
 
 if __name__ == "__main__":

@@ -1,70 +1,70 @@
-from drive_scanner.filter_scan import (
-    _build_base_employees,
-    _finalize_employees,
-    _merge_report_into_base,
+from drive_scanner.reports import (
+    build_base_employees,
+    finalize_index,
+    merge_report_into_base,
 )
 
 
-def test_merge_legacy_files_report_into_existing_employee():
-    manifest_employees = [
+def test_merge_report_into_existing_employee():
+    index_employees = [
         {
             "employee": "Alice Rossi",
             "employee_id": "E001",
-            "included": [{"file_id": "a1", "file_name": "A.pdf"}],
-            "skipped": [],
-            "excluded_folders": [],
+            "files": [{"file_id": "a1", "file_name": "A.pdf"}],
         }
     ]
-    base = _build_base_employees(manifest_employees)
-    legacy_report = {
-        "files": [
+    base = build_base_employees(index_employees)
+    report = {
+        "root_id": "root",
+        "generated_at": "2024-01-01T00:00:00Z",
+        "employee_count": 1,
+        "included": [
             {
-                "status": "success",
                 "employee": "Alice Rossi",
-                "file_id": "a2",
-                "file_name": "B.pdf",
-                "outputs": {"report_json": "out/report.json"},
+                "employee_id": "E001",
+                "files": [{"file_id": "a2", "file_name": "B.pdf"}],
             }
-        ]
+        ],
+        "excluded": [],
     }
 
-    _merge_report_into_base(base, legacy_report)
-    merged = _finalize_employees(base, manifest_employees)
+    merge_report_into_base(base, report)
+    merged = finalize_index(base, index_employees, "root")
 
-    assert len(merged) == 1
-    assert merged[0]["employee"] == "Alice Rossi"
-    ids = {item["file_id"] for item in merged[0]["included"]}
+    assert len(merged["included"]) == 1
+    assert merged["included"][0]["employee"] == "Alice Rossi"
+    ids = {item["file_id"] for item in merged["included"][0]["files"]}
     assert ids == {"a2"}
 
 
-def test_merge_new_style_report_dedupes_by_id():
-    manifest_employees = [
+def test_merge_report_dedupes_by_id():
+    index_employees = [
         {
             "employee": "Bob Bianchi",
             "employee_id": "E002",
-            "included": [],
-            "skipped": [],
-            "excluded_folders": [],
+            "files": [],
         }
     ]
-    base = _build_base_employees(manifest_employees)
+    base = build_base_employees(index_employees)
     report = {
-        "employees": [
+        "root_id": "root",
+        "generated_at": "2024-01-01T00:00:00Z",
+        "employee_count": 1,
+        "included": [
             {
                 "employee": "Bob Bianchi",
                 "employee_id": "E002",
-                "included": [
+                "files": [
                     {"file_id": "b1", "file_name": "X.pdf"},
                     {"file_id": "b1", "file_name": "X.pdf"},
                 ],
-                "skipped": [],
-                "excluded_folders": [],
             }
-        ]
+        ],
+        "excluded": [],
     }
 
-    _merge_report_into_base(base, report)
-    merged = _finalize_employees(base, manifest_employees)
+    merge_report_into_base(base, report)
+    merged = finalize_index(base, index_employees, "root")
 
-    assert len(merged) == 1
-    assert len(merged[0]["included"]) == 1
+    assert len(merged["included"]) == 1
+    assert len(merged["included"][0]["files"]) == 1

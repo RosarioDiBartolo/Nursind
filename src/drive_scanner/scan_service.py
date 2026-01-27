@@ -2,16 +2,12 @@ from typing import Iterable, List, Tuple
 
 from .drive_client import get_drive_service, list_children
 from .logging_utils import get_logger
+from .names import normalize_term
 
 logger = get_logger()
 
 PDF_MIME = "application/pdf"
 ZIP_MIME_TYPES = {"application/zip", "application/x-zip-compressed"}
-
-def normalize_term(value: str) -> str:
-    value = value.lower().strip().replace("_", " ").replace("-", " ")
-    return " ".join(value.split())
-
 
 def find_excluding_term(value: str, exclude_terms: Iterable[str]) -> str | None:
     if not exclude_terms:

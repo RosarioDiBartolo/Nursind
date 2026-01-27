@@ -15,7 +15,7 @@ dependencies = [
 
 [project.scripts]
 drive-scan = "drive_scanner.scan_directory:main"
-drive-filter = "drive_scanner.filter_scan:main"
+drive-filter = "drive_scanner.fetch_index:main"
 
 [project.optional-dependencies]
 dev = [

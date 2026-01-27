@@ -11,6 +11,10 @@ class CartellinoParseError(RuntimeError):
     pass
 
 
+class ParserDetectionError(CartellinoParseError):
+    pass
+
+
 @dataclass(frozen=True)
 class DayRecord:
     year: Optional[int]
