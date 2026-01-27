@@ -33,11 +33,11 @@ def _assert_timbrature_parse(pdf_path: Path, parsed) -> None:
 
 
 def test_parse_timbrature_type_2_samples() -> None:
-    pdfs = _iter_sample_pdfs("type-2")
+    pdfs = _iter_sample_pdfs("timbrature_compact")
     if not pdfs:
         import pytest
 
-        pytest.skip("No timbrature type-2 samples found under samples/type-2/")
+        pytest.skip("No timbrature samples found under samples/timbrature_compact/")
 
     for pdf_path in pdfs:
         parsed = parse_pdf_compact(pdf_path)
@@ -45,11 +45,11 @@ def test_parse_timbrature_type_2_samples() -> None:
 
 
 def test_parse_timbrature_type_3_samples() -> None:
-    pdfs = _iter_sample_pdfs("type-3")
+    pdfs = _iter_sample_pdfs("timbrature_elenco")
     if not pdfs:
         import pytest
 
-        pytest.skip("No timbrature type-3 samples found under samples/type-3/")
+        pytest.skip("No timbrature samples found under samples/timbrature_elenco/")
 
     for pdf_path in pdfs:
         parsed = parse_pdf_elenco(pdf_path)

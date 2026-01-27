@@ -3,9 +3,9 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict
 
-from parser_shared.extract import extract_text
+from parser_shared.extract import extract_text, extract_text_vertical
 from parser_shared.models import CartellinoParseError, ParsedCartellino
-from cartellino_parser.parse_days import parse_days
+from cartellino_parser.parse_days import has_day_lines, parse_days
 from cartellino_parser.parse_pairs import parse_pairs
 from cartellino_parser.parse_totals import parse_totals
 from cartellino_parser.utils import parse_employee, parse_month_year
@@ -32,6 +32,10 @@ def _build_meta(text: str) -> Dict[str, Any]:
 
 def parse_pdf(source) -> ParsedCartellino:
     text = extract_text(source)
+    lines = text.splitlines()
+    if not has_day_lines(lines):
+        LOGGER.info("No day lines found in extracted text for %s; trying vertical reconstruction", source)
+        text = extract_text_vertical(source)
     return parse_text(text, source)
 
 

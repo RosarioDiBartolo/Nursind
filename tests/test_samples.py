@@ -37,9 +37,9 @@ PARSERS: dict[str, Callable[[Path], object]] = {
 }
 
 FOLDER_PARSERS: dict[str, str] = {
-    "type-1": "cartellino",
-    "type-2": "timbrature_compact",
-    "type-3": "timbrature_elenco",
+    "cartellino": "cartellino",
+    "timbrature_compact": "timbrature_compact",
+    "timbrature_elenco": "timbrature_elenco",
 }
 
 
@@ -120,7 +120,7 @@ def main() -> int:
         "--mode",
         choices=["folder", "auto", "cartellino", "timbrature_compact", "timbrature_elenco"],
         default="folder",
-        help="Parser selection: folder uses type-1/2/3 mapping.",
+        help="Parser selection: folder uses parser-named samples folders.",
     )
     parser.add_argument(
         "--strict",

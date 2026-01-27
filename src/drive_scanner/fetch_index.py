@@ -1,4 +1,5 @@
 import os
+import re
 import time
 import argparse
 import threading
@@ -19,6 +20,9 @@ from .schema import IndexFile, Outputs
 from parser_service import parse_pdf
 
 logger = None
+DEFAULT_SKIP_REASONS = {
+    "PdfminerException: No /Root object! - Is this really a PDF?",
+}
 
 
 def _doc_attr(doc, name: str):
@@ -39,6 +43,44 @@ def _update_index_meta(index: Index) -> None:
     index.generated_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     employees = {item.employee for item in index.files if getattr(item, "employee", None)}
     index.employee_count = len(employees)
+
+
+def _compile_reason_regexes(patterns: list[str]) -> list[re.Pattern]:
+    compiled = []
+    for pattern in patterns:
+        try:
+            compiled.append(re.compile(pattern))
+        except re.error as exc:
+            raise ValueError(f"Invalid --skip-reason-regex pattern '{pattern}': {exc}") from exc
+    return compiled
+
+
+def _matches_reason(
+    reason: str | None,
+    *,
+    exact: set[str],
+    contains: list[str],
+    regexes: list[re.Pattern],
+) -> bool:
+    if not reason:
+        return False
+    if reason in exact:
+        return True
+    if any(token in reason for token in contains):
+        return True
+    if any(rx.search(reason) for rx in regexes):
+        return True
+    return False
+
+
+def _should_skip_by_reason(
+    reason: str | None,
+    *,
+    exact: set[str],
+    contains: list[str],
+    regexes: list[re.Pattern],
+) -> bool:
+    return _matches_reason(reason, exact=exact, contains=contains, regexes=regexes)
 
 
 def process_document(
@@ -168,6 +210,42 @@ def main():
     parser.add_argument("--out", default="downloads", help="Output directory (default: downloads)")
     parser.add_argument("--excluded", default="excluded.index.json", help="Excluded index filename (default: excluded.index.json)")
     parser.add_argument("--included", default="included.index.json", help="Included index filename (default: included.index.json)")
+    parser.add_argument(
+        "--skip-reason",
+        action="append",
+        default=[],
+        help="Skip processing when reason matches exactly (repeatable)",
+    )
+    parser.add_argument(
+        "--skip-reason-contains",
+        action="append",
+        default=[],
+        help="Skip processing when reason contains substring (repeatable)",
+    )
+    parser.add_argument(
+        "--skip-reason-regex",
+        action="append",
+        default=[],
+        help="Skip processing when reason matches regex (repeatable)",
+    )
+    parser.add_argument(
+        "--only-reason",
+        action="append",
+        default=[],
+        help="Process only when reason matches exactly (repeatable)",
+    )
+    parser.add_argument(
+        "--only-reason-contains",
+        action="append",
+        default=[],
+        help="Process only when reason contains substring (repeatable)",
+    )
+    parser.add_argument(
+        "--only-reason-regex",
+        action="append",
+        default=[],
+        help="Process only when reason matches regex (repeatable)",
+    )
  
     parser.add_argument("--workers", type=int, default=6)
     parser.add_argument("--verbose", "-v", action="store_true")
@@ -197,7 +275,65 @@ def main():
         for item in excluded.files
     }
 
+    skip_exact = set(DEFAULT_SKIP_REASONS) | set(args.skip_reason or [])
+    skip_contains = args.skip_reason_contains or []
+    try:
+        skip_regexes = _compile_reason_regexes(args.skip_reason_regex or [])
+    except ValueError as exc:
+        parser.error(str(exc))
+
+    if skip_exact or skip_contains or skip_regexes:
+        logger.info(
+            "Reason filters enabled (exact=%d, contains=%d, regex=%d)",
+            len(skip_exact),
+            len(skip_contains),
+            len(skip_regexes),
+        )
+
+    total_docs = len(docs)
+    only_exact = set(args.only_reason or [])
+    only_contains = args.only_reason_contains or []
+    try:
+        only_regexes = _compile_reason_regexes(args.only_reason_regex or [])
+    except ValueError as exc:
+        parser.error(str(exc))
+
+    if only_exact or only_contains or only_regexes:
+        logger.info(
+            "Only-reason filters enabled (exact=%d, contains=%d, regex=%d)",
+            len(only_exact),
+            len(only_contains),
+            len(only_regexes),
+        )
+
+    if only_exact or only_contains or only_regexes:
+        docs = [
+            doc
+            for doc in docs
+            if _matches_reason(
+                _doc_attr(doc, "reason"),
+                exact=only_exact,
+                contains=only_contains,
+                regexes=only_regexes,
+            )
+        ]
+
+    if skip_exact or skip_contains or skip_regexes:
+        docs = [
+            doc
+            for doc in docs
+            if not _should_skip_by_reason(
+                _doc_attr(doc, "reason"),
+                exact=skip_exact,
+                contains=skip_contains,
+                regexes=skip_regexes,
+            )
+        ]
+
+    skipped_docs = total_docs - len(docs)
     logger.info("Found %d documents to process", len(docs))
+    if skipped_docs:
+        logger.info("Skipped %d documents due to reason filters", skipped_docs)
     if not docs:
         logger.info("No documents to process... exiting.")
         return

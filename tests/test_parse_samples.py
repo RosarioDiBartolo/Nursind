@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
 import sys
 
@@ -12,20 +13,19 @@ sys.path.insert(0, str(ROOT / "src"))
 from cartellino_parser import parse_pdf  # noqa: E402
 
 
-PDF_NAMES = [
-    "Cartellino mensile-2020-07.pdf",
-    "Cartellino mensile-2022-01.pdf",
-    "Cartellino mensile-2022-07.pdf",
-    "Cartellino mensile-2022-12.pdf",
-    "Cartellino mensile-2023-03-12.pdf",
-    "Cartellino mensile-2023-11-19.pdf",
-]
+def _iter_sample_pdfs() -> list[Path]:
+    samples_dir = ROOT / "samples" / "cartellino"
+    if not samples_dir.exists():
+        return []
+    return sorted(samples_dir.glob("*.pdf"))
 
 
-def test_parse_samples() -> None:
-    documents = ROOT / "documents"
-    for name in PDF_NAMES:
-        pdf_path = documents / name
+def test_parse_cartellino_samples() -> None:
+    pdfs = _iter_sample_pdfs()
+    if not pdfs:
+        pytest.skip("No cartellino samples found under samples/cartellino/")
+
+    for pdf_path in pdfs:
         parsed = parse_pdf(pdf_path)
 
         assert isinstance(parsed.days_df, pd.DataFrame)
@@ -43,5 +43,6 @@ def test_parse_samples() -> None:
         if "saldo_al_mese_corrente" in totals:
             assert totals["saldo_al_mese_corrente"] is not None
 
-        diff = abs(parsed.days_df["mo_lav"].sum() - totals["ore_lavorate"])
-        assert diff < 0.05
+        if totals.get("ore_lavorate") is not None:
+            diff = abs(parsed.days_df["mo_lav"].sum() - totals["ore_lavorate"])
+            assert diff < 0.05

@@ -46,3 +46,10 @@ def parse_days(lines: Iterable[str], year: int | None, month: int | None) -> Lis
         if record:
             records.append(record)
     return records
+
+
+def has_day_lines(lines: Iterable[str]) -> bool:
+    for line in lines:
+        if DAY_LINE_RE.match(line.strip()):
+            return True
+    return False

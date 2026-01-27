@@ -6,8 +6,8 @@ import re
 from typing import Literal
 
 from cartellino_parser.parser import parse_text as parse_cartellino_text
-from parser_shared.extract import extract_text
-from parser_shared.models import ParserDetectionError, ParsedCartellino
+from parser_shared.extract import extract_text, extract_text_vertical
+from parser_shared.models import CartellinoParseError, ParserDetectionError, ParsedCartellino
 from timbrature_elenco_compact_parser.parser import parse_text as parse_compact_text
 from timbrature_elenco_parser.parser import parse_text as parse_elenco_text
 from timbrature_shared.day_values import extract_day_values
@@ -153,6 +153,34 @@ def parse_text(text: str, source: object | None = None) -> ParsedCartellino:
 
 def parse_pdf(source) -> ParsedCartellino:
     text = extract_text(source)
-    return parse_text(text, source)
+    lines = text.splitlines()
+    cart_day_hits, timb_day_hits = _count_day_lines(lines)
+    if cart_day_hits == 0 and timb_day_hits == 0:
+        LOGGER.info(
+            "No detection markers found in extracted text for %s; trying vertical reconstruction",
+            source,
+        )
+        text = extract_text_vertical(source)
+    try:
+        return parse_text(text, source)
+    except ParserDetectionError as exc:
+        message = str(exc).lower()
+        if "no cartellino or timbrature markers found" not in message:
+            raise
+        LOGGER.info(
+            "No detection markers found after parse for %s; trying vertical reconstruction",
+            source,
+        )
+        text = extract_text_vertical(source)
+        return parse_text(text, source)
+    except CartellinoParseError as exc:
+        if "No day lines found" not in str(exc):
+            raise
+        LOGGER.info(
+            "No day lines found after parse for %s; trying vertical reconstruction",
+            source,
+        )
+        text = extract_text_vertical(source)
+        return parse_text(text, source)
 
  
