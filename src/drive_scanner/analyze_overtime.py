@@ -1,29 +1,73 @@
+import argparse
 import json
 import os
+from typing import Any
+
 import pandas as pd
-import argparse
 
 from drive_scanner.fs_utils import ensure_dir, ensure_parent_dir
+from .index_service import Index
 from .logging_utils import get_logger
 from .names import safe_name
-from .io_json import load_json
 
 logger = get_logger()
+
+
+def _normalize_employee(name: str | None) -> str:
+    return (name or "").strip().lower()
+
+
+def _group_files_by_employee(files: list[Any]) -> list[dict[str, Any]]:
+    grouped: dict[str, dict[str, Any]] = {}
+    for item in files:
+        name = getattr(item, "employee", None) or "unknown"
+        key = _normalize_employee(name) or "unknown"
+        if key not in grouped:
+            grouped[key] = {"employee": name, "files": []}
+        grouped[key]["files"].append(item)
+    return list(grouped.values())
+
+
+def _expected_pairs_path(
+    index_path: str, emp_name: str, file_name: str | None, file_id: str | None
+) -> str:
+    base_dir = os.path.dirname(os.path.abspath(index_path))
+    safe_emp = safe_name(emp_name or "unknown")
+    base_name = safe_name(file_name or "unknown.pdf")
+    if not base_name.lower().endswith(".pdf"):
+        base_name = f"{base_name}.pdf"
+    if file_id:
+        file_tag = f"{os.path.splitext(base_name)[0]}__{file_id[:8]}"
+    else:
+        file_tag = os.path.splitext(base_name)[0]
+    return os.path.abspath(os.path.join(base_dir, safe_emp, file_tag, "pairs.csv"))
+
+
+def _path_for_log(path: str, index_path: str) -> str:
+    base_dir = os.path.dirname(os.path.abspath(index_path))
+    try:
+        return os.path.relpath(path, start=base_dir)
+    except ValueError:
+        return os.path.abspath(path)
+
 
 def calculate_overtime(
     index_path: str, output_path: str, employee_filter: str | None = None, hours_threshold: float = 6.0
 ) -> None:
     ensure_parent_dir(output_path)
     output_dir = os.path.dirname(output_path) or "output"
+    output_dir = os.path.abspath(output_dir)
     ensure_dir(output_dir)
-    
-    report = Index.load (index_path)
-    employees = report.get("included", [])
-    
+
+    report = Index.load_index(index_path, strict=True)
+    employees = _group_files_by_employee(report.files)
+
     if employee_filter:
         # Normalize for case-insensitive match
         filter_norm = employee_filter.strip().lower()
-        employees = [emp for emp in employees if emp.get("employee", "").strip().lower() == filter_norm]
+        employees = [
+            emp for emp in employees if _normalize_employee(emp.get("employee")) == filter_norm
+        ]
         if not employees:
             logger.warning(f"No employee found matching '{employee_filter}'")
             return
@@ -35,14 +79,36 @@ def calculate_overtime(
         pairs_dfs = []
 
         for inc in emp.get("files", []):
-            outputs = inc.get("outputs", {})
-            pairs_path = outputs.get("pairs_csv")
-            if pairs_path and os.path.exists(pairs_path):
-                try:
-                    df = pd.read_csv(pairs_path)
-                    pairs_dfs.append(df)
-                except Exception as e:
-                    logger.error(f"Error loading {pairs_path}: {e}")
+            expected_path = _expected_pairs_path(
+                index_path,
+                emp_name,
+                getattr(inc, "file_name", None),
+                getattr(inc, "file_id", None),
+            )
+            if not os.path.exists(expected_path):
+                logger.warning(
+                    "Missing pairs_csv for %s (expected: %s)",
+                    getattr(inc, "file_name", "unknown"),
+                    _path_for_log(expected_path, index_path),
+                )
+                continue
+            try:
+                df = pd.read_csv(expected_path)
+            except Exception as e:
+                logger.error("Error loading %s: %s", expected_path, e)
+                continue
+            missing_cols = {"entry_ts", "exit_ts"} - set(df.columns)
+            if missing_cols:
+                logger.warning(
+                    "Skipping %s, missing columns: %s",
+                    expected_path,
+                    ", ".join(sorted(missing_cols)),
+                )
+                continue
+            df["file_id"] = getattr(inc, "file_id", None)
+            df["file_name"] = getattr(inc, "file_name", None)
+            df["pairs_csv"] = expected_path
+            pairs_dfs.append(df)
 
         if not pairs_dfs:
             summary.append({
@@ -62,7 +128,8 @@ def calculate_overtime(
         merged_df['duration'] = merged_df['exit_ts'] - merged_df['entry_ts']
         
         # Filter valid shifts and count overtime
-        valid_shifts = merged_df.dropna(subset=['duration'])
+        valid_shifts = merged_df.dropna(subset=["entry_ts", "exit_ts", "duration"])
+        valid_shifts = valid_shifts[valid_shifts["duration"] >= pd.Timedelta(0)]
         total_shifts = len(valid_shifts)
         overtime_count = (valid_shifts['duration'] > pd.Timedelta(hours=hours_threshold)).sum()
 
@@ -86,7 +153,12 @@ def calculate_overtime(
         with open(index_path_emp, "w", encoding="utf-8") as f:
             json.dump(emp_report, f, indent=2, ensure_ascii=False)
         
-        logger.info(f"Saved {emp_name}: {csv_path} and {index_path_emp}")
+        logger.info(
+            "Saved %s: %s and %s",
+            emp_name,
+            _path_for_log(csv_path, index_path),
+            _path_for_log(index_path_emp, index_path),
+        )
 
         summary.append({
             "employee": emp_name,
@@ -99,13 +171,21 @@ def calculate_overtime(
 
     total_shifts = sum(e["total_shifts"] for e in summary)
     total_overtime = sum(e["overtime_shifts"] for e in summary)
-    logger.info(f"Summary saved to {output_path}")
+    logger.info("Summary saved to %s", _path_for_log(output_path, index_path))
     logger.info(f"Processed {len(summary)} employees: {total_shifts} total shifts, {total_overtime} overtime shifts")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--index"  , help="Path to index")
-    parser.add_argument("--output", default="output/overtime_summary.json", help="Output path for summary (default: output/overtime_summary.json)")
+    parser.add_argument(
+        "--index",
+        required=True,
+        help="Path to included.index.json from fetch_index",
+    )
+    parser.add_argument(
+        "--output",
+        default="output/overtime_summary.json",
+        help="Output path for summary (default: output/overtime_summary.json)",
+    )
     parser.add_argument("--employee", help="Process only this employee (case-insensitive)")
     parser.add_argument("--hours", type=float, default=6.0, help="Overtime threshold in hours (default: 6.0)")
     parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose logging")

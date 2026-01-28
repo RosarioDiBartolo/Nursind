@@ -113,7 +113,7 @@ Instruction: Update this file whenever a codebase edit changes behavior, structu
   - Only-reason filters (excluded only): `--only-reason`, `--only-reason-contains`, `--only-reason-regex` (repeatable).
 - Download raw PDFs: `python -m drive_scanner.download_index --index <INDEX.json> --out downloads/raw -v`.
 - Flatten index: `python src/flatten_index.py --input <OLD.json> --out-dir downloads`.
-- Overtime analysis: `python -m drive_scanner.analyze_overtime --index <index.json> --output output/overtime_summary.json`.
+- Overtime analysis: `python -m drive_scanner.analyze_overtime --index <included.index.json> --output output/overtime_summary.json` (expects the included index from `fetch_index`).
 
 ## Tests and samples
 - `tests/test_samples.py`: sample harness across cartellino + timbrature + auto-detect.
