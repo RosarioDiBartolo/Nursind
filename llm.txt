@@ -59,7 +59,8 @@ Instruction: Update this file whenever a codebase edit changes behavior, structu
 - Detection logic:
   - `detect_document_family` scores cartellino vs timbrature via keyword hints + day line patterns.
   - `detect_timbrature_variant` distinguishes elenco vs compact via event density and value heuristics.
-- If no cartellino/timbrature markers are found (or parsing fails with no day lines), it retries with vertical-text reconstruction before failing.
+- `parse_pdf` only falls back to vertical-text reconstruction when both hint/day scores are zero; it does not fallback if hints are present.
+- If parsing fails with no markers or no day lines, it retries with vertical-text reconstruction before failing.
 - Strictness:
   - `PARSER_DETECT_STRICT=1|true|yes|on` forces strict decisions and raises `ParserDetectionError` on ambiguity.
 
@@ -107,6 +108,10 @@ Instruction: Update this file whenever a codebase edit changes behavior, structu
 
 ## CLIs and scripts
 - Cartellino CLI: `python -m cartellino_parser.cli parse --input <DIR|FILE> --out <DIR>`.
+- Parser service CLI (auto-detect): `python -m parser_service.cli parse --input <DIR|FILE> [--out <DIR>] [--recursive] [--strict] [--debug-detect] [--dump-text]`.
+  - Output layout when `--out` is set: `out/<pdf_stem>/days.csv|pairs.csv|totals.json|report.json`.
+  - Debug artifacts (when enabled with `--out`): `detect.normal.json`, `detect.vertical.json`, `extracted.normal.txt`, `extracted.vertical.txt`.
+- Sample checker: `python -m parser_service.check_samples --samples samples --out samples/output --sample 0.7 [--limit N] [--extract-if-missing]`.
 - Drive scan: `python -m drive_scanner.scan_directory --root <FOLDER_ID> --out downloads/index.scan.json -v`.
 - Drive fetch: `python -m drive_scanner.fetch_index --out downloads --included included.index.json --excluded excluded.index.json -v`.
   - Reason filters (excluded only): `--skip-reason`, `--skip-reason-contains`, `--skip-reason-regex` (repeatable).

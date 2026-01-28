@@ -27,6 +27,25 @@ from parser_service.router import parse_pdf
 parsed = parse_pdf("documents/sample.pdf")
 ```
 
+Auto-detect via CLI:
+
+```bash
+python -m parser_service.cli parse --input documents --out output --recursive
+```
+
+Outputs are written under `output/<pdf_stem>/` as `days.csv`, `pairs.csv`, `totals.json`, and `report.json`.
+Debug helpers:
+```bash
+python -m parser_service.cli parse --input documents --out output --debug-detect --dump-text
+```
+This writes `detect.normal.json`, `detect.vertical.json`, and `extracted.*.txt` under each `output/<pdf_stem>/`.
+
+Sanity-check sample outputs (majority sample):
+```bash
+python -m parser_service.check_samples --samples samples --out samples/output --sample 0.7
+```
+Add `--extract-if-missing` if extracted text artifacts are not present.
+
 Run tests:
 
 ```bash

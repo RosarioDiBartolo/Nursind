@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import os
 import re
-from typing import Literal
+from typing import Any, Dict, Literal
 
 from cartellino_parser.parser import parse_text as parse_cartellino_text
 from parser_shared.extract import extract_text, extract_text_vertical
@@ -84,6 +84,44 @@ def detect_document_family(text: str) -> DocFamily:
     return "cartellino" if score_cart > score_timb else "timbrature"
 
 
+def analyze_detection(text: str) -> Dict[str, Any]:
+    norm = normalize_text(text)
+    lines = text.splitlines()
+
+    cart_hint_hits = sum(1 for hint in CARTELLINO_HINTS if hint in norm)
+    timb_hint_hits = sum(1 for hint in TIMBRATURE_HINTS if hint in norm)
+    cart_day_hits, timb_day_hits = _count_day_lines(lines)
+
+    score_cart = cart_hint_hits * 5 + cart_day_hits
+    score_timb = timb_hint_hits * 5 + timb_day_hits
+
+    if score_cart == 0 and score_timb == 0:
+        detected_family: str | None = "none"
+    elif abs(score_cart - score_timb) <= 2:
+        detected_family = "ambiguous"
+    else:
+        detected_family = "cartellino" if score_cart > score_timb else "timbrature"
+
+    day_lines, event_lines, compact_hits = _timbrature_compact_signals(text)
+
+    return {
+        "text_length": len(text),
+        "line_count": len(lines),
+        "cart_hint_hits": cart_hint_hits,
+        "timb_hint_hits": timb_hint_hits,
+        "cart_day_hits": cart_day_hits,
+        "timb_day_hits": timb_day_hits,
+        "score_cart": score_cart,
+        "score_timb": score_timb,
+        "detected_family": detected_family,
+        "timbrature_signals": {
+            "day_lines": day_lines,
+            "event_lines": event_lines,
+            "compact_hits": compact_hits,
+        },
+    }
+
+
 def _timbrature_compact_signals(text: str) -> tuple[int, int, int]:
     day_lines = 0
     event_lines = 0
@@ -153,9 +191,8 @@ def parse_text(text: str, source: object | None = None) -> ParsedCartellino:
 
 def parse_pdf(source) -> ParsedCartellino:
     text = extract_text(source)
-    lines = text.splitlines()
-    cart_day_hits, timb_day_hits = _count_day_lines(lines)
-    if cart_day_hits == 0 and timb_day_hits == 0:
+    detect_info = analyze_detection(text)
+    if detect_info["score_cart"] == 0 and detect_info["score_timb"] == 0:
         LOGGER.info(
             "No detection markers found in extracted text for %s; trying vertical reconstruction",
             source,
