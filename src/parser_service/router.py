@@ -193,10 +193,7 @@ def parse_pdf(source) -> ParsedCartellino:
     text = extract_text(source)
     detect_info = analyze_detection(text)
     if detect_info["score_cart"] == 0 and detect_info["score_timb"] == 0:
-        LOGGER.info(
-            "No detection markers found in extracted text for %s; trying vertical reconstruction",
-            source,
-        )
+        
         text = extract_text_vertical(source)
     try:
         return parse_text(text, source)

@@ -52,7 +52,7 @@ def parse_text(text: str, source: object | None = None) -> ParsedCartellino:
     days_df = records_to_df(records)
     pairs_df = parse_pairs(lines, meta.get("year"), meta.get("month"))
     totals = parse_totals(text)
-    validation = validate_cartellino(days_df, totals)
+    validation = validate_cartellino(pairs_df, totals)
 
     #Each document has different sections
     return ParsedCartellino(

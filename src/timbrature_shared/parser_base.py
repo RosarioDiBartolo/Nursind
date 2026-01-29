@@ -6,7 +6,7 @@ from typing import Any, Callable, Dict, Iterable, List
 from parser_shared.extract import extract_text
 from parser_shared.models import CartellinoParseError, DayRecord, ParsedCartellino
 from parser_shared.records import records_to_df
-from parser_shared.validate import validate_cartellino
+from parser_shared.validate import validate_timbrature
 
 from .parse_pairs import parse_pairs
 from .parse_totals import parse_totals
@@ -49,7 +49,7 @@ def parse_text_with(
     days_df = records_to_df(records)
     pairs_df = parse_pairs(lines, meta.get("year"), meta.get("month"))
     totals = parse_totals(text)
-    validation = validate_cartellino(days_df, totals)
+    validation = validate_timbrature(pairs_df, totals)
 
     return ParsedCartellino(
         meta=meta,

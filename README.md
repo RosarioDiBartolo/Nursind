@@ -45,6 +45,10 @@ Sanity-check sample outputs (majority sample):
 python -m parser_service.check_samples --samples samples --out samples/output --sample 0.7
 ```
 Add `--extract-if-missing` if extracted text artifacts are not present.
+To inspect which day lines drive overcount:
+```bash
+python -m parser_service.check_samples --samples samples --out samples/output --sample 1.0 --diagnose-overcount
+```
 
 Run tests:
 

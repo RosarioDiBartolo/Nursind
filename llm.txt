@@ -1,5 +1,5 @@
 # LLM Codebase Briefing (Detailed)
-Last updated: 2026-01-27
+Last updated: 2026-01-28
 
 Instruction: Update this file whenever a codebase edit changes behavior, structure, public APIs, outputs, or schemas.
 
@@ -20,6 +20,8 @@ Instruction: Update this file whenever a codebase edit changes behavior, structu
 - `tests/`: sample-based parsing tests for cartellino and timbrature.
 - `samples/`: sample PDFs used by tests (cartellino/timbrature_compact/timbrature_elenco folders).
 - `downloads/`, `output/`, `scan/`: operational output folders (not required for core parsing).
+- `PARSING_SERVICE.md`: detailed parser service documentation.
+- `CODEBASE_BRIEFING.md`: concise overview for humans.
 
 ## Core data model
 - Shared dataclasses live in `src/parser_shared/models.py`:
@@ -36,9 +38,9 @@ Instruction: Update this file whenever a codebase edit changes behavior, structu
 - Text extraction: `parser_shared.extract.extract_text` (pdfplumber); if no day lines are detected, it retries with a vertical-text reconstruction from page characters.
 - Meta parsing: `cartellino_parser.utils.parse_month_year` and `parse_employee`.
 - Day parsing: `cartellino_parser.parse_days.parse_days` (regex day line + numeric tokens).
-- Pair parsing: `cartellino_parser.parse_pairs.parse_pairs` (E/U events -> pairs).
+- Pair parsing: `cartellino_parser.parse_pairs.parse_pairs` (E/U events; keeps incomplete pairs; closest exit after entry, allowing next-day exit).
 - Totals parsing: `cartellino_parser.parse_totals.parse_totals`.
-- Validation: `parser_shared.validate.validate_cartellino` compares `days_df["mo_lav"].sum()` with `totals["ore_lavorate"]`.
+- Validation: `parser_shared.validate.validate_cartellino` compares summed complete pair durations with `totals["ore_lavorate"]` when available.
 
 ### Timbrature (elenco + compact)
 - Entry points:
@@ -49,10 +51,12 @@ Instruction: Update this file whenever a codebase edit changes behavior, structu
   - `parse_days` (variant-specific)
   - `timbrature_shared.parse_pairs.parse_pairs`
   - `timbrature_shared.parse_totals.parse_totals`
-  - `parser_shared.validate.validate_cartellino`
+  - `parser_shared.validate.validate_timbrature` (tolerance 1.0 hour, when pair durations are available)
 - Day parsing differences:
   - `timbrature_elenco_parser.parse_days`: uses `extract_day_values` + event presence.
   - `timbrature_elenco_compact_parser.parse_days`: uses numeric heuristics (values >= 1.0).
+- Timbrature `mo_f`/`mo_t`/`mo_lav` are parsed but not used for validation or totals fitting.
+- Timbrature pairs keep incomplete E/U rows and match closest exit after entry (allowing next-day exits).
 
 ### Auto-detection router
 - Entry point: `parser_service.router.parse_pdf`.
@@ -79,7 +83,7 @@ Instruction: Update this file whenever a codebase edit changes behavior, structu
 ### Environment and auth
 - Env vars: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `DRIVE_ROOT_FOLDER_ID`.
 - Token path: `GOOGLE_TOKEN_PATH` (default `token.json`).
-- `drive_scanner.auth_service.load_creds` handles OAuth and token refresh.
+- `drive_scanner.auth_service.load_creds` handles OAuth and token refresh; if refresh fails (e.g., revoked token), it falls back to interactive re-auth.
 
 ### Scan (build index)
 - Entry: `drive_scanner.scan_directory:main`.
@@ -91,6 +95,7 @@ Instruction: Update this file whenever a codebase edit changes behavior, structu
 - Loads `included.index.json` and `excluded.index.json` (pydantic `Index` model in `drive_scanner.index_service`).
 - Downloads PDFs, auto-parses with `parser_service.parse_pdf`, writes outputs to:
   - `downloads/<employee>/<file_tag>/days.csv|pairs.csv|totals.json|report.json`.
+- Output paths stored in indexes are relative to the `--out` directory (employee subfolder retained).
 - Rewrites included/excluded index files periodically to reflect processing outcomes.
 
 ### Download raw PDFs (consume index)
@@ -109,25 +114,30 @@ Instruction: Update this file whenever a codebase edit changes behavior, structu
 ## CLIs and scripts
 - Cartellino CLI: `python -m cartellino_parser.cli parse --input <DIR|FILE> --out <DIR>`.
 - Parser service CLI (auto-detect): `python -m parser_service.cli parse --input <DIR|FILE> [--out <DIR>] [--recursive] [--strict] [--debug-detect] [--dump-text]`.
-  - Output layout when `--out` is set: `out/<pdf_stem>/days.csv|pairs.csv|totals.json|report.json`.
+  - Output layout when `--out` is set: `out/<relative_path_without_ext>/days.csv|pairs.csv|totals.json|report.json` (preserves input subfolders).
   - Debug artifacts (when enabled with `--out`): `detect.normal.json`, `detect.vertical.json`, `extracted.normal.txt`, `extracted.vertical.txt`.
-- Sample checker: `python -m parser_service.check_samples --samples samples --out samples/output --sample 0.7 [--limit N] [--extract-if-missing]`.
+- Sample checker: `python -m parser_service.check_samples --samples samples --out samples/output --sample 0.7 [--limit N] [--extract-if-missing] [--diagnose-overcount] [--max-lines N]`.
+  - Reports pair integrity issues for complete pairs (missing duration, duration mismatch); incomplete pairs are expected.
+  - `tests/test_check_samples.py` generates outputs and runs full checks (no skipping).
 - Drive scan: `python -m drive_scanner.scan_directory --root <FOLDER_ID> --out downloads/index.scan.json -v`.
 - Drive fetch: `python -m drive_scanner.fetch_index --out downloads --included included.index.json --excluded excluded.index.json -v`.
   - Reason filters (excluded only): `--skip-reason`, `--skip-reason-contains`, `--skip-reason-regex` (repeatable).
   - Only-reason filters (excluded only): `--only-reason`, `--only-reason-contains`, `--only-reason-regex` (repeatable).
+  - Output reuse: `--skip-existing-outputs` skips processing when all output files already exist.
 - Download raw PDFs: `python -m drive_scanner.download_index --index <INDEX.json> --out downloads/raw -v`.
 - Flatten index: `python src/flatten_index.py --input <OLD.json> --out-dir downloads`.
-- Overtime analysis: `python -m drive_scanner.analyze_overtime --index <included.index.json> --output output/overtime_summary.json` (expects the included index from `fetch_index`).
+- Overtime analysis: `python -m drive_scanner.analyze_overtime --index <included.index.json> --output output/overtime_summary.json` (closes incomplete pairs within each file; configurable via `--close-gap-hours`; also writes `output/overtime_summary.csv`).
 
 ## Tests and samples
-- `tests/test_samples.py`: sample harness across cartellino + timbrature + auto-detect.
-- `tests/test_timbrature_samples.py`: timbrature-only checks (days count 28–31, totals validation).
+- `tests/test_samples.py`: sample harness across cartellino + timbrature + auto-detect (uses parser validation where available).
+- `tests/test_timbrature_samples.py`: timbrature-only checks (days count 28-31, validation when available, pair duration consistency).
+- `tests/test_check_samples.py`: wraps `check_samples` for full sample output verification.
 - Samples expected under `samples/cartellino`, `samples/timbrature_compact`, `samples/timbrature_elenco`.
 
 ## Conventions and implementation notes
 - Parser outputs must be DataFrames with explicit column ordering.
-- Validation uses `ore_lavorate` against `days_df["mo_lav"].sum()` when present (tolerance 0.05).
+- Cartellino validation compares summed complete pair durations against `ore_lavorate` (tolerance 0.05, when available).
+- Timbrature validation uses `validate_timbrature` (tolerance 1.0 hour, when available).
 - Parser modules use `pathlib.Path`; drive modules use `os.path`.
 - Logging: use `logging.getLogger(__name__)` in parsers and `drive_scanner.logging_utils` for CLI.
 - Numeric parsing handles Italian decimals and HH:MM-style hours via `parser_shared.numbers`.

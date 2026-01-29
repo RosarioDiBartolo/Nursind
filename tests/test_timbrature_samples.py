@@ -27,9 +27,19 @@ def _assert_timbrature_parse(pdf_path: Path, parsed) -> None:
     totals = parsed.totals
     if "ore_lavorate" in totals:
         assert totals["ore_lavorate"] is not None
-        if parsed.validation.get("is_ok"):
-            diff = abs(parsed.days_df["mo_lav"].sum() - totals["ore_lavorate"])
-            assert diff < 0.05
+        is_ok = parsed.validation.get("is_ok")
+        if is_ok is not None:
+            assert is_ok is True
+
+    pairs_df = parsed.pairs_df
+    assert isinstance(pairs_df, pd.DataFrame)
+    if not pairs_df.empty:
+        complete = pairs_df["entry_ts"].notna() & pairs_df["exit_ts"].notna()
+        if complete.any():
+            assert pairs_df.loc[complete, "duration_hhmm"].isna().sum() == 0
+        incomplete = ~complete
+        if incomplete.any():
+            assert pairs_df.loc[incomplete, "duration_hhmm"].notna().sum() == 0
 
 
 def test_parse_timbrature_type_2_samples() -> None:

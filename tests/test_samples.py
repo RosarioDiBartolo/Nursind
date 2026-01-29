@@ -54,12 +54,12 @@ def _validate_result(parsed) -> tuple[int | None, bool | None, float | None]:
     if not isinstance(days_df, pd.DataFrame):
         return None, None, None
     days = len(days_df)
-    totals = parsed.totals or {}
-    ore_total = totals.get("ore_lavorate")
-    if ore_total is None:
-        return days, None, None
-    diff = float(days_df["mo_lav"].fillna(0).sum() - float(ore_total))
-    return days, abs(diff) < 0.05, diff
+    validation = parsed.validation if hasattr(parsed, "validation") else {}
+    is_ok = validation.get("is_ok") if isinstance(validation, dict) else None
+    diff = validation.get("ore_lavorate_diff") if isinstance(validation, dict) else None
+    if isinstance(is_ok, bool):
+        return days, is_ok, diff
+    return days, None, diff
 
 
 def run_samples(samples_root: Path, mode: str, strict: bool) -> list[FileResult]:

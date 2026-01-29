@@ -21,6 +21,10 @@ DAY_LINE_RE = re.compile(r"^(?P<day>0[1-9]|[12][0-9]|3[01])\s+(?P<dow>LU|MA|ME|G
 EVENT_RE = re.compile(r"\b(?P<kind>[EU])\s*\(?(?P<time>\d{2}:\d{2})\)?")
 
 
+def _day_allows_match(entry_day: int, exit_day: int) -> bool:
+    return exit_day == entry_day or exit_day == entry_day + 1
+
+
 def _append_pair(
     pairs: List[PairRecord],
     year: int | None,
@@ -61,9 +65,8 @@ def parse_pairs(lines: Iterable[str], year: int | None, month: int | None) -> pd
     pairs: List[PairRecord] = []
     current_day: Optional[int] = None
     current_dow: Optional[str] = None
-    current_entry: Optional[Tuple[str, str]] = None
-    # pair_index orders emitted pairs within the current day; it resets on day change.
-    pair_index = 0
+    pending_entry: Optional[dict] = None
+    pair_index_by_day: dict[int, int] = {}
 
     for line in lines:
         stripped = line.strip()
@@ -71,24 +74,23 @@ def parse_pairs(lines: Iterable[str], year: int | None, month: int | None) -> pd
         if match:
             day = int(match.group("day"))
             dow = match.group("dow")
-            if current_day is None:
-                current_day, current_dow, pair_index = day, dow, 0
-            elif day != current_day or dow != current_dow:
-                if current_entry is not None:
-                    _append_pair(
-                        pairs,
-                        year,
-                        month,
-                        current_day,
-                        current_dow,
-                        pair_index,
-                        current_entry,
-                        None,
-                        None,
-                    )
-                    pair_index += 1
-                    current_entry = None
-                current_day, current_dow, pair_index = day, dow, 0
+            if pending_entry is not None and not _day_allows_match(pending_entry["day"], day):
+                pending_day = pending_entry["day"]
+                _append_pair(
+                    pairs,
+                    year,
+                    month,
+                    pending_day,
+                    pending_entry["dow"],
+                    pending_entry["pair_index"],
+                    (pending_entry["time"], pending_entry["raw"]),
+                    None,
+                    None,
+                )
+                pair_index_by_day[pending_day] = pair_index_by_day.get(pending_day, 0) + 1
+                pending_entry = None
+            current_day, current_dow = day, dow
+            pair_index_by_day.setdefault(current_day, 0)
 
         if current_day is None:
             continue
@@ -101,61 +103,102 @@ def parse_pairs(lines: Iterable[str], year: int | None, month: int | None) -> pd
             kind = event.group("kind")
             time_value = event.group("time")
             if kind == "E":
-                if current_entry is not None:
+                if pending_entry is not None:
+                    pending_day = pending_entry["day"]
                     _append_pair(
                         pairs,
                         year,
                         month,
-                        current_day or day,
-                        current_dow or dow,
-                        pair_index,
-                        current_entry,
+                        pending_day,
+                        pending_entry["dow"],
+                        pending_entry["pair_index"],
+                        (pending_entry["time"], pending_entry["raw"]),
                         None,
                         None,
                     )
-                    pair_index += 1
-                current_entry = (time_value, line)
+                    pair_index_by_day[pending_day] = pair_index_by_day.get(pending_day, 0) + 1
+                    pending_entry = None
+                if current_day is None or current_dow is None:
+                    continue
+                pending_entry = {
+                    "day": current_day,
+                    "dow": current_dow,
+                    "time": time_value,
+                    "raw": line,
+                    "pair_index": pair_index_by_day[current_day],
+                }
             else:
-                if current_entry is None:
+                if pending_entry is None:
                     _append_pair(
                         pairs,
                         year,
                         month,
-                        current_day or day,
-                        current_dow or dow,
-                        pair_index,
+                        current_day,
+                        current_dow,
+                        pair_index_by_day[current_day],
                         None,
                         time_value,
                         line,
                     )
-                    pair_index += 1
+                    pair_index_by_day[current_day] = pair_index_by_day.get(current_day, 0) + 1
                 else:
-                    _append_pair(
-                        pairs,
-                        year,
-                        month,
-                        current_day or day,
-                        current_dow or dow,
-                        pair_index,
-                        current_entry,
-                        time_value,
-                        line,
-                    )
-                    pair_index += 1
-                    current_entry = None
+                    if _day_allows_match(pending_entry["day"], current_day):
+                        pending_day = pending_entry["day"]
+                        _append_pair(
+                            pairs,
+                            year,
+                            month,
+                            pending_day,
+                            pending_entry["dow"],
+                            pending_entry["pair_index"],
+                            (pending_entry["time"], pending_entry["raw"]),
+                            time_value,
+                            line,
+                        )
+                        pair_index_by_day[pending_day] = pair_index_by_day.get(pending_day, 0) + 1
+                        pending_entry = None
+                    else:
+                        pending_day = pending_entry["day"]
+                        _append_pair(
+                            pairs,
+                            year,
+                            month,
+                            pending_day,
+                            pending_entry["dow"],
+                            pending_entry["pair_index"],
+                            (pending_entry["time"], pending_entry["raw"]),
+                            None,
+                            None,
+                        )
+                        pair_index_by_day[pending_day] = pair_index_by_day.get(pending_day, 0) + 1
+                        pending_entry = None
+                        _append_pair(
+                            pairs,
+                            year,
+                            month,
+                            current_day,
+                            current_dow,
+                            pair_index_by_day[current_day],
+                            None,
+                            time_value,
+                            line,
+                        )
+                        pair_index_by_day[current_day] = pair_index_by_day.get(current_day, 0) + 1
 
-    if current_entry and current_day is not None and current_dow is not None:
+    if pending_entry is not None:
+        pending_day = pending_entry["day"]
         _append_pair(
             pairs,
             year,
             month,
-            current_day,
-            current_dow,
-            pair_index,
-            current_entry,
+            pending_day,
+            pending_entry["dow"],
+            pending_entry["pair_index"],
+            (pending_entry["time"], pending_entry["raw"]),
             None,
             None,
         )
+        pair_index_by_day[pending_day] = pair_index_by_day.get(pending_day, 0) + 1
 
     rows = [asdict(record) for record in pairs]
     return pd.DataFrame(

@@ -88,6 +88,7 @@ def process_document(
     doc: IndexFile,
     out_dir: str,
     stop_event: threading.Event,
+    skip_existing_outputs: bool = False,
 ):
     drive = get_drive_service(creds)
     emp_name = _doc_attr(doc, "employee") or "unknown"
@@ -136,6 +137,34 @@ def process_document(
 
     emp_dir = os.path.join(out_dir, safe_emp)
     file_dir = os.path.join(emp_dir, file_tag)
+    days_path = os.path.join(file_dir, "days.csv")
+    pairs_path = os.path.join(file_dir, "pairs.csv")
+    totals_path = os.path.join(file_dir, "totals.json")
+    report_path = os.path.join(file_dir, "report.json")
+
+    rel_days = os.path.join(safe_emp, file_tag, "days.csv")
+    rel_pairs = os.path.join(safe_emp, file_tag, "pairs.csv")
+    rel_totals = os.path.join(safe_emp, file_tag, "totals.json")
+    rel_report = os.path.join(safe_emp, file_tag, "report.json")
+
+    if skip_existing_outputs and all(
+        os.path.exists(path) for path in (days_path, pairs_path, totals_path, report_path)
+    ):
+        return {
+            "status": "success",
+            "employee": emp_name,
+            "employee_id": emp_id,
+            "file_id": file_id,
+            "file_name": file_name,
+            "outputs": {
+                "days_csv": rel_days,
+                "pairs_csv": rel_pairs,
+                "totals_json": rel_totals,
+                "report_json": rel_report,
+            },
+            "skipped": True,
+        }
+
     ensure_dir(file_dir)
 
     try:
@@ -145,11 +174,6 @@ def process_document(
         if stop_event.is_set():
             raise RuntimeError("cancelled")
         parsed = parse_pdf(stream)
-
-        days_path = os.path.join(file_dir, "days.csv")
-        pairs_path = os.path.join(file_dir, "pairs.csv")
-        totals_path = os.path.join(file_dir, "totals.json")
-        report_path = os.path.join(file_dir, "report.json")
 
         parsed.days_df.to_csv(days_path, index=False)
         parsed.pairs_df.to_csv(pairs_path, index=False)
@@ -169,10 +193,10 @@ def process_document(
             "file_id": file_id,
             "file_name": file_name,
             "outputs": {
-                "days_csv": days_path,
-                "pairs_csv": pairs_path,
-                "totals_json": totals_path,
-                "report_json": report_path,
+                "days_csv": rel_days,
+                "pairs_csv": rel_pairs,
+                "totals_json": rel_totals,
+                "report_json": rel_report,
             },
         }
     except Exception as exc:
@@ -248,6 +272,11 @@ def main():
     )
  
     parser.add_argument("--workers", type=int, default=6)
+    parser.add_argument(
+        "--skip-existing-outputs",
+        action="store_true",
+        help="Skip processing when all output files already exist (default: false)",
+    )
     parser.add_argument("--verbose", "-v", action="store_true")
     args = parser.parse_args()
 
@@ -289,6 +318,8 @@ def main():
             len(skip_contains),
             len(skip_regexes),
         )
+    if args.skip_existing_outputs:
+        logger.info("Skip-existing-outputs enabled")
 
     total_docs = len(docs)
     only_exact = set(args.only_reason or [])
@@ -352,7 +383,7 @@ def main():
     with ThreadPoolExecutor(max_workers=args.workers) as pool:
         logger.info("Submitting %d tasks to ThreadPoolExecutor (workers=%d)", len(docs), args.workers)
         futures = [
-            pool.submit(process_document, creds,  doc, args.out, stop_event)
+            pool.submit(process_document, creds, doc, args.out, stop_event, args.skip_existing_outputs)
             for doc in docs
         ]
         try:

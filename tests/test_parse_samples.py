@@ -20,6 +20,22 @@ def _iter_sample_pdfs() -> list[Path]:
     return sorted(samples_dir.glob("*.pdf"))
 
 
+def _pair_duration_sum(pairs_df: pd.DataFrame) -> float | None:
+    if pairs_df is None or pairs_df.empty:
+        return None
+    if "entry_ts" not in pairs_df.columns or "exit_ts" not in pairs_df.columns:
+        return None
+    durations = pairs_df[["entry_ts", "exit_ts"]].copy()
+    durations["entry_ts"] = pd.to_datetime(durations["entry_ts"], errors="coerce")
+    durations["exit_ts"] = pd.to_datetime(durations["exit_ts"], errors="coerce")
+    durations = durations.dropna(subset=["entry_ts", "exit_ts"])
+    if durations.empty:
+        return None
+    delta = durations["exit_ts"] - durations["entry_ts"]
+    hours = delta.dt.total_seconds() / 3600.0
+    return float(hours.sum())
+
+
 def test_parse_cartellino_samples() -> None:
     pdfs = _iter_sample_pdfs()
     if not pdfs:
@@ -44,5 +60,7 @@ def test_parse_cartellino_samples() -> None:
             assert totals["saldo_al_mese_corrente"] is not None
 
         if totals.get("ore_lavorate") is not None:
-            diff = abs(parsed.days_df["mo_lav"].sum() - totals["ore_lavorate"])
-            assert diff < 0.05
+            pair_sum = _pair_duration_sum(parsed.pairs_df)
+            if pair_sum is not None:
+                diff = abs(pair_sum - totals["ore_lavorate"])
+                assert diff < 0.05

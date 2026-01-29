@@ -5,7 +5,7 @@ import json
 import logging
 from pathlib import Path
 
-from parser_service.router import analyze_detection, parse_pdf
+from parser_service.router import analyze_detection, parse_pdf, parse_text
 from parser_shared.extract import extract_text, extract_text_vertical
 from parser_shared.models import CartellinoParseError, ParserDetectionError
 
@@ -23,8 +23,14 @@ def _iter_pdfs(input_path: Path, recursive: bool) -> list[Path]:
     return sorted(input_path.glob(pattern))
 
 
-def _write_outputs(out_dir: Path, stem: str, parsed) -> None:
-    file_out = out_dir / stem
+def _output_subdir(input_root: Path, pdf_path: Path) -> Path:
+    if input_root.is_dir():
+        return pdf_path.relative_to(input_root).with_suffix("")
+    return Path(pdf_path.stem)
+
+
+def _write_outputs(out_dir: Path, output_path: Path, parsed) -> None:
+    file_out = out_dir / output_path
     file_out.mkdir(parents=True, exist_ok=True)
     days_path = file_out / "days.csv"
     pairs_path = file_out / "pairs.csv"
@@ -44,14 +50,14 @@ def _write_outputs(out_dir: Path, stem: str, parsed) -> None:
 
 def _write_debug_files(
     out_dir: Path,
-    stem: str,
+    output_path: Path,
     text_label: str,
     text: str,
     detect_info: dict,
     dump_text: bool,
     debug_detect: bool,
 ) -> None:
-    file_out = out_dir / stem
+    file_out = out_dir / output_path
     file_out.mkdir(parents=True, exist_ok=True)
     if dump_text:
         text_path = file_out / f"extracted.{text_label}.txt"
@@ -98,13 +104,22 @@ def main() -> int:
 
     failures = 0
     for pdf_path in pdf_paths:
+        output_path = _output_subdir(input_path, pdf_path)
         if args.debug_detect or args.dump_text:
             text = extract_text(pdf_path)
             detect_info = analyze_detection(text)
             if args.debug_detect:
                 LOGGER.info("Detect(normal) %s: %s", pdf_path, json.dumps(detect_info, ensure_ascii=False))
             if out_dir is not None:
-                _write_debug_files(out_dir, pdf_path.stem, "normal", text, detect_info, args.dump_text, args.debug_detect)
+                _write_debug_files(
+                    out_dir,
+                    output_path,
+                    "normal",
+                    text,
+                    detect_info,
+                    args.dump_text,
+                    args.debug_detect,
+                )
 
             text_vertical = extract_text_vertical(pdf_path)
             detect_info_vertical = analyze_detection(text_vertical)
@@ -117,7 +132,7 @@ def main() -> int:
             if out_dir is not None:
                 _write_debug_files(
                     out_dir,
-                    pdf_path.stem,
+                    output_path,
                     "vertical",
                     text_vertical,
                     detect_info_vertical,
@@ -125,7 +140,23 @@ def main() -> int:
                     args.debug_detect,
                 )
         try:
-            parsed = parse_pdf(pdf_path)
+            if args.debug_detect or args.dump_text:
+                text_for_parse = text
+                if detect_info["score_cart"] == 0 and detect_info["score_timb"] == 0:
+                    text_for_parse = text_vertical
+                try:
+                    parsed = parse_text(text_for_parse, pdf_path)
+                except ParserDetectionError as exc:
+                    message = str(exc).lower()
+                    if "no cartellino or timbrature markers found" not in message:
+                        raise
+                    parsed = parse_text(text_vertical, pdf_path)
+                except CartellinoParseError as exc:
+                    if "No day lines found" not in str(exc):
+                        raise
+                    parsed = parse_text(text_vertical, pdf_path)
+            else:
+                parsed = parse_pdf(pdf_path)
         except (ParserDetectionError, CartellinoParseError) as exc:
             failures += 1
             if args.verbose:
@@ -137,7 +168,7 @@ def main() -> int:
             continue
         print(f"{pdf_path}: {json.dumps(parsed.totals, ensure_ascii=False)}")
         if out_dir is not None:
-            _write_outputs(out_dir, pdf_path.stem, parsed)
+            _write_outputs(out_dir, output_path, parsed)
 
     return 1 if failures else 0
 
