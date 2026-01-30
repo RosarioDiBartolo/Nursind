@@ -6,8 +6,8 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from drive_scanner.download_index import _build_output_path, _is_pdf, download_index_files  # noqa: E402
-from drive_scanner.index_service import extract_index_files  # noqa: E402
+from drive_scripts.download_index import _build_output_path, _is_pdf, download_index_files  # noqa: E402
+from drive_scripts.index_service import extract_index_files  # noqa: E402
 
 
 def test_extract_index_files_current_schema():

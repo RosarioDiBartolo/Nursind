@@ -17,37 +17,37 @@ python -m pip install -e .[dev]
 Parse a cartellino PDF:
 
 ```bash
-python -m cartellino_parser.cli parse --input documents --out output
+python -m parsing.parsers.cartellino.cli parse --input documents --out output
 ```
 
 Auto-detect cartellino vs timbrature:
 
 ```python
-from parser_service.router import parse_pdf
+from parsing import parse_pdf
 parsed = parse_pdf("documents/sample.pdf")
 ```
 
 Auto-detect via CLI:
 
 ```bash
-python -m parser_service.cli parse --input documents --out output --recursive
+python -m parsing.cli parse --input documents --out output --recursive
 ```
 
 Outputs are written under `output/<pdf_stem>/` as `days.csv`, `pairs.csv`, `totals.json`, and `report.json`.
 Debug helpers:
 ```bash
-python -m parser_service.cli parse --input documents --out output --debug-detect --dump-text
+python -m parsing.cli parse --input documents --out output --debug-detect --dump-text
 ```
 This writes `detect.normal.json`, `detect.vertical.json`, and `extracted.*.txt` under each `output/<pdf_stem>/`.
 
 Sanity-check sample outputs (majority sample):
 ```bash
-python -m parser_service.check_samples --samples samples --out samples/output --sample 0.7
+python -m parsing.parser_service.check_samples --samples samples --out samples/output --sample 0.7
 ```
 Add `--extract-if-missing` if extracted text artifacts are not present.
 To inspect which day lines drive overcount:
 ```bash
-python -m parser_service.check_samples --samples samples --out samples/output --sample 1.0 --diagnose-overcount
+python -m parsing.parser_service.check_samples --samples samples --out samples/output --sample 1.0 --diagnose-overcount
 ```
 
 Run tests:
@@ -67,7 +67,7 @@ pytest
 ## Programmatic usage
 
 ```python
-from cartellino_parser import parse_pdf
+from parsing.parsers.cartellino import parse_pdf
 
 parsed = parse_pdf("documents/Cartellino mensile-2022-07.pdf")
 print(parsed.meta)
@@ -78,7 +78,7 @@ print(parsed.validation)
 ```
 
 ## Auto-detection behavior
-- `parser_service.router.parse_pdf` detects cartellino vs timbrature using keyword hints and day-line patterns.
+- `parsing.parse_pdf` detects cartellino vs timbrature using keyword hints and day-line patterns.
 - Set `PARSER_DETECT_STRICT=1` to raise on ambiguous detection instead of defaulting.
 
 ## Drive scanner (bulk)
@@ -92,31 +92,31 @@ Environment variables:
 Scan Drive and build an index:
 
 ```bash
-python -m drive_scanner.scan_directory --root <FOLDER_ID> --out downloads/index.scan.json -v
+python -m drive_scripts.scan_directory --root <FOLDER_ID> --out downloads/index.scan.json -v
 ```
 
 Convert legacy index to included/excluded:
 
 ```bash
-python src/flatten_index.py --input downloads/index.scan.json --out-dir downloads
+python convert_index_to_map.py downloads/index.scan.json
 ```
 
 Fetch + parse PDFs from an index:
 
 ```bash
-python -m drive_scanner.fetch_index --out downloads --included included.index.json --excluded excluded.index.json -v
+python -m drive_scripts.fetch_index --out downloads --included included.index.json --excluded excluded.index.json -v
 ```
 
 Download raw PDFs from any index:
 
 ```bash
-python -m drive_scanner.download_index --index <INDEX.json> --out downloads/raw -v
+python -m drive_scripts.download_index --index <INDEX.json> --out downloads/raw -v
 ```
 
 Download raw PDFs from an index:
 
 ```bash
-python -m drive_scanner.download_index --index included.index.json --out downloads -v
+python -m drive_scripts.download_index --index included.index.json --out downloads -v
 ```
 
 Console scripts (from `pyproject.toml`):

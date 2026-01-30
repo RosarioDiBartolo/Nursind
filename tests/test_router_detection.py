@@ -6,11 +6,11 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from parser_service.router import (  # noqa: E402
+from parsing.parser_service.router import (  # noqa: E402
     detect_document_family,
     detect_timbrature_variant,
 )
-from parser_shared.models import ParserDetectionError  # noqa: E402
+from parsing.parser_shared.models import ParserDetectionError  # noqa: E402
 
 
 def test_detect_document_family_cartellino():

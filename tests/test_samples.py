@@ -12,10 +12,10 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from cartellino_parser import parse_pdf as parse_cartellino_pdf  # noqa: E402
-from parser_service.router import parse_pdf as parse_auto_pdf  # noqa: E402
-from timbrature_elenco_compact_parser import parse_pdf as parse_compact_pdf  # noqa: E402
-from timbrature_elenco_parser import parse_pdf as parse_elenco_pdf  # noqa: E402
+from parsing.parsers.cartellino import parse_pdf as parse_cartellino_pdf  # noqa: E402
+from parsing.parser_service.router import parse_pdf as parse_auto_pdf  # noqa: E402
+from parsing.parsers.timbrature_compact import parse_pdf as parse_compact_pdf  # noqa: E402
+from parsing.parsers.timbrature_elenco import parse_pdf as parse_elenco_pdf  # noqa: E402
 
 
 @dataclass

@@ -10,7 +10,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from cartellino_parser import parse_pdf  # noqa: E402
+from parsing.parsers.cartellino import parse_pdf  # noqa: E402
 
 
 def _iter_rotated_pdfs() -> list[Path]:

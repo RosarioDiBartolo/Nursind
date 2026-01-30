@@ -6,7 +6,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from drive_scanner.index_service import Index  # noqa: E402
+from drive_scripts.index_service import Index  # noqa: E402
 
 
 def test_load_index_missing_returns_empty(tmp_path):
