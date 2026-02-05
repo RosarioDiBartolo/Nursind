@@ -23,5 +23,8 @@
     "**/__pycache__/**": true,
     "**/dist/**": true,
     "**/build/**": true
-  }
+  },
+  "python.analysis.extraPaths": [
+    "./src/parsing"
+  ]
 }

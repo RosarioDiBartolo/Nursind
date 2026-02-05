@@ -1,7 +1,7 @@
 import argparse
 import os
 
-from drive_scanner.map_index_service import MapIndex
+from drive_scripts.map_index_service import MapIndex
 
 
 def _default_out_path(path: str) -> str:

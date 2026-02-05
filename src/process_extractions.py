@@ -247,9 +247,16 @@ def calculate_overtime(
         merged_df = None
         total_shifts = 0
         overtime_count = 0
+        turni_notte = 0
+        turni_pomeriggio = 0
+        turni_festivi = 0
+        turni_notte_pomeriggio_festivi = 0
+        straordinari_notte = 0
+        straordinari_pomeriggio = 0
+        straordinari_festivi = 0
         if pairs_dfs:
             merged_df = pd.concat(pairs_dfs, ignore_index=True)
-        
+
         if merged_df is not None:
             # Convert timestamps to datetime
             merged_df["entry_ts"] = _to_datetime_series(merged_df["entry_ts"])
@@ -262,7 +269,30 @@ def calculate_overtime(
             valid_shifts = merged_df.dropna(subset=["entry_ts", "exit_ts", "duration"])
             valid_shifts = valid_shifts[valid_shifts["duration"] >= pd.Timedelta(0)]
             total_shifts = len(valid_shifts)
-            overtime_count = (valid_shifts["duration"] > pd.Timedelta(hours=hours_threshold)).sum()
+            overtime_mask = valid_shifts["duration"] > pd.Timedelta(hours=hours_threshold)
+            overtime_count = int(overtime_mask.sum())
+
+            turno_norm = (
+                valid_shifts.get("turno", pd.Series(index=valid_shifts.index, dtype="object"))
+                .fillna("")
+                .astype(str)
+                .str.strip()
+                .str.lower()
+            )
+            notte_mask = turno_norm == "notte"
+            pomeriggio_mask = turno_norm == "pomeriggio"
+            domenica_mask = valid_shifts["entry_ts"].dt.dayofweek == 6
+
+            turni_notte = int(notte_mask.sum())
+            turni_pomeriggio = int(pomeriggio_mask.sum())
+            turni_festivi = int(domenica_mask.sum())
+            turni_notte_pomeriggio_festivi = int(
+                (notte_mask | pomeriggio_mask | domenica_mask).sum()
+            )
+
+            straordinari_notte = int((notte_mask & overtime_mask).sum())
+            straordinari_pomeriggio = int((pomeriggio_mask & overtime_mask).sum())
+            straordinari_festivi = int((domenica_mask & overtime_mask).sum())
 
         # Save employee-specific CSV (when available) and report
         emp_safe_name = safe_name(emp_name)
@@ -279,16 +309,23 @@ def calculate_overtime(
             output_df.to_csv(csv_path, index=False)
         
         emp_report = {
-            "employee": emp_name,
-            "employee_id": emp_id,
-            "total_shifts": int(total_shifts),
-            "overtime_shifts": int(overtime_count),
-            "overtime_threshold_hours": hours_threshold,
-            "broken": int(broken),
-            "excluded": int(excluded_other),
-            "excluded_total": int(excluded_total),
-            "broken_file_ids": broken_ids,
-            "generated_at": pd.Timestamp.now().isoformat()
+            "dipendente": emp_name,
+            "matricola": emp_id,
+            "turni_totali": int(total_shifts),
+            "turni_straordinari": int(overtime_count),
+            "soglia_straordinario_ore": hours_threshold,
+            "turni_notte": int(turni_notte),
+            "turni_pomeriggio": int(turni_pomeriggio),
+            "turni_festivi": int(turni_festivi),
+            "turni_notte_pomeriggio_festivi": int(turni_notte_pomeriggio_festivi),
+            "turni_straordinari_notte": int(straordinari_notte),
+            "turni_straordinari_pomeriggio": int(straordinari_pomeriggio),
+            "turni_straordinari_festivi": int(straordinari_festivi),
+            "danneggiati": int(broken),
+            "esclusi": int(excluded_other),
+            "esclusi_totali": int(excluded_total),
+            "file_danneggiati": broken_ids,
+            "generato_il": pd.Timestamp.now().isoformat(),
         }
         
         index_path_emp = os.path.join(emp_output_dir, "report.json")
@@ -301,15 +338,25 @@ def calculate_overtime(
             _path_for_log(index_path_emp, index_path),
         )
 
-        summary.append({
-            "employee": emp_name,
-            "employee_id": emp_id,
-            "total_shifts": int(total_shifts),
-            "overtime_shifts": int(overtime_count),
-            "broken": int(broken),
-            "excluded": int(excluded_other),
-            "excluded_total": int(excluded_total),
-        })
+        summary.append(
+            {
+                "dipendente": emp_name,
+                "matricola": emp_id,
+                "turni_totali": int(total_shifts),
+                "turni_straordinari": int(overtime_count),
+                "turni_notte": int(turni_notte),
+                "turni_pomeriggio": int(turni_pomeriggio),
+                "turni_festivi": int(turni_festivi),
+                "turni_notte_pomeriggio_festivi": int(turni_notte_pomeriggio_festivi),
+                "turni_straordinari_notte": int(straordinari_notte),
+                "turni_straordinari_pomeriggio": int(straordinari_pomeriggio),
+                "turni_straordinari_festivi": int(straordinari_festivi),
+                "danneggiati": int(broken),
+                "esclusi": int(excluded_other),
+                "esclusi_totali": int(excluded_total),
+                "file_danneggiati": broken_ids,
+            }
+        )
 
     for key, meta in excluded_meta.items():
         if key in seen_keys:
@@ -323,29 +370,44 @@ def calculate_overtime(
         excluded_total = broken + excluded_other
         summary.append(
             {
-                "employee": emp_name,
-                "employee_id": emp_id,
-                "total_shifts": 0,
-                "overtime_shifts": 0,
-                "broken": broken,
-                "excluded": excluded_other,
-                "excluded_total": excluded_total,
+                "dipendente": emp_name,
+                "matricola": emp_id,
+                "turni_totali": 0,
+                "turni_straordinari": 0,
+                "turni_notte": 0,
+                "turni_pomeriggio": 0,
+                "turni_festivi": 0,
+                "turni_notte_pomeriggio_festivi": 0,
+                "turni_straordinari_notte": 0,
+                "turni_straordinari_pomeriggio": 0,
+                "turni_straordinari_festivi": 0,
+                "danneggiati": broken,
+                "esclusi": excluded_other,
+                "esclusi_totali": excluded_total,
+                "file_danneggiati": broken_ids,
             }
         )
         emp_safe_name = safe_name(emp_name)
         emp_output_dir = os.path.join(output_dir, emp_safe_name)
         ensure_dir(emp_output_dir)
         emp_report = {
-            "employee": emp_name,
-            "employee_id": emp_id,
-            "total_shifts": 0,
-            "overtime_shifts": 0,
-            "overtime_threshold_hours": hours_threshold,
-            "broken": broken,
-            "excluded": excluded_other,
-            "excluded_total": excluded_total,
-            "broken_file_ids": broken_ids,
-            "generated_at": pd.Timestamp.now().isoformat(),
+            "dipendente": emp_name,
+            "matricola": emp_id,
+            "turni_totali": 0,
+            "turni_straordinari": 0,
+            "soglia_straordinario_ore": hours_threshold,
+            "turni_notte": 0,
+            "turni_pomeriggio": 0,
+            "turni_festivi": 0,
+            "turni_notte_pomeriggio_festivi": 0,
+            "turni_straordinari_notte": 0,
+            "turni_straordinari_pomeriggio": 0,
+            "turni_straordinari_festivi": 0,
+            "danneggiati": broken,
+            "esclusi": excluded_other,
+            "esclusi_totali": excluded_total,
+            "file_danneggiati": broken_ids,
+            "generato_il": pd.Timestamp.now().isoformat(),
         }
         index_path_emp = os.path.join(emp_output_dir, "report.json")
         with open(index_path_emp, "w", encoding="utf-8") as f:
@@ -360,11 +422,16 @@ def calculate_overtime(
     except Exception as exc:
         logger.error("Failed to write summary CSV %s: %s", summary_csv_path, exc)
 
-    total_shifts = sum(e["total_shifts"] for e in summary)
-    total_overtime = sum(e["overtime_shifts"] for e in summary)
+    total_shifts = sum(e.get("turni_totali", 0) for e in summary)
+    total_overtime = sum(e.get("turni_straordinari", 0) for e in summary)
     logger.info("Summary saved to %s", _path_for_log(output_path, index_path))
     logger.info("Summary CSV saved to %s", _path_for_log(summary_csv_path, index_path))
-    logger.info(f"Processed {len(summary)} employees: {total_shifts} total shifts, {total_overtime} overtime shifts")
+    logger.info(
+        "Processati %s dipendenti: %s turni totali, %s turni straordinari",
+        len(summary),
+        total_shifts,
+        total_overtime,
+    )
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

@@ -7,7 +7,7 @@ Parse Italian payroll PDFs (cartellini + timbrature) into normalized CSV/JSON ou
 ## Layout
 - Parsing lives under `src/parsing/` with the public facade in `parsing` and parser implementations under `src/parsing/parsers/` (cartellino, timbrature_compact, timbrature_elenco). Shared helpers stay in `parsing/parser_shared` and `parsing/timbrature_shared`.
 - Drive tooling lives under `src/drive_scripts/` (scan, fetch/parse, download, index helpers).
-- Scripts: `src/fetch_index_pipeline.py` (parallel download/parse), `src/process_extractions.py` (overtime summaries), `convert_index_to_map.py` (legacy list -> map index).
+- Scripts: `src/fetch_index_pipeline.py` (parallel download/parse), `src/process_extractions.py` (overtime summaries), `src/turni_summary.py` (riepilogo turni Excel-like; F include domeniche + festivita italiane; anni auto dalla prima/ultima timbratura se non specificati), `convert_index_to_map.py` (legacy list -> map index).
 
 ## Key Entry Points
 - Parsing service: `parsing.parse_pdf` / `parsing.parse_text`
@@ -37,7 +37,7 @@ Parse Italian payroll PDFs (cartellini + timbrature) into normalized CSV/JSON ou
 - `IndexFile` fields: `employee`, `employee_id`, `file_id`, `file_name`, `outputs?`, `reason?`, `type?`.
 
 ## Overtime Summary
-- `src/process_extractions.py` reads an included index, closes incomplete pairs within `--close-gap-hours` (default 16h), and writes per-employee `result.csv` + `report.json` plus a summary JSON/CSV (default `output/overtime_summary.*`). Optional excluded index adds broken/excluded counts.
+- `src/process_extractions.py` reads an included index, closes incomplete pairs within `--close-gap-hours` (default 16h), and writes per-employee `result.csv` + `report.json` plus a summary JSON/CSV (default `output/overtime_summary.*`). Optional excluded index adds broken/excluded counts and `file_danneggiati` in the summary. Report/summary keys are now Italian (e.g., `turni_totali`, `turni_straordinari`, `turni_notte`, `turni_pomeriggio`, `turni_festivi`, and `turni_notte_pomeriggio_festivi`, which counts unique shifts across those categories without double-counting).
 
 ## Tests
 - Parsing samples: `tests/test_samples.py`, `tests/test_timbrature_samples.py`, `tests/test_parse_samples.py`
