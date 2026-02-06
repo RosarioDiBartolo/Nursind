@@ -4,124 +4,26 @@ import argparse
 import os
 from typing import Any, Iterable
 
-import holidays
 import pandas as pd
 
 from drive_scripts.fs_utils import ensure_parent_dir
 from drive_scripts.logging_utils import get_logger, setup_logging
 from drive_scripts.map_index_service import MapIndex
-from drive_scripts.names import safe_name
+from shift_services import (
+    EmployeeGrouper,
+    ItalianHolidayCalendar,
+    PairsCloser,
+    PairsLoader,
+    PairsPathResolver,
+    ShiftClassifier,
+    TurnoMatchPolicy,
+)
 
 logger = get_logger()
-_HOLIDAY_CACHE: dict[int, set] = {}
-
-
-def _italian_holidays_for_years(years: Iterable[int]) -> set:
-    dates: set = set()
-    for year in years:
-        year_i = int(year)
-        if year_i not in _HOLIDAY_CACHE:
-            _HOLIDAY_CACHE[year_i] = set(holidays.country_holidays("IT", years=year_i).keys())
-        dates.update(_HOLIDAY_CACHE[year_i])
-    return dates
 
 
 def _normalize_employee(name: str | None) -> str:
     return " ".join((name or "").strip().lower().split()) or "unknown"
-
-
-def _employee_key(name: str | None, employee_id: str | None) -> str:
-    if employee_id:
-        return f"id:{employee_id}"
-    norm = _normalize_employee(name)
-    return f"name:{norm}"
-
-
-def _group_files_by_employee(files: list[Any]) -> list[dict[str, Any]]:
-    grouped: dict[str, dict[str, Any]] = {}
-    for item in files:
-        name = getattr(item, "employee", None) or "unknown"
-        employee_id = getattr(item, "employee_id", None)
-        key = _employee_key(name, employee_id)
-        if key not in grouped:
-            grouped[key] = {
-                "employee": name,
-                "employee_id": employee_id,
-                "files": [],
-                "key": key,
-            }
-        grouped[key]["files"].append(item)
-    return list(grouped.values())
-
-
-def _expected_pairs_path(
-    index_path: str, emp_name: str, file_name: str | None, file_id: str | None
-) -> str:
-    base_dir = os.path.dirname(os.path.abspath(index_path))
-    safe_emp = safe_name(emp_name or "unknown")
-    base_name = safe_name(file_name or "unknown.pdf")
-    if not base_name.lower().endswith(".pdf"):
-        base_name = f"{base_name}.pdf"
-    if file_id:
-        file_tag = f"{os.path.splitext(base_name)[0]}__{file_id[:8]}"
-    else:
-        file_tag = os.path.splitext(base_name)[0]
-    return os.path.abspath(os.path.join(base_dir, safe_emp, file_tag, "pairs.csv"))
-
-
-def _to_datetime_series(values: pd.Series) -> pd.Series:
-    try:
-        return pd.to_datetime(values, errors="coerce", format="mixed")
-    except TypeError:
-        return pd.to_datetime(values, errors="coerce")
-
-
-def _close_incomplete_pairs(df: pd.DataFrame, max_gap_hours: float = 16.0) -> pd.DataFrame:
-    if df.empty:
-        return df
-    if "entry_ts" not in df.columns or "exit_ts" not in df.columns:
-        return df
-
-    working = df.copy()
-    working["entry_ts"] = _to_datetime_series(working["entry_ts"])
-    working["exit_ts"] = _to_datetime_series(working["exit_ts"])
-
-    complete_mask = working["entry_ts"].notna() & working["exit_ts"].notna()
-    closed_rows = working.loc[complete_mask].copy()
-
-    incomplete = working.loc[~complete_mask].copy()
-    events: list[tuple[pd.Timestamp, str, pd.Series]] = []
-    for _, row in incomplete.iterrows():
-        if pd.notna(row.get("entry_ts")):
-            events.append((row["entry_ts"], "entry", row))
-        elif pd.notna(row.get("exit_ts")):
-            events.append((row["exit_ts"], "exit", row))
-
-    events.sort(key=lambda item: item[0])
-    pending_entry: pd.Series | None = None
-    max_gap = pd.Timedelta(hours=max_gap_hours)
-
-    for ts, kind, row in events:
-        if kind == "entry":
-            pending_entry = row
-            continue
-        if pending_entry is None:
-            continue
-
-        entry_ts = pending_entry["entry_ts"]
-        exit_ts = ts
-        if exit_ts < entry_ts:
-            exit_ts = exit_ts + pd.Timedelta(days=1)
-        if max_gap_hours > 0 and (exit_ts - entry_ts) > max_gap:
-            pending_entry = None
-            continue
-
-        merged = pending_entry.copy()
-        merged["exit_ts"] = exit_ts
-        closed_rows = pd.concat([closed_rows, pd.DataFrame([merged])], ignore_index=True)
-        pending_entry = None
-
-    return closed_rows.reset_index(drop=True)
 
 
 def _parse_years(spec: str | None) -> list[int]:
@@ -167,10 +69,12 @@ def build_turni_summary(
     years: Iterable[int] | None,
     *,
     close_gap_hours: float = 16.0,
+    hours_threshold: float = 6.0,
     employee_filter: str | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, int], list[int]]:
     report = MapIndex.load_index(index_path, strict=True, allow_legacy=True)
-    employees = _group_files_by_employee(list(report.files.values()))
+    grouper = EmployeeGrouper(_normalize_employee)
+    employees = grouper.group(list(report.files.values()))
     total_employees = len(employees)
     if employee_filter:
         norm = _normalize_employee(employee_filter)
@@ -202,39 +106,57 @@ def build_turni_summary(
 
     employee_rollups: list[dict[str, Any]] = []
 
-    for emp in employees:
+    resolver = PairsPathResolver(index_path)
+    loader = PairsLoader(resolver)
+    closer = PairsCloser(max_gap_hours=close_gap_hours)
+    classifier = ShiftClassifier(
+        calendar=ItalianHolidayCalendar(),
+        include_holidays=True,
+        match_policy=TurnoMatchPolicy(mode="contains"),
+    )
+
+    total_files_expected = sum(len(emp.get("files", [])) for emp in employees)
+    files_seen = 0
+    log_every = 25
+
+    for emp_index, emp in enumerate(employees, start=1):
         emp_name = emp.get("employee", "unknown")
         emp_norm = _normalize_employee(emp_name)
         total_shifts = 0
+        emp_files = emp.get("files", [])
+        logger.info(
+            "Dipendente %s/%s: %s (file=%s)",
+            emp_index,
+            len(employees),
+            emp_name,
+            len(emp_files),
+        )
 
         counts_f: dict[int, int] = {}
         counts_p: dict[int, int] = {}
         counts_n: dict[int, int] = {}
 
-        for inc in emp.get("files", []):
+        for inc in emp_files:
             file_totali += 1
+            files_seen += 1
+            if files_seen % log_every == 0 or files_seen == total_files_expected:
+                logger.info("Progresso: %s/%s file", files_seen, total_files_expected)
             pairs_rel = None
             outputs = getattr(inc, "outputs", None)
             if outputs:
                 pairs_rel = getattr(outputs, "pairs_csv", None)
-            expected_path = None
-            if pairs_rel:
-                expected_path = os.path.abspath(
-                    os.path.join(os.path.dirname(os.path.abspath(index_path)), pairs_rel)
-                )
-            if not expected_path:
-                expected_path = _expected_pairs_path(
-                    index_path,
-                    emp_name,
-                    getattr(inc, "file_name", None),
-                    getattr(inc, "file_id", None),
-                )
+            expected_path = resolver.resolve_pairs_path(
+                emp_name,
+                getattr(inc, "file_name", None),
+                getattr(inc, "file_id", None),
+                pairs_rel,
+            )
             if not os.path.exists(expected_path):
                 file_mancanti += 1
                 continue
 
             try:
-                df = pd.read_csv(expected_path)
+                df = loader.load_pairs(expected_path)
             except Exception:
                 file_errori += 1
                 continue
@@ -243,23 +165,21 @@ def build_turni_summary(
                 file_colonne_mancanti += 1
                 continue
 
-            closed_df = _close_incomplete_pairs(df, max_gap_hours=close_gap_hours)
+            closed_df = closer.close(df)
             if closed_df.empty:
                 file_senza_turni += 1
                 continue
 
-            closed_df["entry_ts"] = _to_datetime_series(closed_df["entry_ts"])
-            closed_df["exit_ts"] = _to_datetime_series(closed_df["exit_ts"])
-            closed_df["duration"] = closed_df["exit_ts"] - closed_df["entry_ts"]
-
-            valid = closed_df.dropna(subset=["entry_ts", "exit_ts", "duration"])
+            classified = classifier.classify(closed_df)
+            valid = classified.dropna(subset=["entry_ts", "exit_ts", "duration"])
             valid = valid[valid["duration"] >= pd.Timedelta(0)]
+            overtime_mask = valid["duration"] > pd.Timedelta(hours=hours_threshold)
+            valid = valid.loc[overtime_mask]
             if valid.empty:
                 file_senza_turni += 1
                 continue
 
             valid = valid.copy()
-            valid["anno"] = valid["entry_ts"].dt.year
             anno_series = valid["anno"].dropna()
             if not anno_series.empty:
                 local_min = int(anno_series.min())
@@ -269,21 +189,9 @@ def build_turni_summary(
 
             total_shifts += len(valid)
 
-            years_in_file = sorted({int(y) for y in valid["anno"].dropna().unique()})
-            holiday_dates = _italian_holidays_for_years(years_in_file)
-
-            turno_norm = (
-                valid.get("turno", pd.Series(index=valid.index, dtype="object"))
-                .fillna("")
-                .astype(str)
-                .str.strip()
-                .str.lower()
-            )
-            mask_n = turno_norm.str.contains("notte", na=False)
-            mask_p = turno_norm.str.contains("pomeriggio", na=False)
-            mask_f = (valid["entry_ts"].dt.dayofweek == 6) | (
-                valid["entry_ts"].dt.date.isin(holiday_dates)
-            )
+            mask_n = valid["is_night"]
+            mask_p = valid["is_afternoon"]
+            mask_f = valid["is_holiday"]
 
             for year, value in valid.loc[mask_f].groupby("anno").size().items():
                 year_i = int(year)
@@ -370,6 +278,12 @@ def main() -> int:
         default=16.0,
         help="Max ore tra entrata/uscita per chiudere coppie incomplete (default: 16.0)",
     )
+    parser.add_argument(
+        "--hours",
+        type=float,
+        default=6.0,
+        help="Soglia ore straordinario (default: 6.0)",
+    )
     parser.add_argument("--employee", help="Filtra per dipendente (normalizzato)")
     parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose logging")
     args = parser.parse_args()
@@ -393,6 +307,7 @@ def main() -> int:
         args.index,
         years,
         close_gap_hours=args.close_gap_hours,
+        hours_threshold=args.hours,
         employee_filter=args.employee,
     )
     columns = ["nome_ricorrente", "turno"] + [str(y) for y in years_used] + [

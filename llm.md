@@ -13,7 +13,7 @@ Instruction: Update this file whenever a codebase edit changes behavior, structu
 - `src/drive_scripts/`: Google Drive scan/fetch/download utilities, index schemas, and helpers.
 - `src/fetch_index_pipeline.py`: parallel download/parse pipeline (threads + processes).
 - `src/process_extractions.py`: overtime summary + per-employee reports from included indexes.
-- `src/turni_summary.py`: genera un riepilogo turni Excel-like per dipendente (righe F/P/N; F include domeniche + festivita italiane via `holidays`; colonne anni auto dal primo/ultimo turno se non specificati).
+- `src/turni_summary.py`: genera un riepilogo turni Excel-like per dipendente (righe F/P/N; F include domeniche + festivita italiane via `holidays`; colonne anni auto dal primo/ultimo turno se non specificati). Con `--hours` filtra solo i turni straordinari (durata > soglia). Usa `src/shift_services.py` per parsing coppie e classificazione turni.
 - `convert_index_to_map.py`: convert legacy list index -> map index.
 - `tests/`: sample-based parsing + drive utility tests.
 - `samples/`: sample PDFs (cartellino/timbrature_compact/timbrature_elenco).
@@ -120,7 +120,7 @@ Instruction: Update this file whenever a codebase edit changes behavior, structu
   - Summary written to JSON + CSV (default `output/overtime_summary.json` / `.csv`).
   - Optional `--excluded` index adds broken/excluded counts and `file_danneggiati` (also included in summary rows).
   - Report/summary fields are Italian (e.g., `turni_totali`, `turni_straordinari`, `turni_notte`, `turni_pomeriggio`, `turni_festivi`, `turni_notte_pomeriggio_festivi`), where `turni_notte_pomeriggio_festivi` counts unique shifts across those categories without double-counting.
-  - Datetime parsing uses `pandas.to_datetime(format="mixed")` when available.
+  - Datetime parsing uses `pandas.to_datetime(format="mixed")` when available; le utility comuni stanno in `src/shift_services.py`.
 
 ## CLIs and scripts
 - Cartellino CLI: `python -m parsing.parsers.cartellino.cli parse --input <DIR|FILE> --out <DIR>`.
@@ -134,7 +134,7 @@ Instruction: Update this file whenever a codebase edit changes behavior, structu
 - Download raw PDFs: `python -m drive_scripts.download_index --index <INDEX.json> --out downloads/raw -v`.
 - Convert legacy index: `python convert_index_to_map.py <index.json> [--out <index.map.json>]`.
 - Overtime summary: `python src/process_extractions.py --index included.index.json --output output/overtime_summary.json [--excluded excluded.index.json]`.
-- Turni summary (Excel-like): `python src/turni_summary.py --index included.index.json --output output/turni_summary.csv [--years 2016:2025|auto]`.
+- Turni summary (Excel-like): `python src/turni_summary.py --index included.index.json --output output/turni_summary.csv [--years 2016:2025|auto] [--hours 6.0]`.
 
 ## Tests and samples
 - `tests/test_samples.py`: sample harness across cartellino + timbrature + auto-detect.

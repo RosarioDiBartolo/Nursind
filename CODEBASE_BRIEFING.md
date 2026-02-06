@@ -7,7 +7,7 @@ Parse Italian payroll PDFs (cartellini + timbrature) into normalized CSV/JSON ou
 ## Layout
 - Parsing lives under `src/parsing/` with the public facade in `parsing` and parser implementations under `src/parsing/parsers/` (cartellino, timbrature_compact, timbrature_elenco). Shared helpers stay in `parsing/parser_shared` and `parsing/timbrature_shared`.
 - Drive tooling lives under `src/drive_scripts/` (scan, fetch/parse, download, index helpers).
-- Scripts: `src/fetch_index_pipeline.py` (parallel download/parse), `src/process_extractions.py` (overtime summaries), `src/turni_summary.py` (riepilogo turni Excel-like; F include domeniche + festivita italiane; anni auto dalla prima/ultima timbratura se non specificati), `convert_index_to_map.py` (legacy list -> map index).
+- Scripts: `src/fetch_index_pipeline.py` (parallel download/parse), `src/process_extractions.py` (overtime summaries), `src/turni_summary.py` (riepilogo turni Excel-like; F include domeniche + festivita italiane; con `--hours` filtra solo turni straordinari; anni auto dalla prima/ultima timbratura se non specificati), `convert_index_to_map.py` (legacy list -> map index). Logica turni condivisa in `src/shift_services.py`.
 
 ## Key Entry Points
 - Parsing service: `parsing.parse_pdf` / `parsing.parse_text`

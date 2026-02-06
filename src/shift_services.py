@@ -1,0 +1,251 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import date
+import os
+from typing import Any, Callable, Iterable
+
+import holidays
+import pandas as pd
+
+from drive_scripts.names import safe_name
+
+
+def to_datetime_series(values: pd.Series) -> pd.Series:
+    try:
+        return pd.to_datetime(values, errors="coerce", format="mixed")
+    except TypeError:
+        return pd.to_datetime(values, errors="coerce")
+
+
+def format_datetime_series(values: pd.Series, fmt: str) -> pd.Series:
+    parsed = to_datetime_series(values)
+    return parsed.dt.strftime(fmt)
+
+
+class HolidayCalendar:
+    def is_holiday(self, day: date) -> bool:
+        raise NotImplementedError
+
+    def dates_for_years(self, years: Iterable[int]) -> set[date]:
+        raise NotImplementedError
+
+
+class ItalianHolidayCalendar(HolidayCalendar):
+    def __init__(self) -> None:
+        self._cache: dict[int, set[date]] = {}
+
+    def dates_for_years(self, years: Iterable[int]) -> set[date]:
+        dates: set[date] = set()
+        for year in years:
+            year_i = int(year)
+            if year_i not in self._cache:
+                self._cache[year_i] = set(
+                    holidays.country_holidays("IT", years=year_i).keys()
+                )
+            dates.update(self._cache[year_i])
+        return dates
+
+    def is_holiday(self, day: date) -> bool:
+        return day in self.dates_for_years([day.year])
+
+
+@dataclass(frozen=True)
+class TurnoMatchPolicy:
+    mode: str = "contains"  # "contains" or "equals"
+
+    def match(self, values: pd.Series, token: str) -> pd.Series:
+        if self.mode == "equals":
+            return values == token
+        return values.str.contains(token, na=False)
+
+
+class PairsPathResolver:
+    def __init__(self, index_path: str) -> None:
+        self.index_path = index_path
+
+    def expected_pairs_path(
+        self, emp_name: str, file_name: str | None, file_id: str | None
+    ) -> str:
+        base_dir = os.path.dirname(os.path.abspath(self.index_path))
+        safe_emp = safe_name(emp_name or "unknown")
+        base_name = safe_name(file_name or "unknown.pdf")
+        if not base_name.lower().endswith(".pdf"):
+            base_name = f"{base_name}.pdf"
+        if file_id:
+            file_tag = f"{os.path.splitext(base_name)[0]}__{file_id[:8]}"
+        else:
+            file_tag = os.path.splitext(base_name)[0]
+        return os.path.abspath(os.path.join(base_dir, safe_emp, file_tag, "pairs.csv"))
+
+    def resolve_pairs_path(
+        self,
+        emp_name: str,
+        file_name: str | None,
+        file_id: str | None,
+        pairs_rel: str | None,
+    ) -> str:
+        if pairs_rel:
+            return os.path.abspath(
+                os.path.join(os.path.dirname(os.path.abspath(self.index_path)), pairs_rel)
+            )
+        return self.expected_pairs_path(emp_name, file_name, file_id)
+
+    def path_for_log(self, path: str) -> str:
+        base_dir = os.path.dirname(os.path.abspath(self.index_path))
+        try:
+            return os.path.relpath(path, start=base_dir)
+        except ValueError:
+            return os.path.abspath(path)
+
+
+class PairsLoader:
+    def __init__(self, resolver: PairsPathResolver) -> None:
+        self.resolver = resolver
+
+    def load_pairs(self, path: str) -> pd.DataFrame:
+        return pd.read_csv(path)
+
+
+class PairsCloser:
+    def __init__(
+        self,
+        *,
+        max_gap_hours: float = 16.0,
+        mark_inferred: bool = False,
+        preserve_exit_raw: bool = False,
+        clear_duration_hhmm: bool = False,
+    ) -> None:
+        self.max_gap_hours = max_gap_hours
+        self.mark_inferred = mark_inferred
+        self.preserve_exit_raw = preserve_exit_raw
+        self.clear_duration_hhmm = clear_duration_hhmm
+
+    def close(self, df: pd.DataFrame) -> pd.DataFrame:
+        if df.empty:
+            return df
+        if "entry_ts" not in df.columns or "exit_ts" not in df.columns:
+            return df
+
+        working = df.copy()
+        working["entry_ts"] = to_datetime_series(working["entry_ts"])
+        working["exit_ts"] = to_datetime_series(working["exit_ts"])
+
+        complete_mask = working["entry_ts"].notna() & working["exit_ts"].notna()
+        closed_rows = working.loc[complete_mask].copy()
+        if self.mark_inferred:
+            closed_rows["closed_inferred"] = False
+
+        incomplete = working.loc[~complete_mask].copy()
+        events: list[tuple[pd.Timestamp, str, pd.Series]] = []
+        for _, row in incomplete.iterrows():
+            if pd.notna(row.get("entry_ts")):
+                events.append((row["entry_ts"], "entry", row))
+            elif pd.notna(row.get("exit_ts")):
+                events.append((row["exit_ts"], "exit", row))
+
+        events.sort(key=lambda item: item[0])
+        pending_entry: pd.Series | None = None
+        max_gap = pd.Timedelta(hours=self.max_gap_hours)
+
+        for ts, kind, row in events:
+            if kind == "entry":
+                pending_entry = row
+                continue
+            if pending_entry is None:
+                continue
+
+            entry_ts = pending_entry["entry_ts"]
+            exit_ts = ts
+            if exit_ts < entry_ts:
+                exit_ts = exit_ts + pd.Timedelta(days=1)
+            if self.max_gap_hours > 0 and (exit_ts - entry_ts) > max_gap:
+                pending_entry = None
+                continue
+
+            merged = pending_entry.copy()
+            merged["exit_ts"] = exit_ts
+            if self.preserve_exit_raw and "exit_raw" in merged.index:
+                merged["exit_raw"] = row.get("exit_raw")
+            if self.clear_duration_hhmm and "duration_hhmm" in merged.index:
+                merged["duration_hhmm"] = None
+            if self.mark_inferred:
+                merged["closed_inferred"] = True
+            closed_rows = pd.concat([closed_rows, pd.DataFrame([merged])], ignore_index=True)
+            pending_entry = None
+
+        return closed_rows.reset_index(drop=True)
+
+
+class ShiftClassifier:
+    def __init__(
+        self,
+        *,
+        calendar: HolidayCalendar | None = None,
+        include_holidays: bool = False,
+        match_policy: TurnoMatchPolicy | None = None,
+    ) -> None:
+        self.calendar = calendar
+        self.include_holidays = include_holidays
+        self.match_policy = match_policy or TurnoMatchPolicy()
+
+    def classify(self, df: pd.DataFrame) -> pd.DataFrame:
+        if df.empty:
+            return df
+        if "entry_ts" not in df.columns or "exit_ts" not in df.columns:
+            return df
+
+        working = df.copy()
+        working["entry_ts"] = to_datetime_series(working["entry_ts"])
+        working["exit_ts"] = to_datetime_series(working["exit_ts"])
+        working["duration"] = working["exit_ts"] - working["entry_ts"]
+        working["anno"] = working["entry_ts"].dt.year
+
+        turno_norm = (
+            working.get("turno", pd.Series(index=working.index, dtype="object"))
+            .fillna("")
+            .astype(str)
+            .str.strip()
+            .str.lower()
+        )
+        working["turno_norm"] = turno_norm
+        working["is_night"] = self.match_policy.match(turno_norm, "notte")
+        working["is_afternoon"] = self.match_policy.match(turno_norm, "pomeriggio")
+
+        is_sunday = working["entry_ts"].dt.dayofweek == 6
+        if self.include_holidays and self.calendar is not None:
+            years = sorted({int(y) for y in working["anno"].dropna().unique()})
+            holiday_dates = self.calendar.dates_for_years(years)
+            is_holiday = is_sunday | working["entry_ts"].dt.date.isin(holiday_dates)
+        else:
+            is_holiday = is_sunday
+        working["is_holiday"] = is_holiday
+
+        return working
+
+
+class EmployeeGrouper:
+    def __init__(self, normalize: Callable[[str | None], str]) -> None:
+        self.normalize = normalize
+
+    def key(self, name: str | None, employee_id: str | None) -> str:
+        if employee_id:
+            return f"id:{employee_id}"
+        norm = self.normalize(name)
+        return f"name:{norm or 'unknown'}"
+
+    def group(self, files: list[Any]) -> list[dict[str, Any]]:
+        grouped: dict[str, dict[str, Any]] = {}
+        for item in files:
+            name = getattr(item, "employee", None) or "unknown"
+            employee_id = getattr(item, "employee_id", None)
+            key = self.key(name, employee_id)
+            if key not in grouped:
+                grouped[key] = {
+                    "employee": name,
+                    "employee_id": employee_id,
+                    "files": [],
+                    "key": key,
+                }
+            grouped[key]["files"].append(item)
+        return list(grouped.values())

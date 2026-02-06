@@ -9,6 +9,15 @@ from drive_scripts.fs_utils import ensure_dir, ensure_parent_dir
 from drive_scripts.map_index_service import MapIndex
 from drive_scripts.logging_utils import get_logger
 from drive_scripts.names import safe_name
+from shift_services import (
+    EmployeeGrouper,
+    PairsCloser,
+    PairsLoader,
+    PairsPathResolver,
+    ShiftClassifier,
+    TurnoMatchPolicy,
+    format_datetime_series,
+)
 
 logger = get_logger()
 DATETIME_OUTPUT_FORMAT = "%Y-%m-%d %H:%M:%S"
@@ -23,58 +32,6 @@ def _employee_key(name: str | None, employee_id: str | None) -> str:
         return f"id:{employee_id}"
     norm = _normalize_employee(name)
     return f"name:{norm or 'unknown'}"
-
-
-def _group_files_by_employee(files: list[Any]) -> list[dict[str, Any]]:
-    grouped: dict[str, dict[str, Any]] = {}
-    for item in files:
-        name = getattr(item, "employee", None) or "unknown"
-        employee_id = getattr(item, "employee_id", None)
-        key = _employee_key(name, employee_id)
-        if key not in grouped:
-            grouped[key] = {
-                "employee": name,
-                "employee_id": employee_id,
-                "files": [],
-                "key": key,
-            }
-        grouped[key]["files"].append(item)
-    return list(grouped.values())
-
-
-def _expected_pairs_path(
-    index_path: str, emp_name: str, file_name: str | None, file_id: str | None
-) -> str:
-    base_dir = os.path.dirname(os.path.abspath(index_path))
-    safe_emp = safe_name(emp_name or "unknown")
-    base_name = safe_name(file_name or "unknown.pdf")
-    if not base_name.lower().endswith(".pdf"):
-        base_name = f"{base_name}.pdf"
-    if file_id:
-        file_tag = f"{os.path.splitext(base_name)[0]}__{file_id[:8]}"
-    else:
-        file_tag = os.path.splitext(base_name)[0]
-    return os.path.abspath(os.path.join(base_dir, safe_emp, file_tag, "pairs.csv"))
-
-
-def _path_for_log(path: str, index_path: str) -> str:
-    base_dir = os.path.dirname(os.path.abspath(index_path))
-    try:
-        return os.path.relpath(path, start=base_dir)
-    except ValueError:
-        return os.path.abspath(path)
-
-
-def _to_datetime_series(values: pd.Series) -> pd.Series:
-    try:
-        return pd.to_datetime(values, errors="coerce", format="mixed")
-    except TypeError:
-        return pd.to_datetime(values, errors="coerce")
-
-
-def _format_datetime_series(values: pd.Series) -> pd.Series:
-    parsed = _to_datetime_series(values)
-    return parsed.dt.strftime(DATETIME_OUTPUT_FORMAT)
 
 
 def _summarize_excluded(
@@ -100,59 +57,6 @@ def _summarize_excluded(
     return counts, meta
 
 
-def _close_incomplete_pairs(df: pd.DataFrame, max_gap_hours: float = 16.0) -> pd.DataFrame:
-    if df.empty:
-        return df
-    if "entry_ts" not in df.columns or "exit_ts" not in df.columns:
-        return df
-
-    working = df.copy()
-    working["entry_ts"] = _to_datetime_series(working["entry_ts"])
-    working["exit_ts"] = _to_datetime_series(working["exit_ts"])
-
-    complete_mask = working["entry_ts"].notna() & working["exit_ts"].notna()
-    closed_rows = working.loc[complete_mask].copy()
-    closed_rows["closed_inferred"] = False
-
-    incomplete = working.loc[~complete_mask].copy()
-    events: list[tuple[pd.Timestamp, str, pd.Series]] = []
-    for _, row in incomplete.iterrows():
-        if pd.notna(row.get("entry_ts")):
-            events.append((row["entry_ts"], "entry", row))
-        elif pd.notna(row.get("exit_ts")):
-            events.append((row["exit_ts"], "exit", row))
-
-    events.sort(key=lambda item: item[0])
-    pending_entry: pd.Series | None = None
-    max_gap = pd.Timedelta(hours=max_gap_hours)
-
-    for ts, kind, row in events:
-        if kind == "entry":
-            pending_entry = row
-            continue
-        if pending_entry is None:
-            continue
-
-        entry_ts = pending_entry["entry_ts"]
-        exit_ts = ts
-        if exit_ts < entry_ts:
-            exit_ts = exit_ts + pd.Timedelta(days=1)
-        if max_gap_hours > 0 and (exit_ts - entry_ts) > max_gap:
-            pending_entry = None
-            continue
-
-        merged = pending_entry.copy()
-        merged["exit_ts"] = exit_ts
-        if "exit_raw" in merged.index:
-            merged["exit_raw"] = row.get("exit_raw")
-        merged["duration_hhmm"] = None
-        merged["closed_inferred"] = True
-        closed_rows = pd.concat([closed_rows, pd.DataFrame([merged])], ignore_index=True)
-        pending_entry = None
-
-    return closed_rows.reset_index(drop=True)
-
-
 def calculate_overtime(
     index_path: str,
     output_path: str,
@@ -167,7 +71,20 @@ def calculate_overtime(
     ensure_dir(output_dir)
 
     report = MapIndex.load_index(index_path, strict=True, allow_legacy=True)
-    employees = _group_files_by_employee(list(report.files.values()))
+    grouper = EmployeeGrouper(_normalize_employee)
+    employees = grouper.group(list(report.files.values()))
+    resolver = PairsPathResolver(index_path)
+    loader = PairsLoader(resolver)
+    closer = PairsCloser(
+        max_gap_hours=close_gap_hours,
+        mark_inferred=True,
+        preserve_exit_raw=True,
+        clear_duration_hhmm=True,
+    )
+    classifier = ShiftClassifier(
+        include_holidays=False,
+        match_policy=TurnoMatchPolicy(mode="equals"),
+    )
     excluded_counts: dict[str, dict[str, int]] = {}
     excluded_meta: dict[str, dict[str, Any]] = {}
     if excluded_index_path:
@@ -204,27 +121,21 @@ def calculate_overtime(
             outputs = getattr(inc, "outputs", None)
             if outputs:
                 pairs_rel = getattr(outputs, "pairs_csv", None)
-            expected_path = None
-            if pairs_rel:
-                expected_path = os.path.abspath(
-                    os.path.join(os.path.dirname(os.path.abspath(index_path)), pairs_rel)
-                )
-            if not expected_path:
-                expected_path = _expected_pairs_path(
-                    index_path,
-                    emp_name,
-                    getattr(inc, "file_name", None),
-                    getattr(inc, "file_id", None),
-                )
+            expected_path = resolver.resolve_pairs_path(
+                emp_name,
+                getattr(inc, "file_name", None),
+                getattr(inc, "file_id", None),
+                pairs_rel,
+            )
             if not os.path.exists(expected_path):
                 logger.warning(
                     "Missing pairs_csv for %s (expected: %s)",
                     getattr(inc, "file_name", "unknown"),
-                    _path_for_log(expected_path, index_path),
+                    resolver.path_for_log(expected_path),
                 )
                 continue
             try:
-                df = pd.read_csv(expected_path)
+                df = loader.load_pairs(expected_path)
             except Exception as e:
                 logger.error("Error loading %s: %s", expected_path, e)
                 continue
@@ -239,7 +150,7 @@ def calculate_overtime(
             df["file_id"] = getattr(inc, "file_id", None)
             df["file_name"] = getattr(inc, "file_name", None)
             df["pairs_csv"] = expected_path
-            closed_df = _close_incomplete_pairs(df, max_gap_hours=close_gap_hours)
+            closed_df = closer.close(df)
             if closed_df.empty:
                 continue
             pairs_dfs.append(closed_df)
@@ -258,30 +169,15 @@ def calculate_overtime(
             merged_df = pd.concat(pairs_dfs, ignore_index=True)
 
         if merged_df is not None:
-            # Convert timestamps to datetime
-            merged_df["entry_ts"] = _to_datetime_series(merged_df["entry_ts"])
-            merged_df["exit_ts"] = _to_datetime_series(merged_df["exit_ts"])
-        
-            # Calculate durations
-            merged_df["duration"] = merged_df["exit_ts"] - merged_df["entry_ts"]
-        
-            # Filter valid shifts and count overtime
-            valid_shifts = merged_df.dropna(subset=["entry_ts", "exit_ts", "duration"])
+            classified = classifier.classify(merged_df)
+            valid_shifts = classified.dropna(subset=["entry_ts", "exit_ts", "duration"])
             valid_shifts = valid_shifts[valid_shifts["duration"] >= pd.Timedelta(0)]
             total_shifts = len(valid_shifts)
             overtime_mask = valid_shifts["duration"] > pd.Timedelta(hours=hours_threshold)
             overtime_count = int(overtime_mask.sum())
-
-            turno_norm = (
-                valid_shifts.get("turno", pd.Series(index=valid_shifts.index, dtype="object"))
-                .fillna("")
-                .astype(str)
-                .str.strip()
-                .str.lower()
-            )
-            notte_mask = turno_norm == "notte"
-            pomeriggio_mask = turno_norm == "pomeriggio"
-            domenica_mask = valid_shifts["entry_ts"].dt.dayofweek == 6
+            notte_mask = valid_shifts["is_night"]
+            pomeriggio_mask = valid_shifts["is_afternoon"]
+            domenica_mask = valid_shifts["is_holiday"]
 
             turni_notte = int(notte_mask.sum())
             turni_pomeriggio = int(pomeriggio_mask.sum())
@@ -303,9 +199,13 @@ def calculate_overtime(
             csv_path = os.path.join(emp_output_dir, "result.csv")
             output_df = merged_df.copy()
             if "entry_ts" in output_df.columns:
-                output_df["entry_ts"] = _format_datetime_series(output_df["entry_ts"])
+                output_df["entry_ts"] = format_datetime_series(
+                    output_df["entry_ts"], DATETIME_OUTPUT_FORMAT
+                )
             if "exit_ts" in output_df.columns:
-                output_df["exit_ts"] = _format_datetime_series(output_df["exit_ts"])
+                output_df["exit_ts"] = format_datetime_series(
+                    output_df["exit_ts"], DATETIME_OUTPUT_FORMAT
+                )
             output_df.to_csv(csv_path, index=False)
         
         emp_report = {
@@ -335,7 +235,7 @@ def calculate_overtime(
         logger.info(
             "Saved %s report: %s",
             emp_name,
-            _path_for_log(index_path_emp, index_path),
+            resolver.path_for_log(index_path_emp),
         )
 
         summary.append(
@@ -424,8 +324,8 @@ def calculate_overtime(
 
     total_shifts = sum(e.get("turni_totali", 0) for e in summary)
     total_overtime = sum(e.get("turni_straordinari", 0) for e in summary)
-    logger.info("Summary saved to %s", _path_for_log(output_path, index_path))
-    logger.info("Summary CSV saved to %s", _path_for_log(summary_csv_path, index_path))
+    logger.info("Summary saved to %s", resolver.path_for_log(output_path))
+    logger.info("Summary CSV saved to %s", resolver.path_for_log(summary_csv_path))
     logger.info(
         "Processati %s dipendenti: %s turni totali, %s turni straordinari",
         len(summary),
