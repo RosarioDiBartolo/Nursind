@@ -4,8 +4,8 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from drive_scripts.names import normalize_term  # noqa: E402
-from drive_scripts.scan_service import file_excluded, folder_excluded  # noqa: E402
+from drive_service.names import normalize_term  # noqa: E402
+from scan_directory.scan_service import file_excluded, folder_excluded  # noqa: E402
 
 
 def test_folder_excluded_normalizes_name():

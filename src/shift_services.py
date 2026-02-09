@@ -2,13 +2,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
+import logging
 import os
 from typing import Any, Callable, Iterable
 
 import holidays
 import pandas as pd
 
-from drive_scripts.names import safe_name
+from drive_service.names import safe_name
+
+logger = logging.getLogger(__name__)
 
 
 def to_datetime_series(values: pd.Series) -> pd.Series:
@@ -18,9 +21,17 @@ def to_datetime_series(values: pd.Series) -> pd.Series:
         return pd.to_datetime(values, errors="coerce")
 
 
-def format_datetime_series(values: pd.Series, fmt: str) -> pd.Series:
-    parsed = to_datetime_series(values)
-    return parsed.dt.strftime(fmt)
+def compute_turno(entry_ts: pd.Timestamp | None) -> str | None:
+    if entry_ts is None or pd.isna(entry_ts):
+        return None
+    entry_minutes = int(entry_ts.hour) * 60 + int(entry_ts.minute)
+    targets = {
+        "Mattina": 8 * 60,
+        "Pomeriggio": 14 * 60,
+        "Notte": 20 * 60,
+    }
+    closest = min(targets.items(), key=lambda item: abs(entry_minutes - item[1]))
+    return closest[0]
 
 
 class HolidayCalendar:
@@ -97,14 +108,6 @@ class PairsPathResolver:
             return os.path.relpath(path, start=base_dir)
         except ValueError:
             return os.path.abspath(path)
-
-
-class PairsLoader:
-    def __init__(self, resolver: PairsPathResolver) -> None:
-        self.resolver = resolver
-
-    def load_pairs(self, path: str) -> pd.DataFrame:
-        return pd.read_csv(path)
 
 
 class PairsCloser:
@@ -236,9 +239,15 @@ class EmployeeGrouper:
 
     def group(self, files: list[Any]) -> list[dict[str, Any]]:
         grouped: dict[str, dict[str, Any]] = {}
+        missing_name = 0
+        missing_id = 0
         for item in files:
             name = getattr(item, "employee", None) or "unknown"
+            if name == "unknown":
+                missing_name += 1
             employee_id = getattr(item, "employee_id", None)
+            if not employee_id:
+                missing_id += 1
             key = self.key(name, employee_id)
             if key not in grouped:
                 grouped[key] = {
@@ -248,4 +257,11 @@ class EmployeeGrouper:
                     "key": key,
                 }
             grouped[key]["files"].append(item)
+        logger.debug(
+            "Grouped %s files into %s employees (missing_name=%s missing_id=%s)",
+            len(files),
+            len(grouped),
+            missing_name,
+            missing_id,
+        )
         return list(grouped.values())
