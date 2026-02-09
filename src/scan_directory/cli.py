@@ -8,7 +8,7 @@ from drive_service.auth_service import load_creds
 from drive_service.drive_client import get_drive_service, list_children
 from drive_service.fs_utils import ensure_dir, ensure_parent_dir
 from drive_service.logging_utils import setup_logging, get_logger
-from drive_service.map_index_service import MapIndex
+from drive_service.index import MapIndex
 from drive_service.names import normalize_term
 from drive_service.schema import IndexFile
 

@@ -20,9 +20,11 @@ Instruction: Update this file whenever a codebase edit changes behavior, structu
 ## Top-level layout
 - `src/scan_directory/`: Drive scanning CLI/service that produces `scan/included.index.json` and `scan/filtered.index.json`.
 - `src/drive_service/`: Drive auth/client/config/schema and shared runtime helpers.
+- `src/drive_service/index/`: Index schemas (`MapIndex`, `ListIndex`) plus shared map<->list conversion utilities and CLI.
 - `src/extract_text_from_index/`: Download+extract text pipeline package from index with resumable included/excluded text indexes (`runtime.py` orchestration, `workers.py` I/O/extraction workers, `options.py` CLI options, `cli.py` wrapper).
 - `src/pdf_text_extraction.py`: Shared `extract_text` / `extract_text_vertical` helpers.
 - `src/raw_text_parsing.py`: Shared regex/document-format parsing utilities for raw text.
+- `src/download_from_index.py`: Simple utility CLI that reads a MapIndex and downloads listed PDFs to a local folder.
 - `src/extract_days_from_text_raw.py`: Build per-document `days.csv` from extracted text.
 - `src/extract_events_from_days_raw.py`: Build per-document `events_from_days_raw.csv` from `days.csv`.
 - `src/filter_midnight_events_from_days_raw.py`: Remove fake midnight events and write cleaned CSV + removed rows export.
@@ -33,8 +35,10 @@ Instruction: Update this file whenever a codebase edit changes behavior, structu
 - `docs/`: ingestion/preparation/enrichment/aggregation/schema/shared-registry docs.
 
 ## Core index model
-- `MapIndex` in `src/drive_service/map_index_service.py`
-  - Fields: `root_id`, `generated_at`, `employee_count`, `total_files`, `files`.
+- `MapIndex` in `src/drive_service/index/map_index.py`
+  - Fields: `root_id`, `generated_at`, `employee_count`, `total_files`, `files` (dict by `file_id`).
+- `ListIndex` in `src/drive_service/index/list_index.py`
+  - Fields: `root_id`, `generated_at`, `employee_count`, `total_files`, `files` (flat list; each item requires `file_id`).
 - `IndexFile` in `src/drive_service/schema.py`
   - Fields: `employee`, `employee_id`, `file_id`, `file_name`, `drive_path?`, `outputs?`, `reason?`, `type?`.
 

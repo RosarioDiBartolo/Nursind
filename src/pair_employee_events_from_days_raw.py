@@ -13,7 +13,7 @@ import pandas as pd
 
 from drive_service.fs_utils import ensure_dir, ensure_parent_dir
 from drive_service.logging_utils import setup_logging
-from drive_service.map_index_service import MapIndex
+from drive_service.index import MapIndex
 from drive_service.names import safe_name
 from shift_services import (
     EmployeeGrouper,

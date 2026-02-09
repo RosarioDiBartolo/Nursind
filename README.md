@@ -29,6 +29,20 @@ python -m "src.turni_enrichment" --input-dir "output/employee_shifts_from_raw" -
 python -m "src.turni_employee_summary" --enriched-dir "output/enriched/employee_pairs" --out "output/aggregates/turni_employee_summary.csv" --format "csv" --verbose
 ```
 
+## Optional: Download PDFs From an Index
+
+Use this utility when you already have a map index and want local PDF samples.
+
+```powershell
+python src/download_from_index.py --index "scan/samples.index.scan.map.json" --out "samples/from_index" --limit 20 --verbose
+```
+
+Main flags:
+- `--index`: input map index JSON
+- `--out`: destination folder
+- `--limit`: first N files only (`0` means all)
+- `--skip-existing` / `--no-skip-existing`: keep or overwrite existing files
+
 ## Docs
 
 - `PIPELINE_COMMANDS.md`

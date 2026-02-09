@@ -6,11 +6,13 @@ This stage discovers source files in Drive and extracts plain text from each ind
 
 - `python -m "src.scan_directory"`
 - `python -m "src.extract_text_from_index"`
+- `python src/download_from_index.py` (optional helper for local sample downloads)
 
 ## Inputs
 
 - Drive root folder id (`--root`) for scan.
 - `scan/included.index.json` as input for text extraction.
+- A MapIndex file (`--index`) for `download_from_index.py`.
 
 ## Outputs
 
@@ -20,6 +22,7 @@ This stage discovers source files in Drive and extracts plain text from each ind
 - `output/text_extracted/included_text.index.json`
 - `output/text_extracted/excluded_text.index.json`
 - `output/text_extracted/extract_text_from_index.report.json`
+- Downloaded PDFs under `samples/from_index/<employee>/*.pdf` (optional helper output)
 
 ## Key behavior
 
@@ -33,4 +36,5 @@ This stage discovers source files in Drive and extracts plain text from each ind
 ```powershell
 python -m "src.scan_directory" --root "<DRIVE_ROOT_FOLDER_ID>" --out "scan" --included "included.index.json" --filtered "filtered.index.json" --verbose
 python -m "src.extract_text_from_index" --index "scan/included.index.json" --out "output/text_extracted" --included "included_text.index.json" --excluded "excluded_text.index.json" --verbose
+python src/download_from_index.py --index "scan/samples.index.scan.map.json" --out "samples/from_index" --limit 20 --verbose
 ```

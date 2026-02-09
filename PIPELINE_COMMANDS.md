@@ -8,6 +8,12 @@ All commands use:
 python -m "src.scan_directory" --root "<DRIVE_ROOT_FOLDER_ID>" --out "scan" --included "included.index.json" --filtered "filtered.index.json" --verbose
 ```
 
+## 0b) Optional: Download PDFs from a map index
+```powershell
+python src/download_from_index.py --index "scan/samples.index.scan.map.json" --out "samples/from_index" --limit 20 --verbose
+```
+Useful for building small local datasets from an existing index.
+
 ## 1) Extract plain text from indexed PDFs
 ```powershell
 python -m "src.extract_text_from_index" --index "scan/included.index.json" --out "output/text_extracted" --included "included_text.index.json" --excluded "excluded_text.index.json" --verbose

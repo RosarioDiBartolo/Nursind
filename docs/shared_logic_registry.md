@@ -12,6 +12,7 @@ Purpose: keep a single, agent-friendly inventory of reusable modules so new work
 | Module | Owns | Used By |
 |---|---|---|
 | `src/drive_service/index_runtime.py` | Index runtime helpers: `resolve_output_path`, `doc_attr`, `update_index_meta`, periodic flush/progress | `src/extract_text_from_index/runtime.py`, `src/extract_text_from_index/planning.py` |
+| `src/drive_service/index/` | Index schema models (`MapIndex`, `ListIndex`) and shared converters/CLI service for map<->list transforms | Scan, extraction, pairing pipelines, index conversion utility |
 | `src/drive_service/io_json.py` | JSON read/write helpers for consistent encoding and formatting | Drive/index scripts and reporting code |
 | `src/drive_service/fs_utils.py` | Filesystem helpers (`ensure_dir`, `ensure_parent_dir`) | Most pipeline scripts and drive utilities |
 | `src/drive_service/names.py` | Safe/normalized naming helpers (`safe_name`, normalize helpers) | Scan, download, extraction, output naming |
@@ -23,6 +24,7 @@ Purpose: keep a single, agent-friendly inventory of reusable modules so new work
 - Do not re-implement output path resolution in pipelines; use `index_runtime.resolve_output_path`.
 - Do not re-implement mixed dict/object field reads for index items; use `index_runtime.doc_attr`.
 - Do not re-implement index metadata refresh and periodic checkpoints; use `index_runtime.update_index_meta` and `index_runtime.maybe_flush_indexes`.
+- Do not duplicate map/list index conversion logic in scripts; use `drive_service.index.converters`.
 - Do not re-implement PDF text extraction helpers; use `pdf_text_extraction`.
 - Keep CLI modules focused on argument parsing and orchestration; move reusable business logic into shared modules and register it here.
 

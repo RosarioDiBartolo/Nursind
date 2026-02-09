@@ -14,7 +14,7 @@ from src.drive_service.index_runtime import (
 )
 from src.drive_service.io_json import write_json
 from src.drive_service.logging_utils import get_logger, setup_logging
-from src.drive_service.map_index_service import MapIndex
+from src.drive_service.index import MapIndex
 from src.drive_service.schema import IndexFile
 
 from .options import ExtractTextFromIndexOptions
