@@ -11,32 +11,19 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
-
-try:
-    from drive_service.fs_utils import ensure_parent_dir
-    from drive_service.logging_utils import setup_logging
-    from raw_text_parsing import (
-        DAY_PREFIX_RE,
-        QTA_RE,
-        detect_doc_format,
-        line_has_event,
-        normalize_text,
-        parse_day_header,
-        resolve_year_month,
-    )
-except ModuleNotFoundError:
-    from src.drive_service.fs_utils import ensure_parent_dir
-    from src.drive_service.logging_utils import setup_logging
-    from src.raw_text_parsing import (
-        DAY_PREFIX_RE,
-        QTA_RE,
-        detect_doc_format,
-        line_has_event,
-        normalize_text,
-        parse_day_header,
-        resolve_year_month,
-    )
-
+ 
+from drive_service.fs_utils import ensure_parent_dir
+from drive_service.logging_utils import setup_logging
+from raw_text_parsing import (
+    DAY_PREFIX_RE,
+    QTA_RE,
+    detect_doc_format,
+    line_has_event,
+    normalize_text,
+    parse_day_header,
+    resolve_year_month,
+)
+ 
 logger = logging.getLogger(__name__)
 
 DEFAULT_INPUT_DIR = "output/text_extracted"
