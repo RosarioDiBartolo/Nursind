@@ -3,7 +3,7 @@ import io
 from googleapiclient.http import MediaIoBaseDownload
 
 
-def download_pdf_stream(drive, file_id: str, logger=None) -> io.BytesIO:
+def download_file_stream(drive, file_id: str, logger=None) -> io.BytesIO:
     if logger:
         logger.debug("Starting download for %s", file_id)
     request = drive.files().get_media(fileId=file_id, supportsAllDrives=True)
@@ -21,3 +21,15 @@ def download_pdf_stream(drive, file_id: str, logger=None) -> io.BytesIO:
     if logger:
         logger.debug("Finished download for %s", file_id)
     return stream
+
+
+def download_file_bytes(drive, file_id: str, logger=None) -> bytes:
+    stream = download_file_stream(drive, file_id, logger=logger)
+    try:
+        return stream.read()
+    finally:
+        stream.close()
+
+
+def download_pdf_stream(drive, file_id: str, logger=None) -> io.BytesIO:
+    return download_file_stream(drive, file_id, logger=logger)

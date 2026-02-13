@@ -1,5 +1,5 @@
 # LLM Codebase Briefing (Detailed)
-Last updated: 2026-02-11
+Last updated: 2026-02-13
 
 Instruction: Update this file whenever a codebase edit changes behavior, structure, public APIs, outputs, or schemas.
 
@@ -48,6 +48,10 @@ Instruction: Update this file whenever a codebase edit changes behavior, structu
 - Outputs:
   - `scan/included.index.json`
   - `scan/filtered.index.json`
+- Behavior:
+  - Recursively scans employee folders for PDFs and ZIPs.
+  - ZIP archives are expanded as virtual folders during scan; each PDF member is indexed as an individual file entry with a synthetic `file_id`.
+  - ZIP scan issues are recorded in filtered index with reasons (`invalid_zip_archive`, `zip_scan_error:*`, `zip_no_pdf_members`).
 
 ### 2) Extract text from index
 - Entry: `python -m "src.extract_text_from_index"`

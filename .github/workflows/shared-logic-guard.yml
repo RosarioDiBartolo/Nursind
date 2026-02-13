@@ -1,0 +1,38 @@
+name: Shared Logic Guard
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+jobs:
+  registry-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Ensure registry updates when shared logic changes
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          HEAD_SHA="${{ github.sha }}"
+          CHANGED_FILES="$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")"
+
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+
+          SHARED_PATTERN='^(src/drive_service/|src/raw_text_parsing\.py$|src/pdf_text_extraction\.py$|src/shift_services\.py$)'
+          REGISTRY_FILE='docs/shared_logic_registry.md'
+
+          if echo "$CHANGED_FILES" | grep -Eq "$SHARED_PATTERN"; then
+            if ! echo "$CHANGED_FILES" | grep -Fxq "$REGISTRY_FILE"; then
+              echo "::error::Shared logic changed but docs/shared_logic_registry.md was not updated."
+              exit 1
+            fi
+          fi
+
+          echo "Shared logic guard passed."

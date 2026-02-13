@@ -8,6 +8,16 @@
 - When you add/move shared logic, update `docs/shared_logic_registry.md` in the same change.
 - Keep CLI files thin: argument parsing + orchestration only. Move business logic into importable functions.
 
+## Discovery Protocol (Required Before New Helpers)
+- Run these searches before adding any helper/feature implementation:
+  - `rg -n "keyword|synonym|feature_name" src docs`
+  - `rg --files src | rg "service|parser|helper|runtime|utils"`
+  - `rg -n "def .*candidate_name|class .*candidate_name" src`
+- Then read:
+  - `docs/shared_logic_registry.md`
+  - The nearest matching module among `src/drive_service/`, `src/raw_text_parsing.py`, `src/pdf_text_extraction.py`, `src/shift_services.py`
+- In PRs, confirm the discovery protocol was run and shared logic was reused where available.
+
 ## File Design Preferences
 - Prefer small files with high cohesion and a single clear purpose.
 - Keep modules functional and as independent as practical; avoid unnecessary coupling across files.

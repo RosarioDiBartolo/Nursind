@@ -5,20 +5,21 @@ Purpose: keep a single, agent-friendly inventory of reusable modules so new work
 ## Maintenance Rules
 - Read this file before adding helpers to any CLI or feature script.
 - If logic is reused by 2+ files, extract it into a shared module and add/update an entry here.
-- Keep entries short and concrete: module path, what it owns, where it is used.
+- Keep entries short and concrete: module path, what it owns, keywords/aliases, inputs/outputs, where it is used.
 - When replacing duplicated logic with a shared helper, note the old pattern under `Avoid Duplicates`.
 
 ## Shared Modules
-| Module | Owns | Used By |
-|---|---|---|
-| `src/drive_service/index_runtime.py` | Index runtime helpers: `resolve_output_path`, `doc_attr`, `update_index_meta`, periodic flush/progress | `src/extract_text_from_index/runtime.py`, `src/extract_text_from_index/planning.py` |
-| `src/drive_service/index/` | Index schema models (`MapIndex`, `ListIndex`) and shared converters/CLI service for map<->list transforms | Scan, extraction, pairing pipelines, index conversion utility |
-| `src/drive_service/io_json.py` | JSON read/write helpers for consistent encoding and formatting | Drive/index scripts and reporting code |
-| `src/drive_service/fs_utils.py` | Filesystem helpers (`ensure_dir`, `ensure_parent_dir`) | Most pipeline scripts and drive utilities |
-| `src/drive_service/names.py` | Safe/normalized naming helpers (`safe_name`, normalize helpers) | Scan, download, extraction, output naming |
-| `src/pdf_text_extraction.py` | PDF text extraction primitives (`extract_text`, `extract_text_vertical`) | `src/extract_text_from_index/quality.py` |
-| `src/raw_text_parsing.py` | Shared raw-text parsing primitives and regexes for text->days/events flow | `src/extract_days_from_text_raw.py`, `src/extract_events_from_days_raw.py` |
-| `src/shift_services.py` | Shared shift/pair services (`PairsCloser`, `PairsPathResolver`, datetime helpers, classifiers, `compute_turno`, turno code/bucket assignment) | Pairing/enrichment/summary scripts |
+| Module | Owns | Keywords/Aliases | Common Inputs/Outputs | Used By | Do Not Reimplement |
+|---|---|---|---|---|---|
+| `src/drive_service/index_runtime.py` | Index runtime helpers: `resolve_output_path`, `doc_attr`, `update_index_meta`, periodic flush/progress | output path, index metadata, progress checkpoints, mixed dict/object reads | In: index doc/item, output dir/name config. Out: resolved paths, updated metadata, flush decisions | `src/extract_text_from_index/runtime.py`, `src/extract_text_from_index/planning.py` | Output path resolution, metadata refresh, checkpoint/flush orchestration |
+| `src/drive_service/index/` | Index schema models (`MapIndex`, `ListIndex`) and shared converters/CLI service for map<->list transforms | index schema, map index, list index, converters, index transforms | In: map/list index JSON. Out: typed index models, converted index payloads | Scan, extraction, pairing pipelines, index conversion utility | Map/list conversion rules and schema model duplication |
+| `src/drive_service/io_json.py` | JSON read/write helpers for consistent encoding and formatting | json io, read json, write json, encoding, pretty json | In: file paths + payloads. Out: parsed JSON objects, normalized JSON files | Drive/index scripts and reporting code | Custom JSON encoding/formatting wrappers across scripts |
+| `src/drive_service/fs_utils.py` | Filesystem helpers (`ensure_dir`, `ensure_parent_dir`) | mkdir, ensure dir, ensure parent, path setup | In: directory/file paths. Out: guaranteed directory existence | Most pipeline scripts and drive utilities | Inline directory-creation utilities |
+| `src/drive_service/names.py` | Safe/normalized naming helpers (`safe_name`, normalize helpers) | sanitize name, normalize filename, safe path segment | In: raw names/labels. Out: normalized safe names | Scan, download, extraction, output naming | Ad-hoc filename sanitization logic |
+| `src/drive_service/archive_utils.py` | ZIP utilities: member-path normalization, archive-member IDs, list/extract ZIP PDF members | zip, archive, member path, archive id, zip pdf extraction | In: ZIP paths and member names. Out: normalized member IDs/paths, extracted PDF members | `src/scan_directory/scan_service.py` (ZIP expansion), future archive-aware ingestion/extraction | ZIP member ID/path normalization and archive PDF traversal |
+| `src/pdf_text_extraction.py` | PDF text extraction primitives (`extract_text`, `extract_text_vertical`) | pdf extraction, pdfminer, vertical text | In: PDF paths/pages/options. Out: extracted raw text | `src/extract_text_from_index/quality.py` | PDF text extraction entry points and option handling |
+| `src/raw_text_parsing.py` | Shared raw-text parsing primitives and regexes for text->days/events flow | raw parsing, regex parsing, day extraction, event extraction | In: raw extracted text. Out: parsed days/events structures | `src/extract_days_from_text_raw.py`, `src/extract_events_from_days_raw.py` | Duplicate regex/date/event parsing primitives |
+| `src/shift_services.py` | Shared shift/pair services (`PairsCloser`, `PairsPathResolver`, datetime helpers, classifiers, `compute_turno`, turno code/bucket assignment) | shifts, pairing, turno, classifiers, datetime helpers | In: normalized events/shifts and timestamps. Out: paired shifts, turno code/bucket data | Pairing/enrichment/summary scripts | Pair-closing, turno computation, classification helpers |
 
 ## Avoid Duplicates
 - Do not re-implement output path resolution in pipelines; use `index_runtime.resolve_output_path`.

@@ -30,6 +30,9 @@ This stage discovers source files in Drive and extracts plain text from each ind
 - `--skip-included` is on by default; use `--reprocess-included` to force retries.
 - `--reprocess-excluded` allows retrying previously failed files.
 - Periodic flush (`--flush-every`) protects progress on long runs.
+- Scan treats `.zip` files as virtual folders: each PDF member is indexed as a separate file entry.
+- ZIP members are emitted with synthetic `file_id` values and virtual paths like `.../archive.zip/<member>.pdf`.
+- ZIP scan failures are added to filtered index with reasons (`invalid_zip_archive`, `zip_scan_error:*`, `zip_no_pdf_members`).
 
 ## Typical commands
 

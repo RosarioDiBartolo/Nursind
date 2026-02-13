@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import os
 from typing import Iterable, List, Tuple
 
+from drive_service.archive_utils import BadZipFile, build_archive_member_id, list_pdf_members
+from drive_service.downloads import download_file_bytes
 from drive_service.drive_client import get_drive_service, list_children
 from drive_service.logging_utils import get_logger
 from drive_service.names import normalize_term
@@ -53,11 +56,12 @@ def collect_files_recursive(
     exclude_terms: Iterable[str],
     *,
     root_prefix: str | None = None,
-) -> Tuple[List[dict], List[dict]]:
+) -> Tuple[List[dict], List[dict], List[dict]]:
     base_path = f"/{emp['name']}" if not root_prefix else f"/{root_prefix}/{emp['name']}"
     stack = [(emp["id"], emp["name"], base_path)]
     files: List[dict] = []
     excluded_folders: List[dict] = []
+    filtered_files: List[dict] = []
 
     while stack:
         fid, name, path = stack.pop()
@@ -79,27 +83,80 @@ def collect_files_recursive(
                 child_path = f"{path}/{item['name']}"
                 stack.append((item["id"], item["name"], child_path))
             elif _is_pdf_or_zip(item):
+                mime_type = item.get("mimeType")
                 file_path = f"{path}/{item['name']}"
-                files.append(
-                    {
-                        "file_id": item["id"],
-                        "file_name": item["name"],
-                        "drive_path": file_path,
-                    }
-                )
+                is_zip = mime_type in ZIP_MIME_TYPES or (item.get("name") or "").lower().endswith(".zip")
+                if not is_zip:
+                    files.append(
+                        {
+                            "file_id": item["id"],
+                            "file_name": item["name"],
+                            "drive_path": file_path,
+                        }
+                    )
+                    continue
+                try:
+                    zip_bytes = download_file_bytes(drive, item["id"], logger=logger)
+                    members = list_pdf_members(zip_bytes)
+                except BadZipFile:
+                    logger.warning("[%s] invalid ZIP skipped: %s", emp["name"], file_path)
+                    filtered_files.append(
+                        {
+                            "file_id": item["id"],
+                            "file_name": item["name"],
+                            "drive_path": file_path,
+                            "type": "file",
+                            "reason": "invalid_zip_archive",
+                        }
+                    )
+                    continue
+                except Exception as exc:
+                    logger.warning("[%s] ZIP read failed for %s: %s", emp["name"], file_path, exc)
+                    filtered_files.append(
+                        {
+                            "file_id": item["id"],
+                            "file_name": item["name"],
+                            "drive_path": file_path,
+                            "type": "file",
+                            "reason": f"zip_scan_error:{type(exc).__name__}",
+                        }
+                    )
+                    continue
 
-    return files, excluded_folders
+                if not members:
+                    filtered_files.append(
+                        {
+                            "file_id": item["id"],
+                            "file_name": item["name"],
+                            "drive_path": file_path,
+                            "type": "file",
+                            "reason": "zip_no_pdf_members",
+                        }
+                    )
+                    continue
+
+                for member_path in members:
+                    member_name = os.path.basename(member_path)
+                    files.append(
+                        {
+                            "file_id": build_archive_member_id(item["id"], member_path),
+                            "file_name": member_name,
+                            "drive_path": f"{file_path}/{member_path}",
+                        }
+                    )
+
+    return files, excluded_folders, filtered_files
 
 
 def build_employee_report(
     creds, emp: dict, exclude_terms: Iterable[str], *, root_prefix: str | None = None
 ) -> dict:
     drive = get_drive_service(creds)
-    files, excluded_folders = collect_files_recursive(
+    files, excluded_folders, pre_filtered_files = collect_files_recursive(
         drive, emp, exclude_terms, root_prefix=root_prefix
     )
     included: List[dict] = []
-    filtered: List[dict] = []
+    filtered: List[dict] = list(pre_filtered_files)
 
     for item in files:
         fname = item["file_name"]
