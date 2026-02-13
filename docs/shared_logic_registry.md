@@ -18,7 +18,7 @@ Purpose: keep a single, agent-friendly inventory of reusable modules so new work
 | `src/drive_service/names.py` | Safe/normalized naming helpers (`safe_name`, normalize helpers) | Scan, download, extraction, output naming |
 | `src/pdf_text_extraction.py` | PDF text extraction primitives (`extract_text`, `extract_text_vertical`) | `src/extract_text_from_index/quality.py` |
 | `src/raw_text_parsing.py` | Shared raw-text parsing primitives and regexes for text->days/events flow | `src/extract_days_from_text_raw.py`, `src/extract_events_from_days_raw.py` |
-| `src/shift_services.py` | Shared shift/pair services (`PairsCloser`, `PairsPathResolver`, datetime helpers, classifiers, `compute_turno`) | Pairing/enrichment/summary scripts |
+| `src/shift_services.py` | Shared shift/pair services (`PairsCloser`, `PairsPathResolver`, datetime helpers, classifiers, `compute_turno`, turno code/bucket assignment) | Pairing/enrichment/summary scripts |
 
 ## Avoid Duplicates
 - Do not re-implement output path resolution in pipelines; use `index_runtime.resolve_output_path`.

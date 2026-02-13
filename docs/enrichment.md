@@ -19,8 +19,15 @@ This stage enriches employee pair CSVs with classification fields used by aggreg
 
 - `employee`
 - `entry_ts`, `exit_ts`, `duration_hours`, `is_long`
-- `is_holiday`, `is_afternoon`, `is_night`, `turno_code`, `year`
+- `is_holiday`, `is_afternoon`, `is_night`, `turno_code`, `turno_bucket`, `year`
 - `turno`, `file_id`, `file_name`, `source_csv`
+
+`turno_bucket` values:
+- `N`: notte con durata `> --min-hours`
+- `P`: pomeriggio con durata `> --min-hours`
+- `F`: domenica/festivo con durata `> --min-hours` (override su N/P/M)
+- `M`: mattina/altro con durata `> --min-hours`
+- `S`: turno corto (durata `<= --min-hours`)
 
 ## Run
 

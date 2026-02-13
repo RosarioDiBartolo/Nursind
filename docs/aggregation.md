@@ -11,8 +11,8 @@ This document describes the final summary stage after enrichment.
 ## Behavior
 
 - Default year window: `2016` to `2025` (`--year-start`, `--year-end`).
-- Uses `is_long` when present; fallback is `--min-hours` with `duration_hours`.
-- Counts only `turno_code` in `N`, `P`, `F`.
+- Uses `turno_bucket` when present; fallback computes it from enriched columns.
+- Counts only `turno_bucket` in `N`, `P`, `F`, `M`, `S`.
 - CSV output schema: one row per `(employee, turno)` with year columns as strings (for example `2016`, `2017`, ...).
 
 ## Run

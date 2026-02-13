@@ -1,5 +1,5 @@
 # LLM Codebase Briefing (Detailed)
-Last updated: 2026-02-09
+Last updated: 2026-02-11
 
 Instruction: Update this file whenever a codebase edit changes behavior, structure, public APIs, outputs, or schemas.
 
@@ -86,11 +86,15 @@ Instruction: Update this file whenever a codebase edit changes behavior, structu
 - Entry: `python -m "src.turni_enrichment"`
 - Input: `output/employee_shifts_from_raw/*.pairs.csv` (canonical pipeline). Note: CLI default input dir is `output/employee_shifts`.
 - Output: `output/enriched/employee_pairs/*.enriched.csv`
+- Adds `turno_bucket` classification with values:
+  - `N` night, `P` afternoon, `F` holiday/Sunday, `M` morning/other when duration is `> --min-hours`
+  - `S` short shifts when duration is `<= --min-hours`
 
 ### 8) Employee summary
 - Entry: `python -m "src.turni_employee_summary"`
 - Input: enriched files
 - Output: `output/aggregates/turni_employee_summary.csv` (or JSON)
+- Counts yearly totals for `turno_bucket` values `N/P/F/M/S` (fallback computes bucket if missing).
 
 ## Canonical commands
 See `PIPELINE_COMMANDS.md` for full command list.

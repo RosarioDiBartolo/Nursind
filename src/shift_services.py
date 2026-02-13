@@ -21,6 +21,48 @@ def to_datetime_series(values: pd.Series) -> pd.Series:
         return pd.to_datetime(values, errors="coerce")
 
 
+def _to_bool_series(values: pd.Series) -> pd.Series:
+    if values.dtype == bool:
+        return values.fillna(False)
+    normalized = values.astype(str).str.strip().str.lower()
+    return normalized.isin({"true", "1", "yes", "y", "t"})
+
+
+def assign_turno_code(df: pd.DataFrame) -> pd.Series:
+    required_cols = {"is_holiday", "is_afternoon", "is_night"}
+    if not required_cols.issubset(set(df.columns)):
+        return pd.Series(index=df.index, dtype="object")
+
+    is_holiday = _to_bool_series(df["is_holiday"])
+    is_afternoon = _to_bool_series(df["is_afternoon"])
+    is_night = _to_bool_series(df["is_night"])
+
+    turno_code = pd.Series("D", index=df.index, dtype="object")
+    turno_code = turno_code.mask(is_afternoon, "P")
+    turno_code = turno_code.mask(is_night, "N")
+    turno_code = turno_code.mask(is_holiday, "F")
+    return turno_code
+
+
+def assign_turno_bucket(df: pd.DataFrame, *, min_hours: float = 6.0) -> pd.Series:
+    required_cols = {"duration_hours", "is_holiday", "is_afternoon", "is_night"}
+    if not required_cols.issubset(set(df.columns)):
+        return pd.Series(index=df.index, dtype="object")
+
+    duration_hours = pd.to_numeric(df["duration_hours"], errors="coerce")
+    is_holiday = _to_bool_series(df["is_holiday"])
+    is_afternoon = _to_bool_series(df["is_afternoon"])
+    is_night = _to_bool_series(df["is_night"])
+    is_long = duration_hours > float(min_hours)
+
+    bucket = pd.Series("S", index=df.index, dtype="object")
+    bucket = bucket.mask(is_long & is_holiday, "F")
+    bucket = bucket.mask(is_long & ~is_holiday & is_night, "N")
+    bucket = bucket.mask(is_long & ~is_holiday & ~is_night & is_afternoon, "P")
+    bucket = bucket.mask(is_long & ~is_holiday & ~is_night & ~is_afternoon, "M")
+    return bucket
+
+
 def compute_turno(entry_ts: pd.Timestamp | None) -> str | None:
     if entry_ts is None or pd.isna(entry_ts):
         return None

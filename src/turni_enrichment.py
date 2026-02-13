@@ -17,7 +17,13 @@ import pandas as pd
 from drive_service.fs_utils import ensure_dir, ensure_parent_dir
 from drive_service.logging_utils import setup_logging
 from drive_service.names import safe_name
-from shift_services import ItalianHolidayCalendar, ShiftClassifier, to_datetime_series
+from shift_services import (
+    ItalianHolidayCalendar,
+    ShiftClassifier,
+    assign_turno_bucket,
+    assign_turno_code,
+    to_datetime_series,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +40,7 @@ ENRICHED_COLUMNS = [
     "is_afternoon",
     "is_night",
     "turno_code",
+    "turno_bucket",
     "year",
     "turno",
     "file_id",
@@ -90,7 +97,7 @@ def _enrich_pairs(
     working["duration_hours"] = (
         (working["exit_ts"] - working["entry_ts"]).dt.total_seconds() / 3600.0
     )
-    working["is_long"] = working["duration_hours"] >= float(min_hours)
+    working["is_long"] = working["duration_hours"] > float(min_hours)
     working["year"] = working["entry_ts"].dt.year
 
     working = classifier.classify(working)
@@ -98,11 +105,8 @@ def _enrich_pairs(
     if not required_cols.issubset(set(working.columns)):
         return pd.DataFrame(), stats
 
-    turno_code = pd.Series("D", index=working.index, dtype="object")
-    turno_code = turno_code.mask(working["is_afternoon"], "P")
-    turno_code = turno_code.mask(working["is_night"], "N")
-    turno_code = turno_code.mask(working["is_holiday"], "F")
-    working["turno_code"] = turno_code
+    working["turno_code"] = assign_turno_code(working)
+    working["turno_bucket"] = assign_turno_bucket(working, min_hours=min_hours)
     stats["righe_enriched"] = len(working)
     return working, stats
 
@@ -207,7 +211,7 @@ def main() -> int:
         "--min-hours",
         type=float,
         default=DEFAULT_MIN_HOURS,
-        help="Durata minima (ore) per il flag is_long (default: 6.0)",
+        help="Soglia ore per classificazione lunga (durata > soglia, default: 6.0)",
     )
     parser.add_argument(
         "--no-holidays",

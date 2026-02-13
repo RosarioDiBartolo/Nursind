@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-"""Aggregate enriched shifts per employee into N/P/F counts by year.
+"""Aggregate enriched shifts per employee into turno counts by year.
 
 Input: enriched CSVs (from turni_enrichment).
-Output: CSV with three rows per employee (N, P, F) and year columns.
+Output: CSV with five rows per employee (N, P, F, M, S) and year columns.
 Rules:
-- Use is_long flag from enrichment (fallback to duration_hours if needed).
-- F merges Sundays and Italian holidays (holiday overrides other labels).
+- Prefer `turno_bucket` from enrichment when present.
+- Fallback: compute `turno_bucket` from duration + holiday + turno flags.
 """
 
 import argparse
@@ -20,11 +20,11 @@ import pandas as pd
 
 from drive_service.fs_utils import ensure_parent_dir
 from drive_service.logging_utils import setup_logging
-from shift_services import to_datetime_series
+from shift_services import assign_turno_bucket, to_datetime_series
 
 logger = logging.getLogger(__name__)
 
-TURNI = ("N", "P", "F")
+TURNI = ("N", "P", "F", "M", "S")
 DEFAULT_YEAR_START = 2016
 DEFAULT_YEAR_END = 2025
 DEFAULT_ENRICHED_DIR = "output/enriched/employee_pairs"
@@ -77,26 +77,14 @@ def _ensure_year_column(df: pd.DataFrame) -> pd.DataFrame:
     return working
 
 
-def _ensure_turno_code(df: pd.DataFrame) -> pd.DataFrame:
-    if "turno_code" in df.columns:
+def _ensure_turno_bucket(df: pd.DataFrame, *, min_hours: float | None) -> pd.DataFrame:
+    if "turno_bucket" in df.columns:
         return df
-    required_cols = {"is_holiday", "is_afternoon", "is_night"}
-    if not required_cols.issubset(set(df.columns)):
-        return df
+
+    threshold = 6.0 if min_hours is None else float(min_hours)
     working = df.copy()
-    turno_code = pd.Series("D", index=working.index, dtype="object")
-    turno_code = turno_code.mask(working["is_afternoon"], "P")
-    turno_code = turno_code.mask(working["is_night"], "N")
-    turno_code = turno_code.mask(working["is_holiday"], "F")
-    working["turno_code"] = turno_code
+    working["turno_bucket"] = assign_turno_bucket(working, min_hours=threshold)
     return working
-
-
-def _to_bool_series(values: pd.Series) -> pd.Series:
-    if values.dtype == bool:
-        return values
-    normalized = values.astype(str).str.strip().str.lower()
-    return normalized.isin({"true", "1", "yes", "y", "t"})
 
 
 def build_employee_turni_summary(
@@ -115,7 +103,6 @@ def build_employee_turni_summary(
         "file_mancanti": 0,
         "file_errori": 0,
         "righe_totali": 0,
-        "righe_lunghe": 0,
         "righe_classificate": 0,
     }
 
@@ -145,30 +132,19 @@ def build_employee_turni_summary(
             continue
 
         working = df.copy()
-        if "is_long" in working.columns:
-            long_mask = _to_bool_series(working["is_long"])
-            working = working.loc[long_mask].copy()
-        elif min_hours is not None and "duration_hours" in working.columns:
-            working = working.loc[working["duration_hours"] >= float(min_hours)].copy()
-        stats["righe_lunghe"] += len(working)
-
-        if working.empty:
-            rows.extend(_rows_for_employee(emp_name, {}, years))
-            continue
-
         working = _ensure_year_column(working)
-        working = _ensure_turno_code(working)
-        if "year" not in working.columns or "turno_code" not in working.columns:
+        working = _ensure_turno_bucket(working, min_hours=min_hours)
+        if "year" not in working.columns or "turno_bucket" not in working.columns:
             rows.extend(_rows_for_employee(emp_name, {}, years))
             continue
 
         if years:
             working = working.loc[working["year"].isin(years)].copy()
 
-        working = working.loc[working["turno_code"].isin(TURNI)].copy()
+        working = working.loc[working["turno_bucket"].isin(TURNI)].copy()
         stats["righe_classificate"] += len(working)
 
-        counts_series = working.groupby(["turno_code", "year"]).size()
+        counts_series = working.groupby(["turno_bucket", "year"]).size()
         counts = {
             (code, int(year)): int(count)
             for (code, year), count in counts_series.items()
@@ -193,7 +169,7 @@ def _write_json(out_path: str, rows: list[dict[str, Any]], stats: dict[str, int]
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Aggrega i turni (N/P/F) per dipendente dai CSV arricchiti."
+        description="Aggrega i turni (N/P/F/M/S) per dipendente dai CSV arricchiti."
     )
     parser.add_argument(
         "--enriched-dir",
@@ -226,7 +202,7 @@ def main() -> int:
     parser.add_argument(
         "--min-hours",
         type=float,
-        help="Fallback: usa duration_hours se is_long non esiste.",
+        help="Soglia ore per fallback classificazione turno_bucket (durata > soglia).",
     )
     parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose logging")
     args = parser.parse_args()
@@ -245,13 +221,12 @@ def main() -> int:
         _write_json(args.out, rows, stats)
 
     logger.info(
-        "Completato: dipendenti=%s file_totali=%s mancanti=%s errori=%s righe=%s lunghe=%s classificate=%s",
+        "Completato: dipendenti=%s file_totali=%s mancanti=%s errori=%s righe=%s classificate=%s",
         stats["dipendenti"],
         stats["file_totali"],
         stats["file_mancanti"],
         stats["file_errori"],
         stats["righe_totali"],
-        stats["righe_lunghe"],
         stats["righe_classificate"],
     )
     return 0

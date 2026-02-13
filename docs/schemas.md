@@ -41,7 +41,7 @@ Produced by: `src.pair_employee_events_from_days_raw`
 Columns:
 - `employee`
 - `entry_ts`, `exit_ts`, `duration_hours`, `is_long`
-- `is_holiday`, `is_afternoon`, `is_night`, `turno_code`, `year`
+- `is_holiday`, `is_afternoon`, `is_night`, `turno_code`, `turno_bucket`, `year`
 - `turno`, `file_id`, `file_name`, `source_csv`
 
 Produced by: `src.turni_enrichment`
