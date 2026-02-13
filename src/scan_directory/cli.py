@@ -11,8 +11,8 @@ from drive_service.logging_utils import setup_logging, get_logger
 from drive_service.index import MapIndex
 from drive_service.names import normalize_term
 from drive_service.schema import IndexFile
-
-from .scan_service import FOLDER_MIME, build_employee_report
+from .config import exclude_terms_normalized
+from .scan_service import FOLDER_MIME, build_folder_report
 
 logger = get_logger()
 
@@ -22,7 +22,7 @@ def _resolve_output_path(out_dir: str, name: str) -> str:
         return name
     return os.path.join(out_dir, name)
 
-
+ 
 def _get_root_name(drive, root_id: str) -> str | None:
     if not root_id:
         return None
@@ -65,8 +65,7 @@ def main() -> int:
 
     creds = load_creds()
     drive = get_drive_service(creds)
-    exclude_terms = [normalize_term(term) for term in config.EXCLUDE_TERMS]
-
+ 
     root_prefix = _get_root_name(drive, args.root)
     employees = [
         f for f in list_children(drive, args.root) if f["mimeType"] == FOLDER_MIME
@@ -79,10 +78,10 @@ def main() -> int:
     with ThreadPoolExecutor(max_workers=args.workers) as pool:
         futures = [
             pool.submit(
-                build_employee_report,
+                build_folder_report,
                 creds,
                 emp,
-                exclude_terms,
+                exclude_terms_normalized,
                 root_prefix=root_prefix,
             )
             for emp in employees

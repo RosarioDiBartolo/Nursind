@@ -102,6 +102,8 @@ def collect_files_recursive(
                     logger.warning("[%s] invalid ZIP skipped: %s", emp["name"], file_path)
                     filtered_files.append(
                         {
+                            "employee": emp["name"],   
+
                             "file_id": item["id"],
                             "file_name": item["name"],
                             "drive_path": file_path,
@@ -114,6 +116,8 @@ def collect_files_recursive(
                     logger.warning("[%s] ZIP read failed for %s: %s", emp["name"], file_path, exc)
                     filtered_files.append(
                         {
+                            "employee": emp["name"],   
+
                             "file_id": item["id"],
                             "file_name": item["name"],
                             "drive_path": file_path,
@@ -126,6 +130,7 @@ def collect_files_recursive(
                 if not members:
                     filtered_files.append(
                         {
+                            "employee": emp["name"],   
                             "file_id": item["id"],
                             "file_name": item["name"],
                             "drive_path": file_path,
@@ -139,6 +144,8 @@ def collect_files_recursive(
                     member_name = os.path.basename(member_path)
                     files.append(
                         {
+                            "type": "zip_member",
+                            "employee": emp["name"],
                             "file_id": build_archive_member_id(item["id"], member_path),
                             "file_name": member_name,
                             "drive_path": f"{file_path}/{member_path}",
@@ -148,7 +155,7 @@ def collect_files_recursive(
     return files, excluded_folders, filtered_files
 
 
-def build_employee_report(
+def build_folder_report(
     creds, emp: dict, exclude_terms: Iterable[str], *, root_prefix: str | None = None
 ) -> dict:
     drive = get_drive_service(creds)
@@ -157,7 +164,7 @@ def build_employee_report(
     )
     included: List[dict] = []
     filtered: List[dict] = list(pre_filtered_files)
-
+    
     for item in files:
         fname = item["file_name"]
         term = file_excluded(fname, exclude_terms)
@@ -170,6 +177,7 @@ def build_employee_report(
             "type": "file",
         }
         if term:
+            print("Found file with excluded term", payload["file_name"], term,)
             payload["reason"] = term
             filtered.append(payload)
         else:
