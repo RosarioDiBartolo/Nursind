@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import hashlib
 import os
 
+from src.drive_service.archive_utils import parse_archive_member_id
 from src.drive_service.index_runtime import doc_attr
 from src.drive_service.names import safe_name
 
@@ -50,13 +52,13 @@ def collect_docs(
             continue
 
         docs.append(
-            {
-                "employee": doc_attr(doc, "employee") or "unknown",
-                "employee_id": doc_attr(doc, "employee_id"),
-                "file_id": file_id,
-                "file_name": doc_attr(doc, "file_name") or file_id,
-                "drive_path": doc_attr(doc, "drive_path"),
-            }
+            _build_doc_payload(
+                employee=doc_attr(doc, "employee") or "unknown",
+                employee_id=doc_attr(doc, "employee_id"),
+                file_id=file_id,
+                file_name=doc_attr(doc, "file_name") or file_id,
+                drive_path=doc_attr(doc, "drive_path"),
+            )
         )
 
     if limit > 0:
@@ -81,6 +83,37 @@ def _assign_output_stems(docs: list[dict]) -> None:
         stem, _ = os.path.splitext(base_name)
         key = (employee_key, stem)
         if stem_counts.get(key, 0) > 1:
-            doc["out_stem"] = f"{stem}__{doc['file_id'][:8]}"
+            doc["out_stem"] = f"{stem}__{_doc_suffix(doc)}"
         else:
             doc["out_stem"] = stem
+
+
+def _build_doc_payload(*, employee: str, employee_id: str | None, file_id: str, file_name: str, drive_path: str | None) -> dict:
+    payload = {
+        "employee": employee,
+        "employee_id": employee_id,
+        "file_id": file_id,
+        "file_name": file_name,
+        "drive_path": drive_path,
+        "source_kind": "drive_pdf",
+    }
+    parsed = parse_archive_member_id(file_id)
+    if parsed:
+        archive_file_id, archive_member_path = parsed
+        payload["source_kind"] = "zip_member"
+        payload["archive_file_id"] = archive_file_id
+        payload["archive_member_path"] = archive_member_path
+    return payload
+
+
+def _doc_suffix(doc: dict) -> str:
+    source_kind = doc.get("source_kind")
+    if source_kind == "zip_member":
+        archive_file_id = str(doc.get("archive_file_id") or "")
+        archive_member_path = str(doc.get("archive_member_path") or "")
+        base = f"{archive_file_id}|{archive_member_path}"
+        return hashlib.sha1(base.encode("utf-8")).hexdigest()[:10]
+    file_id = str(doc.get("file_id") or "")
+    if file_id:
+        return safe_name(file_id)[:12]
+    return "unknown"
