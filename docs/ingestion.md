@@ -33,6 +33,9 @@ This stage discovers source files in Drive and extracts plain text from each ind
 - Scan treats `.zip` files as virtual folders: each PDF member is indexed as a separate file entry.
 - ZIP members are emitted with synthetic `file_id` values and virtual paths like `.../archive.zip/<member>.pdf`.
 - ZIP scan failures are added to filtered index with reasons (`invalid_zip_archive`, `zip_scan_error:*`, `zip_no_pdf_members`).
+- Extraction recognizes ZIP-member `file_id` values and downloads the parent archive, then extracts the member PDF bytes before text extraction.
+- ZIP archive downloads are cached per worker thread to avoid re-downloading the same archive for multiple members.
+- ZIP extraction failures are recorded in excluded index with reasons like `zip_archive_download_error:*`, `zip_member_not_found`, `zip_member_invalid_pdf`.
 
 ## Typical commands
 

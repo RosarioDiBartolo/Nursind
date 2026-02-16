@@ -1,5 +1,5 @@
 # LLM Codebase Briefing (Detailed)
-Last updated: 2026-02-13
+Last updated: 2026-02-14
 
 Instruction: Update this file whenever a codebase edit changes behavior, structure, public APIs, outputs, or schemas.
 
@@ -63,6 +63,9 @@ Instruction: Update this file whenever a codebase edit changes behavior, structu
   - `--skip-included` by default.
   - `--reprocess-included` and `--reprocess-excluded` supported.
   - Uses `drive_service/index_runtime.py` for path/doc/index checkpoint shared logic.
+  - Supports ZIP-member synthetic IDs from scan (`zip::...`): downloads the archive, extracts the referenced PDF member, then runs the normal/vertical text quality selection.
+  - ZIP downloads are cached per download worker thread for member reuse.
+  - ZIP-member download failures are tracked in excluded text index with explicit reasons (`zip_archive_download_error:*`, `zip_member_not_found`, `zip_member_invalid_pdf`).
 
 ### 3) Days from text
 - Entry: `python -m "src.extract_days_from_text_raw"`
