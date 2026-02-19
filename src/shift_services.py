@@ -9,7 +9,7 @@ from typing import Any, Callable, Iterable
 import holidays
 import pandas as pd
 
-from drive_service.names import safe_name
+from src.drive_service.names import safe_name
 
 logger = logging.getLogger(__name__)
 

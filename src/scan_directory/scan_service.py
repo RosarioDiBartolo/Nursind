@@ -3,11 +3,15 @@ from __future__ import annotations
 import os
 from typing import Iterable, List, Tuple
 
-from drive_service.archive_utils import BadZipFile, build_archive_member_id, list_pdf_members
-from drive_service.downloads import download_file_bytes
-from drive_service.drive_client import get_drive_service, list_children
-from drive_service.logging_utils import get_logger
-from drive_service.names import normalize_term
+from src.drive_service.archive_utils import (
+    BadZipFile,
+    build_archive_member_id,
+    list_pdf_members,
+)
+from src.drive_service.downloads import download_file_bytes
+from src.drive_service.drive_client import get_drive_service, list_children
+from src.drive_service.logging_utils import get_logger
+from src.drive_service.names import normalize_term
 
 logger = get_logger()
 

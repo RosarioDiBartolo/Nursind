@@ -1,4 +1,4 @@
-from drive_service.names import normalize_term
+from src.drive_service.names import normalize_term
 
 
 EXCLUDE_TERMS = [

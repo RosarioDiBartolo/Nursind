@@ -3,7 +3,11 @@ from __future__ import annotations
 import os
 import threading
 
-from src.drive_service.archive_utils import BadZipFile, extract_zip_member_bytes, parse_archive_member_id
+from src.drive_service.archive_utils import (
+    BadZipFile,
+    extract_zip_member_bytes,
+    parse_archive_member_id,
+)
 from src.drive_service.downloads import download_file_bytes
 from src.drive_service.drive_client import get_drive_service
 from src.drive_service.fs_utils import ensure_dir

@@ -2,7 +2,7 @@ import os
 
 from dotenv import load_dotenv
 
-from drive_service.names import normalize_term
+from .names import normalize_term
 
 load_dotenv()
 

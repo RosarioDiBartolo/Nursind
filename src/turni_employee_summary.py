@@ -18,9 +18,9 @@ from typing import Any, Iterable
 
 import pandas as pd
 
-from drive_service.fs_utils import ensure_parent_dir
-from drive_service.logging_utils import setup_logging
-from shift_services import assign_turno_bucket, to_datetime_series
+from src.drive_service.fs_utils import ensure_parent_dir
+from src.drive_service.logging_utils import setup_logging
+from src.shift_services import assign_turno_bucket, to_datetime_series
 
 logger = logging.getLogger(__name__)
 

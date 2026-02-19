@@ -5,11 +5,11 @@ from pathlib import Path
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
+sys.path.insert(0, str(ROOT))
 
-from drive_service.archive_utils import build_archive_member_id  # noqa: E402
-from extract_text_from_index.planning import collect_docs  # noqa: E402
-import extract_text_from_index.workers as workers  # noqa: E402
+from src.drive_service.archive_utils import build_archive_member_id  # noqa: E402
+from src.extract_text_from_index.planning import collect_docs  # noqa: E402
+import src.extract_text_from_index.workers as workers  # noqa: E402
 
 
 def _make_zip_bytes(entries: dict[str, bytes]) -> bytes:

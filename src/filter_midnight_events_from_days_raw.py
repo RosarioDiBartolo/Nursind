@@ -11,8 +11,8 @@ from typing import Any
 
 import pandas as pd
 
-from drive_service.fs_utils import ensure_parent_dir
-from drive_service.logging_utils import setup_logging
+from src.drive_service.fs_utils import ensure_parent_dir
+from src.drive_service.logging_utils import setup_logging
 
 logger = logging.getLogger(__name__)
 

@@ -14,10 +14,10 @@ from pathlib import Path
 
 import pandas as pd
 
-from drive_service.fs_utils import ensure_dir, ensure_parent_dir
-from drive_service.logging_utils import setup_logging
-from drive_service.names import safe_name
-from shift_services import (
+from src.drive_service.fs_utils import ensure_dir, ensure_parent_dir
+from src.drive_service.logging_utils import setup_logging
+from src.drive_service.names import safe_name
+from src.shift_services import (
     ItalianHolidayCalendar,
     ShiftClassifier,
     assign_turno_bucket,

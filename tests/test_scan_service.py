@@ -4,11 +4,11 @@ import sys
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
+sys.path.insert(0, str(ROOT))
 
-from drive_service.names import normalize_term  # noqa: E402
-import scan_directory.scan_service as scan_service  # noqa: E402
-from scan_directory.scan_service import file_excluded, folder_excluded  # noqa: E402
+from src.drive_service.names import normalize_term  # noqa: E402
+import src.scan_directory.scan_service as scan_service  # noqa: E402
+from src.scan_directory.scan_service import file_excluded, folder_excluded  # noqa: E402
 
 
 def test_folder_excluded_normalizes_name():

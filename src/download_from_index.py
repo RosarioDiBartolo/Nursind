@@ -5,13 +5,13 @@ from __future__ import annotations
 import argparse
 import os
  
-from drive_service.auth_service import load_creds
-from drive_service.downloads import download_pdf_stream
-from drive_service.drive_client import get_drive_service
-from drive_service.fs_utils import ensure_dir
-from drive_service.logging_utils import get_logger, setup_logging
-from drive_service.map_index_service import MapIndex
-from drive_service.names import safe_name
+from src.drive_service.auth_service import load_creds
+from src.drive_service.downloads import download_pdf_stream
+from src.drive_service.drive_client import get_drive_service
+from src.drive_service.fs_utils import ensure_dir
+from src.drive_service.logging_utils import get_logger, setup_logging
+from src.drive_service.map_index_service import MapIndex
+from src.drive_service.names import safe_name
  
 
 DEFAULT_INDEX = "scan/samples.index.scan.map.json"
