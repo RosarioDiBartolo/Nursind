@@ -10,7 +10,7 @@ python -m "src.scan_directory" --root "<DRIVE_ROOT_FOLDER_ID>" --out "scan" --in
 
 ## 0b) Optional: Download PDFs from a map index
 ```powershell
-python src/download_from_index.py --index "scan/samples.index.scan.map.json" --out "samples/from_index" --limit 20 --verbose
+python -m "src.download_from_index" --index "scan/samples.index.scan.map.json" --out "samples/from_index" --limit 20 --verbose
 ```
 Useful for building small local datasets from an existing index.
 
