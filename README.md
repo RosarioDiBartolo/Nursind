@@ -281,3 +281,11 @@ Main flags:
 - `docs/aggregation.md`
 - `docs/schemas.md`
 - `docs/shared_logic_registry.md`
+
+## TODO
+
+- [ ] Expand automated tests to cover all pipeline stages (not only scan utilities).
+- [ ] Add a reproducible environment setup with all runtime dependencies in `pyproject.toml`.
+- [ ] Refactor large CLI modules into thinner orchestration + service layers.
+- [ ] Remove deprecated compatibility paths after a migration window.
+- [ ] Add CI checks for smoke runs of canonical `python -m "src.*"` entry points.
