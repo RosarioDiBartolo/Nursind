@@ -15,7 +15,7 @@ dependencies = [
 ]
 
 [project.scripts]
-drive-scan = "scan_directory.cli:main"
+drive-scan = "src.scan_directory.cli:main"
 
 [project.optional-dependencies]
 dev = [

@@ -9,7 +9,7 @@ This stage enriches employee pair CSVs with classification fields used by aggreg
 ## Input
 
 - Canonical pipeline input: `output/employee_shifts_from_raw/*.pairs.csv`
-- CLI default if `--input-dir` is omitted: `output/employee_shifts/*.pairs.csv`
+- CLI default if `--input-dir` is omitted: `output/employee_shifts_from_raw/*.pairs.csv`
 
 ## Output
 

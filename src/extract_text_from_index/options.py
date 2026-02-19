@@ -9,7 +9,7 @@ from typing import Sequence
 @dataclass(slots=True)
 class ExtractTextFromIndexOptions:
     out: str = "output/text_extracted"
-    index: str = "scan/included.scan.map.json"
+    index: str = "scan/included.index.json"
     excluded: str = "excluded_text.index.json"
     included: str = "included_text.index.json"
     skip_included: bool = True
@@ -35,7 +35,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--out", default="output/text_extracted", help="Output directory")
     parser.add_argument(
         "--index",
-        default="scan/included.scan.map.json",
+        default="scan/included.index.json",
         help="Input MapIndex file (must use current files-object schema)",
     )
     parser.add_argument(

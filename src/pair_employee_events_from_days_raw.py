@@ -12,6 +12,7 @@ from typing import Any
 import pandas as pd
 
 from src.drive_service.fs_utils import ensure_dir, ensure_parent_dir
+from src.drive_service.index_runtime import doc_attr
 from src.drive_service.logging_utils import setup_logging
 from src.drive_service.index import MapIndex
 from src.drive_service.names import safe_name
@@ -35,12 +36,6 @@ DEFAULT_MAX_GAP_HOURS = 16.0
 
 def normalize_employee(name: str | None) -> str:
     return " ".join((name or "").strip().lower().split()) or "unknown"
-
-
-def _item_attr(item: Any, name: str) -> Any:
-    if isinstance(item, dict):
-        return item.get(name)
-    return getattr(item, name, None)
 
 
 def _discover_employees_from_events_dir(
@@ -96,15 +91,15 @@ def _resolve_cleaned_events_path(
     emp_name: str,
     events_name: str,
 ) -> str:
-    outputs = getattr(inc, "outputs", None)
-    days_rel = getattr(outputs, "days_csv", None) if outputs else None
+    outputs = doc_attr(inc, "outputs")
+    days_rel = doc_attr(outputs, "days_csv") if outputs else None
     if days_rel:
         days_abs = os.path.abspath(os.path.join(index_dir, days_rel))
     else:
         expected_pairs = resolver.expected_pairs_path(
             emp_name,
-            getattr(inc, "file_name", None),
-            getattr(inc, "file_id", None),
+            doc_attr(inc, "file_name"),
+            doc_attr(inc, "file_id"),
         )
         days_abs = os.path.join(os.path.dirname(expected_pairs), "days.csv")
     return os.path.abspath(os.path.join(os.path.dirname(days_abs), events_name))
@@ -385,6 +380,10 @@ def pair_employee_events(
 ) -> dict[str, Any]:
     ensure_dir(output_dir)
     use_folder_mode = bool(input_dir)
+    if use_folder_mode and index_path:
+        logger.warning(
+            "--index is deprecated and ignored when --input-dir is provided; using folder mode."
+        )
 
     employees: list[dict[str, Any]]
     resolver: PairsPathResolver | None = None
@@ -400,6 +399,9 @@ def pair_employee_events(
     else:
         if not index_path:
             raise ValueError("Either --input-dir or --index must be provided")
+        logger.warning(
+            "--index mode is deprecated and will be removed; use --input-dir folder mode."
+        )
         index_abs = os.path.abspath(index_path)
         index_dir = os.path.dirname(index_abs)
         report = MapIndex.load_index(index_abs, strict=True)
@@ -486,7 +488,7 @@ def pair_employee_events(
         for inc in emp_files:
             totals["files_total"] += 1
             if use_folder_mode:
-                source_events_csv = str(_item_attr(inc, "events_csv") or "")
+                source_events_csv = str(doc_attr(inc, "events_csv") or "")
             else:
                 assert resolver is not None
                 source_events_csv = _resolve_cleaned_events_path(
@@ -496,8 +498,8 @@ def pair_employee_events(
                     emp_name=emp_name,
                     events_name=events_name,
                 )
-            file_id = _item_attr(inc, "file_id")
-            file_name = _item_attr(inc, "file_name")
+            file_id = doc_attr(inc, "file_id")
+            file_name = doc_attr(inc, "file_name")
             if not os.path.exists(source_events_csv):
                 totals["files_missing"] += 1
                 employee_stats["files_missing"] += 1
@@ -621,8 +623,8 @@ def main() -> int:
         "--index",
         default=DEFAULT_INDEX,
         help=(
-            "Path to included.index.json (legacy mode, used only when --input-dir is empty; "
-            "default: disabled)"
+            "Deprecated: path to included.index.json for legacy index mode. "
+            "Used only when --input-dir is empty (default: disabled)."
         ),
     )
     parser.add_argument(

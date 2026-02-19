@@ -2,7 +2,7 @@ from __future__ import annotations
 
 """Enrich merged per-employee pairs with shift classification fields.
 
-Input: output/employee_shifts/<EMP>.pairs.csv (prepared step).
+Input: output/employee_shifts_from_raw/<EMP>.pairs.csv (prepared step).
 Output: per-employee enriched CSV under output/enriched/employee_pairs.
 """
 
@@ -28,7 +28,7 @@ from src.shift_services import (
 logger = logging.getLogger(__name__)
 
 DEFAULT_MIN_HOURS = 6.0
-DEFAULT_INPUT_DIR = "output/employee_shifts"
+DEFAULT_INPUT_DIR = "output/employee_shifts_from_raw"
 DEFAULT_OUTPUT_DIR = "output/enriched/employee_pairs"
 ENRICHED_COLUMNS = [
     "employee",
@@ -200,7 +200,7 @@ def main() -> int:
     parser.add_argument(
         "--input-dir",
         default=DEFAULT_INPUT_DIR,
-        help="Directory dei pairs.csv per dipendente (default: output/employee_shifts)",
+        help="Directory dei pairs.csv per dipendente (default: output/employee_shifts_from_raw)",
     )
     parser.add_argument(
         "--out-dir",

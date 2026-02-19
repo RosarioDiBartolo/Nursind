@@ -43,7 +43,6 @@ python -m "src.pair_employee_events_from_days_raw" --input-dir "output/parsed_fr
 ```powershell
 python -m "src.turni_enrichment" --input-dir "output/employee_shifts_from_raw" --out-dir "output/enriched/employee_pairs" --min-hours 6 --verbose
 ```
-Note: `src.turni_enrichment` defaults `--input-dir` to `output/employee_shifts`, so pass `output/employee_shifts_from_raw` for this pipeline.
 
 ## 7) Build per-employee turno summary
 ```powershell

@@ -9,8 +9,8 @@ from src.drive_service.auth_service import load_creds
 from src.drive_service.downloads import download_pdf_stream
 from src.drive_service.drive_client import get_drive_service
 from src.drive_service.fs_utils import ensure_dir
+from src.drive_service.index import MapIndex
 from src.drive_service.logging_utils import get_logger, setup_logging
-from src.drive_service.map_index_service import MapIndex
 from src.drive_service.names import safe_name
  
 

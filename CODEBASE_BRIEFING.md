@@ -21,4 +21,11 @@ Process payroll PDFs through a text-first pipeline and produce per-employee shif
 - Enrich + summary: `python -m "src.turni_enrichment"`, `python -m "src.turni_employee_summary"`
 
 ## Details
-For full architecture, schemas, conventions, and workflows, see `llm.md`.
+For full architecture, commands, and schemas, see:
+- `README.md`
+- `PIPELINE_COMMANDS.md`
+- `docs/ingestion.md`
+- `docs/preparation.md`
+- `docs/enrichment.md`
+- `docs/aggregation.md`
+- `docs/schemas.md`
