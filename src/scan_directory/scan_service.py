@@ -181,7 +181,12 @@ def build_folder_report(
             "type": "file",
         }
         if term:
-            print("Found file with excluded term", payload["file_name"], term,)
+            logger.debug(
+                "[%s] excluded file %s by term %s",
+                emp["name"],
+                payload["file_name"],
+                term,
+            )
             payload["reason"] = term
             filtered.append(payload)
         else:

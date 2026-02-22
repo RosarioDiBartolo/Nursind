@@ -104,6 +104,7 @@ Outputs:
 
 - `scan/included.index.json`
 - `scan/filtered.index.json`
+- `scan/scan_directory.report.json`
 
 Index records include fields such as:
 
@@ -116,6 +117,7 @@ Notes:
 - ZIP files are expanded as virtual folders and PDF members are indexed with synthetic IDs.
 - ZIP failures are explicitly tracked (for example: invalid archive, no PDF members, scan errors).
 - Employee identity is anchored to the Drive folder scope (`employee_id`).
+- Scan continues on per-employee failures and records them in `scan/scan_directory.report.json`.
 
 ### 2) Text Extraction
 
@@ -247,7 +249,7 @@ Behavior:
 
 ```powershell
 python -m pip install -e .[dev]
-python -m "src.scan_directory" --root "<DRIVE_ROOT_FOLDER_ID>" --out "scan" --included "included.index.json" --filtered "filtered.index.json" --verbose
+python -m "src.scan_directory" --root "<DRIVE_ROOT_FOLDER_ID>" --out "scan" --included "included.index.json" --filtered "filtered.index.json" --report "scan_directory.report.json" --verbose
 python -m "src.extract_text_from_index" --index "scan/included.index.json" --out "output/text_extracted" --verbose
 python -m "src.extract_days_from_text_raw" --input-dir "output/text_extracted" --out-dir "output/parsed_from_text" --verbose
 python -m "src.extract_events_from_days_raw" --input-dir "output/parsed_from_text" --verbose
@@ -272,10 +274,32 @@ Main flags:
 - `--limit`: first N files only (`0` means all)
 - `--skip-existing` / `--no-skip-existing`: keep or overwrite existing files
 
+## Notebook Pipeline Showcase
+
+Use step notebooks in `src/notebooks` to demonstrate each pipeline stage with reproducible checks.
+
+- `src/notebooks/_step_template.ipynb`: solid scaffold to start any new step notebook.
+- `src/notebooks/scan.ipynb`: Drive indexing step showcase with two modes:
+  - `live`: scans Drive from `ROOT_ID` and writes canonical scan outputs.
+  - `demo`: loads existing index files and re-saves to canonical output paths.
+
+Expected scan artifacts from the notebook:
+
+- `scan/included.index.json`
+- `scan/filtered.index.json`
+- `scan/scan_directory.report.json`
+
+Next command after scan notebook:
+
+```powershell
+python -m "src.extract_text_from_index" --index "scan/included.index.json" --out "output/text_extracted" --included "included_text.index.json" --excluded "excluded_text.index.json" --verbose
+```
+
 ## Documentation Map
 
 - `PIPELINE_COMMANDS.md`
 - `docs/ingestion.md`
+- `src/notebooks/_step_template.ipynb`
 - `docs/preparation.md`
 - `docs/enrichment.md`
 - `docs/aggregation.md`
