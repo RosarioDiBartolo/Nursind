@@ -13,14 +13,20 @@ import pandas as pd
 
 from src.drive_service.fs_utils import ensure_parent_dir
 from src.drive_service.logging_utils import setup_logging
+from src.drive_service.output_paths import build_output_paths
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_INPUT_DIR = "output/parsed_from_text"
-DEFAULT_EVENTS_NAME = "events_from_days_raw.csv"
+DEFAULT_OUTPUTS = build_output_paths()
+DEFAULT_INPUT_DIR = str(DEFAULT_OUTPUTS.events_output)
+DEFAULT_EVENTS_NAME = "*.events_from_days_raw.csv"
 DEFAULT_OUT_NAME = "events_from_days_raw.cleaned.csv"
-DEFAULT_REPORT_JSON = "output/parsed_from_text/events_from_days_raw.clean_midnight.report.json"
-DEFAULT_REMOVED_CSV = "output/parsed_from_text/events_from_days_raw.midnight_removed.csv"
+DEFAULT_REPORT_JSON = str(
+    DEFAULT_OUTPUTS.events_output / "events_from_days_raw.clean_midnight.report.json"
+)
+DEFAULT_REMOVED_CSV = str(
+    DEFAULT_OUTPUTS.events_output / "events_from_days_raw.midnight_removed.csv"
+)
 DEFAULT_MAX_REMOVED_EXAMPLES_PER_FILE = 10
 
 
@@ -91,6 +97,20 @@ def _removed_examples(removed: pd.DataFrame, limit: int) -> list[str]:
     return out
 
 
+def _build_cleaned_output_path(event_path: Path, out_name: str, *, in_place: bool) -> Path:
+    if in_place:
+        return event_path
+    if event_path.name == "events_from_days_raw.csv":
+        # Legacy layout.
+        return event_path.with_name(out_name)
+    marker = ".events_from_days_raw.csv"
+    if event_path.name.endswith(marker):
+        prefix = event_path.name[: -len(marker)]
+    else:
+        prefix = event_path.stem
+    return event_path.with_name(f"{prefix}.{out_name}")
+
+
 def filter_midnight_events_dir(
     *,
     input_dir: str = DEFAULT_INPUT_DIR,
@@ -124,7 +144,11 @@ def filter_midnight_events_dir(
         try:
             df = pd.read_csv(event_path)
             cleaned, removed, stats = _clean_events_df(df)
-            out_path = event_path if in_place else event_path.with_name(out_name)
+            out_path = _build_cleaned_output_path(
+                event_path,
+                out_name,
+                in_place=in_place,
+            )
             ensure_parent_dir(str(out_path))
             cleaned.to_csv(out_path, index=False)
 
@@ -202,12 +226,12 @@ def main() -> int:
     parser.add_argument(
         "--input-dir",
         default=DEFAULT_INPUT_DIR,
-        help="Directory radice in cui cercare i CSV eventi (default: output/parsed_from_text)",
+        help=f"Directory radice in cui cercare i CSV eventi (default: {DEFAULT_INPUT_DIR})",
     )
     parser.add_argument(
         "--events-name",
         default=DEFAULT_EVENTS_NAME,
-        help="Nome file eventi da cercare ricorsivamente (default: events_from_days_raw.csv)",
+        help="Pattern file eventi da cercare ricorsivamente (default: *.events_from_days_raw.csv)",
     )
     parser.add_argument(
         "--out-name",
@@ -222,7 +246,7 @@ def main() -> int:
         default=DEFAULT_REPORT_JSON,
         help=(
             "Path report JSON finale "
-            "(default: output/parsed_from_text/events_from_days_raw.clean_midnight.report.json)"
+            f"(default: {DEFAULT_REPORT_JSON})"
         ),
     )
     parser.add_argument(
@@ -230,7 +254,7 @@ def main() -> int:
         default=DEFAULT_REMOVED_CSV,
         help=(
             "Path CSV aggregato con tutte le righe rimosse "
-            "(default: output/parsed_from_text/events_from_days_raw.midnight_removed.csv)"
+            f"(default: {DEFAULT_REMOVED_CSV})"
         ),
     )
     parser.add_argument(

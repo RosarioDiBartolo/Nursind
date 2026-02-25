@@ -14,6 +14,7 @@ import pandas as pd
 
 from src.drive_service.fs_utils import ensure_parent_dir
 from src.drive_service.logging_utils import setup_logging
+from src.drive_service.output_paths import build_output_paths
 from src.raw_text_parsing import (
     EVENT_PATTERNS,
     extract_events,
@@ -22,10 +23,14 @@ from src.raw_text_parsing import (
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_INPUT_DIR = "output/parsed_from_text"
-DEFAULT_DAYS_NAME = "days.csv"
+DEFAULT_OUTPUTS = build_output_paths()
+DEFAULT_INPUT_DIR = str(DEFAULT_OUTPUTS.parsing_output)
+DEFAULT_OUTPUT_DIR = str(DEFAULT_OUTPUTS.events_output)
+DEFAULT_DAYS_NAME = "*.days.csv"
 DEFAULT_OUT_NAME = "events_from_days_raw.csv"
-DEFAULT_REPORT_JSON = "output/parsed_from_text/extract_events_from_days_raw.report.json"
+DEFAULT_REPORT_JSON = str(
+    DEFAULT_OUTPUTS.events_output / "extract_events_from_days_raw.report.json"
+)
 DEFAULT_MAX_PATTERN_EXAMPLES = 12
 DEFAULT_MAX_UNMATCHED_EXAMPLES_PER_FILE = 5
 
@@ -74,6 +79,27 @@ def _to_dt(base_day: date, time_str: str) -> datetime | None:
 
 def _infer_year_month_from_days_path(days_path: Path) -> tuple[int | None, int | None]:
     return infer_year_month_from_filename(days_path.parent)
+
+
+def _build_events_output_path(
+    days_path: Path,
+    *,
+    input_base: Path,
+    output_base: Path,
+    out_name: str,
+) -> Path:
+    if days_path.name == "days.csv":
+        # Legacy layout: one folder per source file, write sibling output name.
+        rel_dir = days_path.parent.relative_to(input_base)
+        return output_base / rel_dir / out_name
+
+    marker = ".days.csv"
+    if days_path.name.endswith(marker):
+        prefix = days_path.name[: -len(marker)]
+    else:
+        prefix = days_path.stem
+    rel_parent = days_path.parent.relative_to(input_base)
+    return output_base / rel_parent / f"{prefix}.{out_name}"
 
 
 def _build_day(
@@ -215,6 +241,7 @@ def _extract_events_from_days_df(
 def extract_events_from_days_dir(
     *,
     input_dir: str = DEFAULT_INPUT_DIR,
+    output_dir: str = DEFAULT_OUTPUT_DIR,
     days_name: str = DEFAULT_DAYS_NAME,
     out_name: str = DEFAULT_OUT_NAME,
     report_json: str = DEFAULT_REPORT_JSON,
@@ -222,6 +249,7 @@ def extract_events_from_days_dir(
     max_unmatched_examples_per_file: int = DEFAULT_MAX_UNMATCHED_EXAMPLES_PER_FILE,
 ) -> dict[str, Any]:
     base = Path(input_dir)
+    output_base = Path(output_dir)
     day_files = sorted(base.rglob(days_name))
 
     pattern_examples = {name: [] for name, _ in EVENT_PATTERNS}
@@ -238,6 +266,7 @@ def extract_events_from_days_dir(
         "events_extracted": 0,
         "rows_with_multi_events": 0,
         "input_dir": os.path.abspath(input_dir),
+        "output_dir": os.path.abspath(output_dir),
         "days_name": days_name,
         "out_name": out_name,
     }
@@ -258,7 +287,12 @@ def extract_events_from_days_dir(
                 max_pattern_examples=max_pattern_examples,
                 max_unmatched_examples_per_file=max_unmatched_examples_per_file,
             )
-            out_path = day_path.with_name(out_name)
+            out_path = _build_events_output_path(
+                day_path,
+                input_base=base,
+                output_base=output_base,
+                out_name=out_name,
+            )
             ensure_parent_dir(str(out_path))
             events_df.to_csv(out_path, index=False)
             totals["files_processed"] += 1
@@ -339,24 +373,32 @@ def main() -> int:
     parser.add_argument(
         "--input-dir",
         default=DEFAULT_INPUT_DIR,
-        help="Directory radice da cui cercare days.csv (default: output/parsed_from_text)",
+        help=f"Directory radice da cui cercare days.csv (default: {DEFAULT_INPUT_DIR})",
+    )
+    parser.add_argument(
+        "--output-dir",
+        default=DEFAULT_OUTPUT_DIR,
+        help=f"Directory radice in cui scrivere events CSV (default: {DEFAULT_OUTPUT_DIR})",
     )
     parser.add_argument(
         "--days-name",
         default=DEFAULT_DAYS_NAME,
-        help="Nome file days da cercare ricorsivamente (default: days.csv)",
+        help="Pattern file days da cercare ricorsivamente (default: *.days.csv)",
     )
     parser.add_argument(
         "--out-name",
         default=DEFAULT_OUT_NAME,
-        help="Nome file output eventi accanto a ogni days.csv (default: events_from_days_raw.csv)",
+        help=(
+            "Suffisso file output eventi accanto a ogni days file "
+            "(e.g. source.days.csv -> source.events_from_days_raw.csv)"
+        ),
     )
     parser.add_argument(
         "--report-json",
         default=DEFAULT_REPORT_JSON,
         help=(
             "Path report JSON finale "
-            "(default: output/parsed_from_text/extract_events_from_days_raw.report.json)"
+            f"(default: {DEFAULT_REPORT_JSON})"
         ),
     )
     parser.add_argument(
@@ -377,6 +419,7 @@ def main() -> int:
     setup_logging(args.verbose)
     report = extract_events_from_days_dir(
         input_dir=args.input_dir,
+        output_dir=args.output_dir,
         days_name=args.days_name,
         out_name=args.out_name,
         report_json=args.report_json,

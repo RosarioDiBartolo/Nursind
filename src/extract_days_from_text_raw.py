@@ -14,6 +14,7 @@ from typing import Any
  
 from src.drive_service.fs_utils import ensure_parent_dir
 from src.drive_service.logging_utils import setup_logging
+from src.pipeline_paths import build_pipelines_paths
 from src.raw_text_parsing import (
     DAY_PREFIX_RE,
     QTA_RE,
@@ -26,10 +27,13 @@ from src.raw_text_parsing import (
  
 logger = logging.getLogger(__name__)
 
-DEFAULT_INPUT_DIR = "output/text_extracted"
-DEFAULT_OUT_DIR = "output/parsed_from_text"
+DEFAULT_OUTPUTS = build_pipelines_paths()
+DEFAULT_INPUT_DIR = str(DEFAULT_OUTPUTS.text_extraction_output)
+DEFAULT_OUT_DIR = str(DEFAULT_OUTPUTS.parsing_output)
 DEFAULT_OUT_NAME = "days.csv"
-DEFAULT_REPORT_JSON = "output/parsed_from_text/extract_days_from_text_raw.report.json"
+DEFAULT_REPORT_JSON = str(
+    DEFAULT_OUTPUTS.parsing_output / "extract_days_from_text_raw.report.json"
+)
 DEFAULT_TEXT_GLOB = "*.txt"
 DEFAULT_MAX_NO_DAYS_FILES = 80
 DEFAULT_MAX_NO_DAYS_LINES = 8
@@ -48,6 +52,21 @@ class ParsedRow:
     mo_f: float | None
     mo_t: float | None
     mo_lav: float | None
+
+
+def _header_preview(text: str, *, max_lines: int = 3, max_chars: int = 240) -> str:
+    lines: list[str] = []
+    for raw in text.splitlines():
+        clean = raw.strip()
+        if not clean:
+            continue
+        lines.append(clean)
+        if len(lines) >= max_lines:
+            break
+    preview = " | ".join(lines)
+    if len(preview) > max_chars:
+        return f"{preview[:max_chars].rstrip()}..."
+    return preview
 
 
 def _format_float(value: float | None) -> str:
@@ -299,6 +318,20 @@ def _write_days_csv(
             )
 
 
+def _build_days_output_path(
+    txt_path: Path,
+    *,
+    input_base: Path,
+    out_base: Path,
+    out_name: str,
+) -> Path:
+    rel = txt_path.relative_to(input_base)
+    suffix = out_name.strip()
+    if not suffix:
+        suffix = "days.csv"
+    return out_base / rel.with_suffix(f".{suffix}")
+
+
 def build_days_from_text_dir(
     *,
     input_dir: str = DEFAULT_INPUT_DIR,
@@ -317,6 +350,7 @@ def build_days_from_text_dir(
         "files_total": len(text_files),
         "files_processed": 0,
         "files_error": 0,
+        "files_missing_year_month": 0,
         "files_with_days": 0,
         "files_without_days": 0,
         "rows_total": 0,
@@ -329,6 +363,7 @@ def build_days_from_text_dir(
     }
     format_counts: dict[str, int] = {}
     files_without_days: list[dict[str, Any]] = []
+    files_missing_year_month: list[dict[str, Any]] = []
     file_errors: list[dict[str, str]] = []
 
     for index, txt_path in enumerate(text_files, start=1):
@@ -337,10 +372,26 @@ def build_days_from_text_dir(
             doc_format = detect_doc_format(text)
             format_counts[doc_format] = format_counts.get(doc_format, 0) + 1
             year, month = resolve_year_month(text, txt_path)
+            if year is None or month is None:
+                totals["files_missing_year_month"] += 1
+                files_missing_year_month.append(
+                    {
+                        "source_txt": str(txt_path),
+                        "doc_format": doc_format,
+                        "header_preview": _header_preview(text),
+                    }
+                )
+                raise ValueError(
+                    "MISSING_YEAR_MONTH: unable to resolve month/year from text and filename"
+                )
             rows, file_stats = _parse_rows_for_file(text, doc_format=doc_format)
 
-            rel = txt_path.relative_to(input_base)
-            out_csv = out_base / rel.with_suffix("") / out_name
+            out_csv = _build_days_output_path(
+                txt_path,
+                input_base=input_base,
+                out_base=out_base,
+                out_name=out_name,
+            )
             _write_days_csv(rows, out_csv, year=year, month=month)
 
             totals["files_processed"] += 1
@@ -389,6 +440,7 @@ def build_days_from_text_dir(
     report = {
         "stats": totals,
         "format_counts": format_counts,
+        "files_missing_year_month": files_missing_year_month,
         "files_without_days": files_without_days,
         "file_errors": file_errors,
     }
@@ -405,12 +457,12 @@ def main() -> int:
     parser.add_argument(
         "--input-dir",
         default=DEFAULT_INPUT_DIR,
-        help="Root folder containing extracted text files (default: output/text_extracted)",
+        help=f"Root folder containing extracted text files (default: {DEFAULT_INPUT_DIR})",
     )
     parser.add_argument(
         "--out-dir",
         default=DEFAULT_OUT_DIR,
-        help="Root folder where parsed per-file days.csv will be written (default: output/parsed_from_text)",
+        help=f"Root folder where parsed per-file days.csv will be written (default: {DEFAULT_OUT_DIR})",
     )
     parser.add_argument(
         "--text-glob",
@@ -420,14 +472,17 @@ def main() -> int:
     parser.add_argument(
         "--out-name",
         default=DEFAULT_OUT_NAME,
-        help="Output csv filename written per source file (default: days.csv)",
+        help=(
+            "Output suffix written per source file "
+            "(e.g. source.txt -> source.days.csv, default: days.csv)"
+        ),
     )
     parser.add_argument(
         "--report-json",
         default=DEFAULT_REPORT_JSON,
         help=(
             "Path of final JSON report "
-            "(default: output/parsed_from_text/extract_days_from_text_raw.report.json)"
+            f"(default: {DEFAULT_REPORT_JSON})"
         ),
     )
     parser.add_argument(

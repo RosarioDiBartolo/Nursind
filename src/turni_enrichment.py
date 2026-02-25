@@ -2,8 +2,8 @@ from __future__ import annotations
 
 """Enrich merged per-employee pairs with shift classification fields.
 
-Input: output/employee_shifts_from_raw/<EMP>.pairs.csv (prepared step).
-Output: per-employee enriched CSV under output/enriched/employee_pairs.
+Input: output/shifts/<EMP>.pairs.csv (prepared step).
+Output: per-employee enriched CSV under output/enrichment.
 """
 
 import argparse
@@ -17,6 +17,7 @@ import pandas as pd
 from src.drive_service.fs_utils import ensure_dir, ensure_parent_dir
 from src.drive_service.logging_utils import setup_logging
 from src.drive_service.names import safe_name
+from src.drive_service.output_paths import build_output_paths
 from src.shift_services import (
     ItalianHolidayCalendar,
     ShiftClassifier,
@@ -28,8 +29,9 @@ from src.shift_services import (
 logger = logging.getLogger(__name__)
 
 DEFAULT_MIN_HOURS = 6.0
-DEFAULT_INPUT_DIR = "output/employee_shifts_from_raw"
-DEFAULT_OUTPUT_DIR = "output/enriched/employee_pairs"
+DEFAULT_OUTPUTS = build_output_paths()
+DEFAULT_INPUT_DIR = str(DEFAULT_OUTPUTS.shifts_output)
+DEFAULT_OUTPUT_DIR = str(DEFAULT_OUTPUTS.enrichment_output)
 ENRICHED_COLUMNS = [
     "employee",
     "entry_ts",
@@ -200,12 +202,12 @@ def main() -> int:
     parser.add_argument(
         "--input-dir",
         default=DEFAULT_INPUT_DIR,
-        help="Directory dei pairs.csv per dipendente (default: output/employee_shifts_from_raw)",
+        help=f"Directory dei pairs.csv per dipendente (default: {DEFAULT_INPUT_DIR})",
     )
     parser.add_argument(
         "--out-dir",
         default=DEFAULT_OUTPUT_DIR,
-        help="Directory di output (default: output/enriched/employee_pairs)",
+        help=f"Directory di output (default: {DEFAULT_OUTPUT_DIR})",
     )
     parser.add_argument(
         "--min-hours",

@@ -5,13 +5,17 @@ import os
 from dataclasses import dataclass, field
 from typing import Sequence
 
+from src.drive_service.output_paths import build_output_paths
+
+DEFAULT_OUTPUTS = build_output_paths()
+
 
 @dataclass(slots=True)
 class ExtractTextFromIndexOptions:
-    out: str = "output/text_extracted"
-    index: str = "scan/included.index.json"
-    excluded: str = "excluded_text.index.json"
-    included: str = "included_text.index.json"
+    out: str = str(DEFAULT_OUTPUTS.text_extraction_output)
+    index: str = str(DEFAULT_OUTPUTS.scan_output / "included_index.json")
+    excluded: str = "excluded.index.json"
+    included: str = "included.index.json"
     skip_included: bool = True
     reprocess_included: bool = False
     reprocess_excluded: bool = False
@@ -32,20 +36,20 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Download PDFs from a MapIndex and save extracted text files."
     )
-    parser.add_argument("--out", default="output/text_extracted", help="Output directory")
+    parser.add_argument("--out", default=str(DEFAULT_OUTPUTS.text_extraction_output), help="Output directory")
     parser.add_argument(
         "--index",
-        default="scan/included.index.json",
+        default=str(DEFAULT_OUTPUTS.scan_output / "included_index.json"),
         help="Input MapIndex file (must use current files-object schema)",
     )
     parser.add_argument(
         "--excluded",
-        default="excluded_text.index.json",
+        default="excluded.index.json",
         help="Excluded index output filename",
     )
     parser.add_argument(
         "--included",
-        default="included_text.index.json",
+        default="included.index.json",
         help="Included index output filename",
     )
     parser.add_argument(

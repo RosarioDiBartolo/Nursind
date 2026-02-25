@@ -122,6 +122,14 @@ EVENT_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ),
 ]
 
+HEADER_MESI_PATTERN = re.compile(
+    r"m+e+s+e+\s+d+i+\s*:?\s*(?P<month>[a-z]{3,40})\s+(?P<year>\d{2,10})\b",
+    flags=re.IGNORECASE,
+)
+HEADER_DATE_PATTERN = re.compile(
+    r"\b(?P<day>\d{1,2})[/-](?P<month>\d{1,2})[/-](?P<year>\d{2,4})\b"
+)
+
 
 def strip_accents(value: str) -> str:
     return "".join(
@@ -183,6 +191,73 @@ def coerce_year(value: str | int) -> int | None:
     if 1900 <= year <= 2100:
         return year
     return None
+
+
+def _collapse_ocr_doubled_token(token: str) -> str:
+    if len(token) < 4 or len(token) % 2 != 0:
+        return token
+    pair_count = len(token) // 2
+    doubled_pairs = 0
+    for idx in range(0, len(token), 2):
+        if token[idx] == token[idx + 1]:
+            doubled_pairs += 1
+    if pair_count == 0:
+        return token
+    if (doubled_pairs / pair_count) < 0.75:
+        return token
+    return token[::2]
+
+
+def _month_from_header_token(value: str) -> int | None:
+    month = month_from_word(value)
+    if month is not None:
+        return month
+    token = alpha_token(value)
+    if not token:
+        return None
+    collapsed = _collapse_ocr_doubled_token(token)
+    if collapsed == token:
+        return None
+    return month_from_word(collapsed)
+
+
+def _coerce_year_from_header_token(value: str) -> int | None:
+    digits = re.sub(r"\D", "", str(value))
+    if not digits:
+        return None
+    year = coerce_year(digits)
+    if year is not None:
+        return year
+    collapsed = _collapse_ocr_doubled_token(digits)
+    if collapsed == digits:
+        return None
+    return coerce_year(collapsed)
+
+
+def infer_year_month_from_header(text: str) -> tuple[int | None, int | None]:
+    for raw_line in text.splitlines()[:16]:
+        norm_line = normalize_text(raw_line)
+        match = HEADER_MESI_PATTERN.search(norm_line)
+        if not match:
+            continue
+        month = _month_from_header_token(match.group("month"))
+        year = _coerce_year_from_header_token(match.group("year"))
+        if month is not None and year is not None:
+            return year, month
+    return None, None
+
+
+def infer_year_month_from_header_date(text: str) -> tuple[int | None, int | None]:
+    for raw_line in text.splitlines()[:8]:
+        norm_line = normalize_text(raw_line)
+        match = HEADER_DATE_PATTERN.search(norm_line)
+        if not match:
+            continue
+        month = int(match.group("month"))
+        year = coerce_year(match.group("year"))
+        if year is not None and 1 <= month <= 12:
+            return year, month
+    return None, None
 
 
 def detect_doc_format(text: str) -> str:
@@ -250,6 +325,8 @@ def infer_year_month_from_filename(path: Path | str) -> tuple[int | None, int | 
         r"(?P<month>\d{1,2})[-_/ ](?P<year>\d{2,4})",
         r"(?P<month>[a-z]{3,15})[-_/ ](?P<year>\d{4})",
         r"(?P<year>\d{4})[-_/ ](?P<month>[a-z]{3,15})",
+        r"(?P<month>[a-z]{3,15})(?P<year>\d{2,4})",
+        r"(?P<month>\d{1,2})(?P<year>\d{4})",
     )
     for pattern in patterns:
         match = re.search(pattern, stem, flags=re.IGNORECASE)
@@ -271,7 +348,13 @@ def resolve_year_month(text: str, path: Path) -> tuple[int | None, int | None]:
     year, month = infer_year_month_from_text(text)
     if year is not None and month is not None:
         return year, month
-    return infer_year_month_from_filename(path)
+    year, month = infer_year_month_from_header(text)
+    if year is not None and month is not None:
+        return year, month
+    year, month = infer_year_month_from_filename(path)
+    if year is not None and month is not None:
+        return year, month
+    return infer_year_month_from_header_date(text)
 
 
 def line_has_event(raw: str) -> bool:

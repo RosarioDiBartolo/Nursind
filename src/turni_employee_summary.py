@@ -20,6 +20,7 @@ import pandas as pd
 
 from src.drive_service.fs_utils import ensure_parent_dir
 from src.drive_service.logging_utils import setup_logging
+from src.drive_service.output_paths import build_output_paths
 from src.shift_services import assign_turno_bucket, to_datetime_series
 
 logger = logging.getLogger(__name__)
@@ -27,7 +28,9 @@ logger = logging.getLogger(__name__)
 TURNI = ("N", "P", "F", "M", "S")
 DEFAULT_YEAR_START = 2016
 DEFAULT_YEAR_END = 2025
-DEFAULT_ENRICHED_DIR = "output/enriched/employee_pairs"
+DEFAULT_OUTPUTS = build_output_paths()
+DEFAULT_ENRICHED_DIR = str(DEFAULT_OUTPUTS.enrichment_output)
+DEFAULT_SUMMARY_CSV = str(DEFAULT_OUTPUTS.aggregation_output / "turni_employee_summary.csv")
 
 
 def _employee_from_path(path: Path) -> str:
@@ -174,12 +177,12 @@ def main() -> int:
     parser.add_argument(
         "--enriched-dir",
         default=DEFAULT_ENRICHED_DIR,
-        help="Directory dei CSV arricchiti (default: output/enriched/employee_pairs)",
+        help=f"Directory dei CSV arricchiti (default: {DEFAULT_ENRICHED_DIR})",
     )
     parser.add_argument(
         "--out",
-        default="output/aggregates/turni_employee_summary.csv",
-        help="Path di output (default: output/aggregates/turni_employee_summary.csv)",
+        default=DEFAULT_SUMMARY_CSV,
+        help=f"Path di output (default: {DEFAULT_SUMMARY_CSV})",
     )
     parser.add_argument(
         "--year-start",

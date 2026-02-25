@@ -14,6 +14,7 @@ import pandas as pd
 from src.drive_service.fs_utils import ensure_dir, ensure_parent_dir
 from src.drive_service.index_runtime import doc_attr
 from src.drive_service.logging_utils import setup_logging
+from src.drive_service.output_paths import build_output_paths
 from src.drive_service.index import MapIndex
 from src.drive_service.names import safe_name
 from src.shift_services import (
@@ -26,11 +27,14 @@ from src.shift_services import (
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_INPUT_DIR = "output/parsed_from_text"
+DEFAULT_OUTPUTS = build_output_paths()
+DEFAULT_INPUT_DIR = str(DEFAULT_OUTPUTS.events_output)
 DEFAULT_INDEX = None
-DEFAULT_OUTPUT_DIR = "output/employee_shifts_from_raw"
-DEFAULT_EVENTS_NAME = "events_from_days_raw.cleaned.csv"
-DEFAULT_REPORT_JSON = "output/employee_shifts_from_raw/pair_employee_events_from_days_raw.report.json"
+DEFAULT_OUTPUT_DIR = str(DEFAULT_OUTPUTS.shifts_output)
+DEFAULT_EVENTS_NAME = "*.events_from_days_raw.cleaned.csv"
+DEFAULT_REPORT_JSON = str(
+    DEFAULT_OUTPUTS.shifts_output / "pair_employee_events_from_days_raw.report.json"
+)
 DEFAULT_MAX_GAP_HOURS = 16.0
 
 
@@ -65,11 +69,23 @@ def _discover_employees_from_events_dir(
             {
                 "events_csv": str(event_path.resolve()),
                 "file_id": None,
-                "file_name": event_path.parent.name,
+                "file_name": _source_name_from_events_csv(event_path),
             }
         )
 
     return list(grouped.values()), len(event_files)
+
+
+def _source_name_from_events_csv(event_path: Path) -> str:
+    name = event_path.name
+    for marker in (
+        ".events_from_days_raw.cleaned.csv",
+        ".events_from_days_raw.csv",
+        ".days.csv",
+    ):
+        if name.endswith(marker):
+            return name[: -len(marker)] or "unknown"
+    return event_path.stem or "unknown"
 
 
 def _event_sort_key(df: pd.DataFrame) -> pd.DataFrame:
@@ -102,7 +118,19 @@ def _resolve_cleaned_events_path(
             doc_attr(inc, "file_id"),
         )
         days_abs = os.path.join(os.path.dirname(expected_pairs), "days.csv")
-    return os.path.abspath(os.path.join(os.path.dirname(days_abs), events_name))
+    days_name = os.path.basename(days_abs)
+    if "*" in events_name:
+        suffix = events_name.replace("*", "").lstrip(".")
+        if days_name == "days.csv":
+            event_name = suffix
+        elif days_name.endswith(".days.csv"):
+            prefix = days_name[: -len(".days.csv")]
+            event_name = f"{prefix}.{suffix}"
+        else:
+            event_name = f"{os.path.splitext(days_name)[0]}.{suffix}"
+    else:
+        event_name = events_name
+    return os.path.abspath(os.path.join(os.path.dirname(days_abs), event_name))
 
 
 def _empty_pair_rows() -> pd.DataFrame:
@@ -616,7 +644,7 @@ def main() -> int:
         help=(
             "Directory radice con eventi per-file in struttura "
             "<employee>/<document>/events_from_days_raw.cleaned.csv "
-            "(default: output/parsed_from_text)"
+            f"(default: {DEFAULT_INPUT_DIR})"
         ),
     )
     parser.add_argument(
@@ -637,7 +665,7 @@ def main() -> int:
         default=DEFAULT_EVENTS_NAME,
         help=(
             "Nome file eventi puliti da leggere accanto a days.csv "
-            "(default: events_from_days_raw.cleaned.csv)"
+            f"(default: {DEFAULT_EVENTS_NAME})"
         ),
     )
     parser.add_argument(
