@@ -104,3 +104,34 @@ def test_collect_files_recursive_marks_invalid_zip(monkeypatch):
     assert len(filtered_files) == 1
     assert filtered_files[0]["file_id"] == "zip-1"
     assert filtered_files[0]["reason"] == "invalid_zip_archive"
+
+
+def test_build_folder_report_no_stdout_on_excluded_file(monkeypatch, capsys):
+    emp = {"id": "emp-1", "name": "Mario Rossi"}
+
+    monkeypatch.setattr(
+        scan_service,
+        "get_drive_service",
+        lambda _creds: object(),
+    )
+    monkeypatch.setattr(
+        scan_service,
+        "collect_files_recursive",
+        lambda *_args, **_kwargs: (
+            [
+                {
+                    "file_id": "f-1",
+                    "file_name": "Busta Paga gennaio.pdf",
+                    "drive_path": "/Root/Mario Rossi/Busta Paga gennaio.pdf",
+                }
+            ],
+            [],
+            [],
+        ),
+    )
+
+    terms = [normalize_term("busta paga")]
+    _ = scan_service.build_folder_report(object(), emp, terms, root_prefix="Root")
+
+    captured = capsys.readouterr()
+    assert captured.out == ""
