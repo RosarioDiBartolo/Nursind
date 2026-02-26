@@ -1,0 +1,144 @@
+import csv
+from pathlib import Path
+
+import pandas as pd
+
+from src.pair_employee_events_from_days_raw import (
+    process_many_employee_events,
+    process_one_employee_events,
+)
+from tests.step_contract import assert_process_many_contract, assert_process_one_contract
+
+
+def _write_events_csv(path: Path, rows: list[dict[str, str]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    columns = [
+        "event_kind",
+        "event_ts",
+        "event_raw",
+        "source_row_index",
+        "event_index",
+    ]
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=columns)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow(row)
+
+
+def test_pair_employee_process_one_contract(tmp_path: Path) -> None:
+    input_base = tmp_path / "events"
+    output_dir = tmp_path / "pairs"
+    events_csv = input_base / "Mario Rossi" / "sample.events_from_days_raw.cleaned.csv"
+    _write_events_csv(
+        events_csv,
+        [
+            {
+                "event_kind": "E",
+                "event_ts": "2023-01-01 08:00:00",
+                "event_raw": "E 08:00",
+                "source_row_index": "0",
+                "event_index": "0",
+            },
+            {
+                "event_kind": "U",
+                "event_ts": "2023-01-01 14:00:00",
+                "event_raw": "U 14:00",
+                "source_row_index": "0",
+                "event_index": "1",
+            },
+        ],
+    )
+
+    employee = {
+        "employee": "Mario Rossi",
+        "employee_id": "emp-1",
+        "files": [
+            {
+                "events_csv": str(events_csv),
+                "file_id": "file-1",
+                "file_name": "sample",
+            }
+        ],
+    }
+
+    result = process_one_employee_events(
+        employee,
+        output_dir=str(output_dir),
+        max_gap_hours=16.0,
+    )
+    assert_process_one_contract(result, source_key="source_employee")
+    assert result["status"] == "ok"
+    assert int(result["pairs_out"]) == 1
+    output_csv = Path(str(result["output_csv"]))
+    assert output_csv.exists()
+    out_df = pd.read_csv(output_csv)
+    assert int(len(out_df)) == 1
+
+
+def test_pair_employee_process_many_contract(tmp_path: Path) -> None:
+    input_base = tmp_path / "events"
+    output_dir = tmp_path / "pairs"
+    good_csv = input_base / "Mario Rossi" / "good.events_from_days_raw.cleaned.csv"
+    _write_events_csv(
+        good_csv,
+        [
+            {
+                "event_kind": "E",
+                "event_ts": "2023-01-02 08:00:00",
+                "event_raw": "E 08:00",
+                "source_row_index": "0",
+                "event_index": "0",
+            },
+            {
+                "event_kind": "U",
+                "event_ts": "2023-01-02 14:00:00",
+                "event_raw": "U 14:00",
+                "source_row_index": "0",
+                "event_index": "1",
+            },
+        ],
+    )
+
+    employees = [
+        {
+            "employee": "Mario Rossi",
+            "employee_id": "emp-1",
+            "files": [
+                {
+                    "events_csv": str(good_csv),
+                    "file_id": "file-1",
+                    "file_name": "good",
+                }
+            ],
+        },
+        {
+            "employee": "Giulia Bianchi",
+            "employee_id": "emp-2",
+            "files": [
+                {
+                    "events_csv": str(
+                        input_base
+                        / "Giulia Bianchi"
+                        / "missing.events_from_days_raw.cleaned.csv"
+                    ),
+                    "file_id": "file-2",
+                    "file_name": "missing",
+                }
+            ],
+        },
+    ]
+
+    report = process_many_employee_events(
+        employees,
+        output_dir=str(output_dir),
+        max_gap_hours=16.0,
+        input_mode="folder",
+        input_dir=str(input_base),
+        events_name="*.events_from_days_raw.cleaned.csv",
+    )
+
+    assert_process_many_contract(report)
+    assert int(report["stats"]["files_total"]) == 2
+    assert int(report["stats"]["files_processed"]) == 1
+    assert int(report["stats"]["files_error"]) == 1

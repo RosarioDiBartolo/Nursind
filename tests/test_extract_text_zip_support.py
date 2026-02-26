@@ -8,6 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from src.drive_service.archive_utils import build_archive_member_id  # noqa: E402
+import src.drive_service.index_downloads as index_downloads  # noqa: E402
 from src.extract_text_from_index.planning import collect_docs  # noqa: E402
 import src.extract_text_from_index.workers as workers  # noqa: E402
 
@@ -74,7 +75,7 @@ def test_download_pdf_bytes_from_zip_member_uses_cache(monkeypatch):
         return zip_bytes
 
     monkeypatch.setattr(workers, "_get_drive", lambda _creds: object())
-    monkeypatch.setattr(workers, "download_file_bytes", fake_download_file_bytes)
+    monkeypatch.setattr(index_downloads, "download_file_bytes", fake_download_file_bytes)
     workers._thread_local.zip_cache = {}
     workers._thread_local.zip_cache_order = []
 
@@ -100,7 +101,7 @@ def test_download_pdf_bytes_from_zip_member_uses_cache(monkeypatch):
 def test_download_pdf_bytes_zip_member_not_found(monkeypatch):
     zip_bytes = _make_zip_bytes({"folder/a.pdf": b"%PDF-1.4-a"})
     monkeypatch.setattr(workers, "_get_drive", lambda _creds: object())
-    monkeypatch.setattr(workers, "download_file_bytes", lambda *_args, **_kwargs: zip_bytes)
+    monkeypatch.setattr(index_downloads, "download_file_bytes", lambda *_args, **_kwargs: zip_bytes)
     workers._thread_local.zip_cache = {}
     workers._thread_local.zip_cache_order = []
 

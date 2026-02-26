@@ -10,9 +10,10 @@ python -m "src.scan_directory" --root "<DRIVE_ROOT_FOLDER_ID>" --out "scan" --in
 
 ## 0b) Optional: Download PDFs from a map index
 ```powershell
-python -m "src.download_from_index" --index "scan/samples.index.scan.map.json" --out "samples/from_index" --limit 20 --verbose
+python -m "src.download_from_index" --index "scan/samples.index.scan.map.json" --out "samples/from_index" --random-sample 20 --seed 42 --verbose
 ```
-Useful for building small local datasets from an existing index.
+Useful for building small local datasets from an existing index (including ZIP-member entries).
+Default output is flat under `samples/from_index/`; pass `--no-flat-output` to restore per-employee folders.
 
 ## 1) Extract plain text from indexed PDFs
 ```powershell

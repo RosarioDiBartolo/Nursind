@@ -1,20 +1,14 @@
 from __future__ import annotations
 
-"""Build days.csv files from extracted raw text documents."""
-
-import argparse
 import csv
-import json
 import logging
 import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
- 
+from typing import Any, Iterable
+
 from src.drive_service.fs_utils import ensure_parent_dir
-from src.drive_service.logging_utils import setup_logging
-from src.pipeline_paths import build_pipelines_paths
 from src.raw_text_parsing import (
     DAY_PREFIX_RE,
     QTA_RE,
@@ -24,19 +18,16 @@ from src.raw_text_parsing import (
     parse_day_header,
     resolve_year_month,
 )
- 
-logger = logging.getLogger(__name__)
 
-DEFAULT_OUTPUTS = build_pipelines_paths()
-DEFAULT_INPUT_DIR = str(DEFAULT_OUTPUTS.text_extraction_output)
-DEFAULT_OUT_DIR = str(DEFAULT_OUTPUTS.parsing_output)
-DEFAULT_OUT_NAME = "days.csv"
-DEFAULT_REPORT_JSON = str(
-    DEFAULT_OUTPUTS.parsing_output / "extract_days_from_text_raw.report.json"
+from .options import (
+    DEFAULT_MAX_NO_DAYS_FILES,
+    DEFAULT_MAX_NO_DAYS_LINES,
+    DEFAULT_OUT_DIR,
+    DEFAULT_OUT_NAME,
+    DEFAULT_TEXT_GLOB,
 )
-DEFAULT_TEXT_GLOB = "*.txt"
-DEFAULT_MAX_NO_DAYS_FILES = 80
-DEFAULT_MAX_NO_DAYS_LINES = 8
+
+logger = logging.getLogger(__name__)
 
 NUMBER_RE = re.compile(r"^[+-]?\d+(?:[.,]\d+)?$")
 HHMM_RE = re.compile(r"^[+-]?\d{1,3}:\d{2}$")
@@ -187,7 +178,6 @@ def _assign_situazione(
     has_event: bool,
     any_event: bool,
 ) -> tuple[float | None, float | None, float | None]:
-    # Expected order: dovuto, contrattuale, lavorato, saldo, straordinario.
     contratt: float | None = None
     lavorato: float | None = None
     if len(values) >= 3:
@@ -321,33 +311,119 @@ def _write_days_csv(
 def _build_days_output_path(
     txt_path: Path,
     *,
-    input_base: Path,
+    input_base: Path | None,
     out_base: Path,
     out_name: str,
 ) -> Path:
-    rel = txt_path.relative_to(input_base)
-    suffix = out_name.strip()
-    if not suffix:
-        suffix = "days.csv"
+    suffix = out_name.strip() or "days.csv"
+    if input_base is None:
+        rel = Path(txt_path.name)
+    else:
+        try:
+            rel = txt_path.relative_to(input_base)
+        except ValueError:
+            rel = Path(txt_path.name)
     return out_base / rel.with_suffix(f".{suffix}")
 
 
-def build_days_from_text_dir(
+def process_one_text_file(
+    txt_path: str | Path,
     *,
-    input_dir: str = DEFAULT_INPUT_DIR,
     out_dir: str = DEFAULT_OUT_DIR,
     out_name: str = DEFAULT_OUT_NAME,
-    report_json: str = DEFAULT_REPORT_JSON,
+    input_base: str | Path | None = None,
+    max_no_days_lines: int = DEFAULT_MAX_NO_DAYS_LINES,
+) -> dict[str, Any]:
+    source_path = Path(txt_path)
+    out_base = Path(out_dir)
+    input_base_path = Path(input_base) if input_base is not None else None
+
+    base_result: dict[str, Any] = {
+        "status": "error",
+        "source_txt": str(source_path),
+        "output_days_csv": None,
+        "doc_format": None,
+        "year": None,
+        "month": None,
+        "candidate_day_lines": 0,
+        "rows_parsed": 0,
+        "rows_with_event": 0,
+        "rows_without_event": 0,
+        "sample_lines": [],
+        "error_code": None,
+        "error": None,
+        "header_preview": None,
+    }
+
+    try:
+        text = source_path.read_text(encoding="utf-8", errors="replace")
+        doc_format = detect_doc_format(text)
+        base_result["doc_format"] = doc_format
+        year, month = resolve_year_month(text, source_path)
+        base_result["year"] = year
+        base_result["month"] = month
+        if year is None or month is None:
+            base_result["error_code"] = "missing_year_month"
+            base_result["error"] = (
+                "MISSING_YEAR_MONTH: unable to resolve month/year from text and filename"
+            )
+            base_result["header_preview"] = _header_preview(text)
+            return base_result
+
+        rows, file_stats = _parse_rows_for_file(text, doc_format=doc_format)
+        out_csv = _build_days_output_path(
+            source_path,
+            input_base=input_base_path,
+            out_base=out_base,
+            out_name=out_name,
+        )
+        _write_days_csv(rows, out_csv, year=year, month=month)
+
+        base_result["status"] = "ok"
+        base_result["output_days_csv"] = str(out_csv)
+        base_result["candidate_day_lines"] = int(file_stats["candidate_day_lines"])
+        base_result["rows_parsed"] = int(file_stats["rows_parsed"])
+        base_result["rows_with_event"] = int(file_stats["rows_with_event"])
+        base_result["rows_without_event"] = int(file_stats["rows_without_event"])
+
+        if not rows and max_no_days_lines > 0:
+            samples: list[str] = []
+            for line in text.splitlines():
+                candidate = line.strip()
+                if not candidate:
+                    continue
+                if len(samples) >= max_no_days_lines:
+                    break
+                samples.append(candidate)
+            base_result["sample_lines"] = samples
+
+        return base_result
+    except Exception as exc:
+        base_result["error_code"] = "processing_error"
+        base_result["error"] = f"{type(exc).__name__}: {exc}"
+        return base_result
+
+
+def process_many_text_files(
+    text_files: Iterable[str | Path],
+    *,
+    out_dir: str = DEFAULT_OUT_DIR,
+    out_name: str = DEFAULT_OUT_NAME,
+    input_base: str | Path | None = None,
     text_glob: str = DEFAULT_TEXT_GLOB,
+    input_dir: str | None = None,
     max_no_days_files: int = DEFAULT_MAX_NO_DAYS_FILES,
     max_no_days_lines: int = DEFAULT_MAX_NO_DAYS_LINES,
 ) -> dict[str, Any]:
-    input_base = Path(input_dir)
-    out_base = Path(out_dir)
-    text_files = sorted(input_base.rglob(text_glob))
+    normalized_input_base = Path(input_base) if input_base is not None else None
+    normalized_files = sorted(Path(path) for path in text_files)
+
+    resolved_input_dir = input_dir
+    if resolved_input_dir is None and normalized_input_base is not None:
+        resolved_input_dir = str(normalized_input_base)
 
     totals: dict[str, Any] = {
-        "files_total": len(text_files),
+        "files_total": len(normalized_files),
         "files_processed": 0,
         "files_error": 0,
         "files_missing_year_month": 0,
@@ -356,7 +432,7 @@ def build_days_from_text_dir(
         "rows_total": 0,
         "rows_with_event": 0,
         "rows_without_event": 0,
-        "input_dir": os.path.abspath(input_dir),
+        "input_dir": os.path.abspath(resolved_input_dir) if resolved_input_dir else None,
         "out_dir": os.path.abspath(out_dir),
         "text_glob": text_glob,
         "out_name": out_name,
@@ -364,167 +440,79 @@ def build_days_from_text_dir(
     format_counts: dict[str, int] = {}
     files_without_days: list[dict[str, Any]] = []
     files_missing_year_month: list[dict[str, Any]] = []
-    file_errors: list[dict[str, str]] = []
+    errors: list[dict[str, str]] = []
+    items: list[dict[str, Any]] = []
 
-    for index, txt_path in enumerate(text_files, start=1):
-        try:
-            text = txt_path.read_text(encoding="utf-8", errors="replace")
-            doc_format = detect_doc_format(text)
+    for index, txt_path in enumerate(normalized_files, start=1):
+        result = process_one_text_file(
+            txt_path,
+            out_dir=out_dir,
+            out_name=out_name,
+            input_base=normalized_input_base,
+            max_no_days_lines=max_no_days_lines,
+        )
+        items.append(result)
+
+        doc_format = result.get("doc_format")
+        if isinstance(doc_format, str) and doc_format:
             format_counts[doc_format] = format_counts.get(doc_format, 0) + 1
-            year, month = resolve_year_month(text, txt_path)
-            if year is None or month is None:
+
+        if result["status"] != "ok":
+            totals["files_error"] += 1
+            if result.get("error_code") == "missing_year_month":
                 totals["files_missing_year_month"] += 1
                 files_missing_year_month.append(
                     {
-                        "source_txt": str(txt_path),
-                        "doc_format": doc_format,
-                        "header_preview": _header_preview(text),
+                        "source_txt": result["source_txt"],
+                        "doc_format": result["doc_format"],
+                        "header_preview": result.get("header_preview"),
                     }
                 )
-                raise ValueError(
-                    "MISSING_YEAR_MONTH: unable to resolve month/year from text and filename"
-                )
-            rows, file_stats = _parse_rows_for_file(text, doc_format=doc_format)
-
-            out_csv = _build_days_output_path(
-                txt_path,
-                input_base=input_base,
-                out_base=out_base,
-                out_name=out_name,
+            errors.append(
+                {
+                    "source_txt": str(result["source_txt"]),
+                    "error": str(result["error"]),
+                }
             )
-            _write_days_csv(rows, out_csv, year=year, month=month)
+            logger.error("Errore elaborando %s: %s", result["source_txt"], result["error"])
+            continue
 
-            totals["files_processed"] += 1
-            totals["rows_total"] += int(file_stats["rows_parsed"])
-            totals["rows_with_event"] += int(file_stats["rows_with_event"])
-            totals["rows_without_event"] += int(file_stats["rows_without_event"])
+        totals["files_processed"] += 1
+        totals["rows_total"] += int(result["rows_parsed"])
+        totals["rows_with_event"] += int(result["rows_with_event"])
+        totals["rows_without_event"] += int(result["rows_without_event"])
 
-            if rows:
-                totals["files_with_days"] += 1
-            else:
-                totals["files_without_days"] += 1
-                if len(files_without_days) < max_no_days_files:
-                    samples: list[str] = []
-                    if max_no_days_lines > 0:
-                        for line in text.splitlines():
-                            candidate = line.strip()
-                            if not candidate:
-                                continue
-                            if len(samples) >= max_no_days_lines:
-                                break
-                            samples.append(candidate)
-                    files_without_days.append(
-                        {
-                            "source_txt": str(txt_path),
-                            "output_days_csv": str(out_csv),
-                            "doc_format": doc_format,
-                            "year": year,
-                            "month": month,
-                            "candidate_day_lines": int(file_stats["candidate_day_lines"]),
-                            "sample_lines": samples,
-                        }
-                    )
-
-            if index % 500 == 0:
-                logger.info(
-                    "Processati %s/%s file txt (rows=%s)",
-                    index,
-                    len(text_files),
-                    totals["rows_total"],
+        if int(result["rows_parsed"]) > 0:
+            totals["files_with_days"] += 1
+        else:
+            totals["files_without_days"] += 1
+            if len(files_without_days) < max_no_days_files:
+                files_without_days.append(
+                    {
+                        "source_txt": result["source_txt"],
+                        "output_days_csv": result["output_days_csv"],
+                        "doc_format": result["doc_format"],
+                        "year": result["year"],
+                        "month": result["month"],
+                        "candidate_day_lines": result["candidate_day_lines"],
+                        "sample_lines": list(result.get("sample_lines") or []),
+                    }
                 )
-        except Exception as exc:
-            totals["files_error"] += 1
-            file_errors.append({"source_txt": str(txt_path), "error": f"{type(exc).__name__}: {exc}"})
-            logger.exception("Errore elaborando %s", txt_path)
 
-    report = {
+        if index % 500 == 0:
+            logger.info(
+                "Processati %s/%s file txt (rows=%s)",
+                index,
+                len(normalized_files),
+                totals["rows_total"],
+            )
+
+    return {
         "stats": totals,
+        "items": items,
+        "errors": errors,
         "format_counts": format_counts,
         "files_missing_year_month": files_missing_year_month,
         "files_without_days": files_without_days,
-        "file_errors": file_errors,
+        "file_errors": errors,
     }
-    ensure_parent_dir(report_json)
-    with open(report_json, "w", encoding="utf-8") as handle:
-        json.dump(report, handle, ensure_ascii=False, indent=2)
-    return report
-
-
-def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Parse extracted .txt documents and generate per-file days.csv outputs."
-    )
-    parser.add_argument(
-        "--input-dir",
-        default=DEFAULT_INPUT_DIR,
-        help=f"Root folder containing extracted text files (default: {DEFAULT_INPUT_DIR})",
-    )
-    parser.add_argument(
-        "--out-dir",
-        default=DEFAULT_OUT_DIR,
-        help=f"Root folder where parsed per-file days.csv will be written (default: {DEFAULT_OUT_DIR})",
-    )
-    parser.add_argument(
-        "--text-glob",
-        default=DEFAULT_TEXT_GLOB,
-        help="Glob pattern used when searching text files recursively (default: *.txt)",
-    )
-    parser.add_argument(
-        "--out-name",
-        default=DEFAULT_OUT_NAME,
-        help=(
-            "Output suffix written per source file "
-            "(e.g. source.txt -> source.days.csv, default: days.csv)"
-        ),
-    )
-    parser.add_argument(
-        "--report-json",
-        default=DEFAULT_REPORT_JSON,
-        help=(
-            "Path of final JSON report "
-            f"(default: {DEFAULT_REPORT_JSON})"
-        ),
-    )
-    parser.add_argument(
-        "--max-no-days-files",
-        type=int,
-        default=DEFAULT_MAX_NO_DAYS_FILES,
-        help="Maximum number of no-days files kept in report examples (default: 80)",
-    )
-    parser.add_argument(
-        "--max-no-days-lines",
-        type=int,
-        default=DEFAULT_MAX_NO_DAYS_LINES,
-        help="Maximum sample lines per no-days file in report (default: 8)",
-    )
-    parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose logging")
-    args = parser.parse_args()
-
-    setup_logging(args.verbose)
-    report = build_days_from_text_dir(
-        input_dir=args.input_dir,
-        out_dir=args.out_dir,
-        out_name=args.out_name,
-        report_json=args.report_json,
-        text_glob=args.text_glob,
-        max_no_days_files=max(0, int(args.max_no_days_files)),
-        max_no_days_lines=max(0, int(args.max_no_days_lines)),
-    )
-    stats = report["stats"]
-    logger.info(
-        (
-            "Completato: files=%s processati=%s errori=%s "
-            "files_with_days=%s rows=%s rows_with_event=%s"
-        ),
-        stats["files_total"],
-        stats["files_processed"],
-        stats["files_error"],
-        stats["files_with_days"],
-        stats["rows_total"],
-        stats["rows_with_event"],
-    )
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())

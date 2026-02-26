@@ -3,14 +3,9 @@ from __future__ import annotations
 import os
 import threading
 
-from src.drive_service.archive_utils import (
-    BadZipFile,
-    extract_zip_member_bytes,
-    parse_archive_member_id,
-)
-from src.drive_service.downloads import download_file_bytes
 from src.drive_service.drive_client import get_drive_service
 from src.drive_service.fs_utils import ensure_dir
+from src.drive_service.index_downloads import download_pdf_bytes_for_index_item
 from src.drive_service.logging_utils import get_logger
 from src.drive_service.names import safe_name
 
@@ -38,24 +33,6 @@ def _get_zip_cache() -> tuple[dict[str, bytes], list[str]]:
         _thread_local.zip_cache = cache
         _thread_local.zip_cache_order = order
     return cache, order
-
-
-def _get_zip_bytes_with_cache(drive, archive_file_id: str) -> bytes:
-    cache, order = _get_zip_cache()
-    cached = cache.get(archive_file_id)
-    if cached is not None:
-        if archive_file_id in order:
-            order.remove(archive_file_id)
-        order.append(archive_file_id)
-        return cached
-
-    zip_bytes = download_file_bytes(drive, archive_file_id, logger=logger)
-    cache[archive_file_id] = zip_bytes
-    order.append(archive_file_id)
-    while len(order) > _ZIP_CACHE_MAX_ITEMS:
-        oldest = order.pop(0)
-        cache.pop(oldest, None)
-    return zip_bytes
 
 
 def _build_output_paths(
@@ -93,68 +70,20 @@ def download_pdf_bytes(
             "doc": doc_info,
         }
 
-    source_kind = doc_info.get("source_kind")
-    archive_file_id = doc_info.get("archive_file_id")
-    archive_member_path = doc_info.get("archive_member_path")
-    parsed = parse_archive_member_id(file_id)
-    if parsed:
-        source_kind = "zip_member"
-        if not archive_file_id:
-            archive_file_id = parsed[0]
-        if not archive_member_path:
-            archive_member_path = parsed[1]
-
     try:
         drive = _get_drive(creds)
-        if source_kind == "zip_member":
-            if not archive_file_id:
-                return {
-                    "status": "failed",
-                    "stage": "download",
-                    "reason": "zip_archive_file_id_missing",
-                    "doc": doc_info,
-                }
-            if not archive_member_path:
-                return {
-                    "status": "failed",
-                    "stage": "download",
-                    "reason": "zip_member_path_missing",
-                    "doc": doc_info,
-                }
-            try:
-                zip_bytes = _get_zip_bytes_with_cache(drive, archive_file_id)
-            except Exception as exc:
-                return {
-                    "status": "failed",
-                    "stage": "download",
-                    "reason": f"zip_archive_download_error:{type(exc).__name__}",
-                    "doc": doc_info,
-                }
-            try:
-                pdf_bytes = extract_zip_member_bytes(zip_bytes, archive_member_path)
-            except KeyError:
-                return {
-                    "status": "failed",
-                    "stage": "download",
-                    "reason": "zip_member_not_found",
-                    "doc": doc_info,
-                }
-            except (BadZipFile, ValueError):
-                return {
-                    "status": "failed",
-                    "stage": "download",
-                    "reason": "zip_member_invalid_pdf",
-                    "doc": doc_info,
-                }
-            except Exception as exc:
-                return {
-                    "status": "failed",
-                    "stage": "download",
-                    "reason": f"zip_member_read_error:{type(exc).__name__}",
-                    "doc": doc_info,
-                }
-        else:
-            pdf_bytes = download_file_bytes(drive, file_id, logger=logger)
+        zip_cache, zip_cache_order = _get_zip_cache()
+        result = download_pdf_bytes_for_index_item(
+            drive,
+            file_id=file_id,
+            source_kind=doc_info.get("source_kind"),
+            archive_file_id=doc_info.get("archive_file_id"),
+            archive_member_path=doc_info.get("archive_member_path"),
+            logger=logger,
+            zip_cache=zip_cache,
+            zip_cache_order=zip_cache_order,
+            zip_cache_max_items=_ZIP_CACHE_MAX_ITEMS,
+        )
     except Exception as exc:
         return {
             "status": "failed",
@@ -163,9 +92,17 @@ def download_pdf_bytes(
             "doc": doc_info,
         }
 
+    if result["status"] != "success":
+        return {
+            "status": "failed",
+            "stage": "download",
+            "reason": str(result.get("reason") or "download_failed"),
+            "doc": doc_info,
+        }
+
     return {
         "status": "success",
-        "data": pdf_bytes,
+        "data": result["data"],
         "doc": doc_info,
     }
 

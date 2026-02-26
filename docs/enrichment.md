@@ -38,3 +38,25 @@ python -m "src.turni_enrichment" --input-dir "output/employee_shifts_from_raw" -
 Optional flags:
 - `--no-holidays`: classify `F` using Sundays only (skip Italian holidays)
 - `--stats-json "<PATH>"`: write enrichment run stats as JSON
+
+## Function-level testing (`turni_enrichment`)
+
+```python
+from src.turni_enrichment import process_many_pairs_files, process_one_pairs_file
+
+single = process_one_pairs_file(
+    "output/employee_shifts_from_raw/ROSSI.pairs.csv",
+    output_dir="output/enriched/employee_pairs",
+    min_hours=6.0,
+)
+
+batch = process_many_pairs_files(
+    [
+        "output/employee_shifts_from_raw/ROSSI.pairs.csv",
+        "output/employee_shifts_from_raw/BIANCHI.pairs.csv",
+    ],
+    output_dir="output/enriched/employee_pairs",
+    input_dir="output/employee_shifts_from_raw",
+    min_hours=6.0,
+)
+```

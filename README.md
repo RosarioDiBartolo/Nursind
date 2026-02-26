@@ -262,7 +262,7 @@ python -m "src.turni_employee_summary" --enriched-dir "output/enriched/employee_
 Use this helper when you already have a map index and want local PDF samples.
 
 ```powershell
-python -m "src.download_from_index" --index "scan/samples.index.scan.map.json" --out "samples/from_index" --limit 20 --verbose
+python -m "src.download_from_index" --index "scan/samples.index.scan.map.json" --out "samples/from_index" --random-sample 20 --seed 42 --verbose
 ```
 
 Main flags:
@@ -270,7 +270,16 @@ Main flags:
 - `--index`: input map index JSON
 - `--out`: destination folder
 - `--limit`: first N files only (`0` means all)
+- `--random-sample`: random sample size from the index (`0` disables sampling)
+- `--seed`: optional deterministic seed for `--random-sample`
 - `--skip-existing` / `--no-skip-existing`: keep or overwrite existing files
+- `--flat-output` / `--no-flat-output`: flat folder output (default) or per-employee subfolders
+
+Notes:
+
+- ZIP-member entries (synthetic `zip::...` file IDs emitted by scan) are supported.
+- If both `--random-sample` and `--limit` are set, sampling runs first and then limit is applied.
+- Flat output uses collision-safe names (`<employee>_<file-stem>_<id-hash>.pdf`).
 
 ## Documentation Map
 

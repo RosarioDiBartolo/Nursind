@@ -21,3 +21,28 @@ This document describes the final summary stage after enrichment.
 python -m "src.turni_employee_summary" --enriched-dir "output/enriched/employee_pairs" --out "output/aggregates/turni_employee_summary.csv" --year-start 2016 --year-end 2025 --format "csv" --verbose
 python -m "src.turni_employee_summary" --enriched-dir "output/enriched/employee_pairs" --out "output/aggregates/turni_employee_summary.json" --format "json" --verbose
 ```
+
+## Function-level testing (`turni_employee_summary`)
+
+```python
+from src.turni_employee_summary import (
+    process_many_enriched_files,
+    process_one_enriched_file,
+)
+
+single = process_one_enriched_file(
+    "output/enriched/employee_pairs/ROSSI.enriched.csv",
+    year_start=2016,
+    year_end=2025,
+)
+
+batch = process_many_enriched_files(
+    [
+        "output/enriched/employee_pairs/ROSSI.enriched.csv",
+        "output/enriched/employee_pairs/BIANCHI.enriched.csv",
+    ],
+    enriched_dir="output/enriched/employee_pairs",
+    year_start=2016,
+    year_end=2025,
+)
+```

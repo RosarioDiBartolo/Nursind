@@ -1,38 +1,29 @@
 from __future__ import annotations
 
-"""Extract raw E/U events from days.csv raw strings."""
-
-import argparse
-import json
 import logging
 import os
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
 
 import pandas as pd
 
 from src.drive_service.fs_utils import ensure_parent_dir
-from src.drive_service.logging_utils import setup_logging
-from src.drive_service.output_paths import build_output_paths
 from src.raw_text_parsing import (
     EVENT_PATTERNS,
     extract_events,
     infer_year_month_from_filename,
 )
 
-logger = logging.getLogger(__name__)
-
-DEFAULT_OUTPUTS = build_output_paths()
-DEFAULT_INPUT_DIR = str(DEFAULT_OUTPUTS.parsing_output)
-DEFAULT_OUTPUT_DIR = str(DEFAULT_OUTPUTS.events_output)
-DEFAULT_DAYS_NAME = "*.days.csv"
-DEFAULT_OUT_NAME = "events_from_days_raw.csv"
-DEFAULT_REPORT_JSON = str(
-    DEFAULT_OUTPUTS.events_output / "extract_events_from_days_raw.report.json"
+from .options import (
+    DEFAULT_DAYS_NAME,
+    DEFAULT_MAX_PATTERN_EXAMPLES,
+    DEFAULT_MAX_UNMATCHED_EXAMPLES_PER_FILE,
+    DEFAULT_OUT_NAME,
+    DEFAULT_OUTPUT_DIR,
 )
-DEFAULT_MAX_PATTERN_EXAMPLES = 12
-DEFAULT_MAX_UNMATCHED_EXAMPLES_PER_FILE = 5
+
+logger = logging.getLogger(__name__)
 
 
 def _parse_hhmm(time_str: str) -> tuple[int, int, int] | None:
@@ -84,13 +75,18 @@ def _infer_year_month_from_days_path(days_path: Path) -> tuple[int | None, int |
 def _build_events_output_path(
     days_path: Path,
     *,
-    input_base: Path,
+    input_base: Path | None,
     output_base: Path,
     out_name: str,
 ) -> Path:
     if days_path.name == "days.csv":
-        # Legacy layout: one folder per source file, write sibling output name.
-        rel_dir = days_path.parent.relative_to(input_base)
+        if input_base is None:
+            rel_dir = Path(days_path.parent.name)
+        else:
+            try:
+                rel_dir = days_path.parent.relative_to(input_base)
+            except ValueError:
+                rel_dir = Path(days_path.parent.name)
         return output_base / rel_dir / out_name
 
     marker = ".days.csv"
@@ -98,7 +94,13 @@ def _build_events_output_path(
         prefix = days_path.name[: -len(marker)]
     else:
         prefix = days_path.stem
-    rel_parent = days_path.parent.relative_to(input_base)
+    if input_base is None:
+        rel_parent = Path(days_path.parent.name)
+    else:
+        try:
+            rel_parent = days_path.parent.relative_to(input_base)
+        except ValueError:
+            rel_parent = Path(days_path.parent.name)
     return output_base / rel_parent / f"{prefix}.{out_name}"
 
 
@@ -238,24 +240,117 @@ def _extract_events_from_days_df(
     return pd.DataFrame(out_rows), stats
 
 
-def extract_events_from_days_dir(
+def process_one_days_file(
+    days_path: str | Path,
     *,
-    input_dir: str = DEFAULT_INPUT_DIR,
     output_dir: str = DEFAULT_OUTPUT_DIR,
-    days_name: str = DEFAULT_DAYS_NAME,
     out_name: str = DEFAULT_OUT_NAME,
-    report_json: str = DEFAULT_REPORT_JSON,
+    input_base: str | Path | None = None,
+    max_pattern_examples: int = DEFAULT_MAX_PATTERN_EXAMPLES,
+    max_unmatched_examples_per_file: int = DEFAULT_MAX_UNMATCHED_EXAMPLES_PER_FILE,
+    pattern_examples: dict[str, list[str]] | None = None,
+    pattern_counts: dict[str, int] | None = None,
+) -> dict[str, Any]:
+    source_path = Path(days_path)
+    output_base = Path(output_dir)
+    input_base_path = Path(input_base) if input_base is not None else None
+    local_pattern_examples = (
+        pattern_examples
+        if pattern_examples is not None
+        else {name: [] for name, _ in EVENT_PATTERNS}
+    )
+    local_pattern_counts = (
+        pattern_counts
+        if pattern_counts is not None
+        else {name: 0 for name, _ in EVENT_PATTERNS}
+    )
+
+    base_result: dict[str, Any] = {
+        "status": "error",
+        "source_days_csv": str(source_path),
+        "output_events_csv": None,
+        "rows_total": 0,
+        "rows_with_raw": 0,
+        "rows_with_events": 0,
+        "rows_without_events": 0,
+        "events_extracted": 0,
+        "rows_with_multi_events": 0,
+        "coverage_ratio": None,
+        "rows_without_events_examples": [],
+        "error_code": None,
+        "error": None,
+    }
+
+    try:
+        df = pd.read_csv(source_path)
+        default_year, default_month = _infer_year_month_from_days_path(source_path)
+        events_df, stats = _extract_events_from_days_df(
+            df,
+            days_path=source_path,
+            default_year=default_year,
+            default_month=default_month,
+            pattern_examples=local_pattern_examples,
+            pattern_counts=local_pattern_counts,
+            max_pattern_examples=max_pattern_examples,
+            max_unmatched_examples_per_file=max_unmatched_examples_per_file,
+        )
+
+        out_path = _build_events_output_path(
+            source_path,
+            input_base=input_base_path,
+            output_base=output_base,
+            out_name=out_name,
+        )
+        ensure_parent_dir(str(out_path))
+        events_df.to_csv(out_path, index=False)
+
+        rows_with_raw = int(stats["rows_with_raw"])
+        rows_with_events = int(stats["rows_with_events"])
+        coverage_ratio = (
+            round(rows_with_events / rows_with_raw, 6) if rows_with_raw > 0 else None
+        )
+
+        base_result["status"] = "ok"
+        base_result["output_events_csv"] = str(out_path)
+        base_result["rows_total"] = int(stats["rows_total"])
+        base_result["rows_with_raw"] = rows_with_raw
+        base_result["rows_with_events"] = rows_with_events
+        base_result["rows_without_events"] = int(stats["rows_without_events"])
+        base_result["events_extracted"] = int(stats["events_extracted"])
+        base_result["rows_with_multi_events"] = int(stats["rows_with_multi_events"])
+        base_result["coverage_ratio"] = coverage_ratio
+        base_result["rows_without_events_examples"] = list(
+            stats["rows_without_events_examples"]
+        )
+        return base_result
+    except Exception as exc:
+        base_result["error_code"] = "processing_error"
+        base_result["error"] = f"{type(exc).__name__}: {exc}"
+        return base_result
+
+
+def process_many_days_files(
+    day_files: Iterable[str | Path],
+    *,
+    output_dir: str = DEFAULT_OUTPUT_DIR,
+    out_name: str = DEFAULT_OUT_NAME,
+    input_base: str | Path | None = None,
+    days_name: str = DEFAULT_DAYS_NAME,
+    input_dir: str | None = None,
     max_pattern_examples: int = DEFAULT_MAX_PATTERN_EXAMPLES,
     max_unmatched_examples_per_file: int = DEFAULT_MAX_UNMATCHED_EXAMPLES_PER_FILE,
 ) -> dict[str, Any]:
-    base = Path(input_dir)
-    output_base = Path(output_dir)
-    day_files = sorted(base.rglob(days_name))
+    base_path = Path(input_base) if input_base is not None else None
+    normalized_day_files = sorted(Path(path) for path in day_files)
+
+    resolved_input_dir = input_dir
+    if resolved_input_dir is None and base_path is not None:
+        resolved_input_dir = str(base_path)
 
     pattern_examples = {name: [] for name, _ in EVENT_PATTERNS}
     pattern_counts = {name: 0 for name, _ in EVENT_PATTERNS}
     totals: dict[str, Any] = {
-        "files_total": len(day_files),
+        "files_total": len(normalized_day_files),
         "files_processed": 0,
         "files_error": 0,
         "files_with_events": 0,
@@ -265,80 +360,78 @@ def extract_events_from_days_dir(
         "rows_without_events": 0,
         "events_extracted": 0,
         "rows_with_multi_events": 0,
-        "input_dir": os.path.abspath(input_dir),
+        "input_dir": os.path.abspath(resolved_input_dir) if resolved_input_dir else None,
         "output_dir": os.path.abspath(output_dir),
         "days_name": days_name,
         "out_name": out_name,
     }
     file_coverage: list[dict[str, Any]] = []
-    file_errors: list[dict[str, str]] = []
+    errors: list[dict[str, str]] = []
+    items: list[dict[str, Any]] = []
 
-    for i, day_path in enumerate(day_files, start=1):
-        try:
-            df = pd.read_csv(day_path)
-            default_year, default_month = _infer_year_month_from_days_path(day_path)
-            events_df, stats = _extract_events_from_days_df(
-                df,
-                days_path=day_path,
-                default_year=default_year,
-                default_month=default_month,
-                pattern_examples=pattern_examples,
-                pattern_counts=pattern_counts,
-                max_pattern_examples=max_pattern_examples,
-                max_unmatched_examples_per_file=max_unmatched_examples_per_file,
-            )
-            out_path = _build_events_output_path(
-                day_path,
-                input_base=base,
-                output_base=output_base,
-                out_name=out_name,
-            )
-            ensure_parent_dir(str(out_path))
-            events_df.to_csv(out_path, index=False)
-            totals["files_processed"] += 1
-            if not events_df.empty:
-                totals["files_with_events"] += 1
-            rows_with_raw = int(stats["rows_with_raw"])
-            rows_with_events = int(stats["rows_with_events"])
-            rows_without_events = int(stats["rows_without_events"])
-            coverage_ratio = (
-                round(rows_with_events / rows_with_raw, 6) if rows_with_raw > 0 else None
-            )
-            file_coverage.append(
+    for i, day_path in enumerate(normalized_day_files, start=1):
+        result = process_one_days_file(
+            day_path,
+            output_dir=output_dir,
+            out_name=out_name,
+            input_base=base_path,
+            max_pattern_examples=max_pattern_examples,
+            max_unmatched_examples_per_file=max_unmatched_examples_per_file,
+            pattern_examples=pattern_examples,
+            pattern_counts=pattern_counts,
+        )
+        items.append(result)
+
+        if result["status"] != "ok":
+            totals["files_error"] += 1
+            errors.append(
                 {
-                    "days_csv": str(day_path),
-                    "rows_total": int(stats["rows_total"]),
-                    "rows_with_raw": rows_with_raw,
-                    "rows_with_events": rows_with_events,
-                    "rows_without_events": rows_without_events,
-                    "events_extracted": int(stats["events_extracted"]),
-                    "rows_with_multi_events": int(stats["rows_with_multi_events"]),
-                    "coverage_ratio": coverage_ratio,
-                    "rows_without_events_examples": list(stats["rows_without_events_examples"]),
+                    "days_csv": str(result["source_days_csv"]),
+                    "error": str(result["error"]),
                 }
             )
+            logger.error(
+                "Errore elaborando %s: %s", result["source_days_csv"], result["error"]
+            )
+            continue
 
-            for key in (
-                "rows_total",
-                "rows_with_raw",
-                "rows_with_events",
-                "rows_without_events",
-                "events_extracted",
-                "rows_with_multi_events",
-            ):
-                totals[key] += int(stats[key])
+        totals["files_processed"] += 1
+        if int(result["events_extracted"]) > 0:
+            totals["files_with_events"] += 1
 
-            if i % 500 == 0:
-                logger.info(
-                    "Processati %s/%s file days.csv (events=%s)",
-                    i,
-                    len(day_files),
-                    totals["events_extracted"],
-                )
-        except Exception as exc:
-            totals["files_error"] += 1
-            file_errors.append({"days_csv": str(day_path), "error": str(exc)})
-            logger.exception("Errore elaborando %s", day_path)
+        for key in (
+            "rows_total",
+            "rows_with_raw",
+            "rows_with_events",
+            "rows_without_events",
+            "events_extracted",
+            "rows_with_multi_events",
+        ):
+            totals[key] += int(result[key])
+
+        file_coverage.append(
+            {
+                "days_csv": str(result["source_days_csv"]),
+                "rows_total": int(result["rows_total"]),
+                "rows_with_raw": int(result["rows_with_raw"]),
+                "rows_with_events": int(result["rows_with_events"]),
+                "rows_without_events": int(result["rows_without_events"]),
+                "events_extracted": int(result["events_extracted"]),
+                "rows_with_multi_events": int(result["rows_with_multi_events"]),
+                "coverage_ratio": result["coverage_ratio"],
+                "rows_without_events_examples": list(
+                    result["rows_without_events_examples"]
+                ),
+            }
+        )
+
+        if i % 500 == 0:
+            logger.info(
+                "Processati %s/%s file days.csv (events=%s)",
+                i,
+                len(normalized_day_files),
+                totals["events_extracted"],
+            )
 
     files_with_unmatched_rows = [item for item in file_coverage if item["rows_without_events"] > 0]
     files_with_unmatched_rows.sort(
@@ -353,94 +446,12 @@ def extract_events_from_days_dir(
     else:
         totals["coverage_ratio"] = None
 
-    report = {
+    return {
         "stats": totals,
+        "items": items,
+        "errors": errors,
         "pattern_counts": pattern_counts,
         "pattern_examples": pattern_examples,
         "files_with_unmatched_rows": files_with_unmatched_rows,
-        "file_errors": file_errors,
+        "file_errors": errors,
     }
-    ensure_parent_dir(report_json)
-    with open(report_json, "w", encoding="utf-8") as handle:
-        json.dump(report, handle, ensure_ascii=False, indent=2)
-    return report
-
-
-def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Estrae eventi E/U dal campo raw di days.csv usando parser condiviso."
-    )
-    parser.add_argument(
-        "--input-dir",
-        default=DEFAULT_INPUT_DIR,
-        help=f"Directory radice da cui cercare days.csv (default: {DEFAULT_INPUT_DIR})",
-    )
-    parser.add_argument(
-        "--output-dir",
-        default=DEFAULT_OUTPUT_DIR,
-        help=f"Directory radice in cui scrivere events CSV (default: {DEFAULT_OUTPUT_DIR})",
-    )
-    parser.add_argument(
-        "--days-name",
-        default=DEFAULT_DAYS_NAME,
-        help="Pattern file days da cercare ricorsivamente (default: *.days.csv)",
-    )
-    parser.add_argument(
-        "--out-name",
-        default=DEFAULT_OUT_NAME,
-        help=(
-            "Suffisso file output eventi accanto a ogni days file "
-            "(e.g. source.days.csv -> source.events_from_days_raw.csv)"
-        ),
-    )
-    parser.add_argument(
-        "--report-json",
-        default=DEFAULT_REPORT_JSON,
-        help=(
-            "Path report JSON finale "
-            f"(default: {DEFAULT_REPORT_JSON})"
-        ),
-    )
-    parser.add_argument(
-        "--max-pattern-examples",
-        type=int,
-        default=DEFAULT_MAX_PATTERN_EXAMPLES,
-        help="Massimo numero di esempi raw per pattern nel report (default: 12)",
-    )
-    parser.add_argument(
-        "--max-unmatched-examples-per-file",
-        type=int,
-        default=DEFAULT_MAX_UNMATCHED_EXAMPLES_PER_FILE,
-        help="Massimo numero di esempi raw non matchati per file nel report (default: 5)",
-    )
-    parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose logging")
-    args = parser.parse_args()
-
-    setup_logging(args.verbose)
-    report = extract_events_from_days_dir(
-        input_dir=args.input_dir,
-        output_dir=args.output_dir,
-        days_name=args.days_name,
-        out_name=args.out_name,
-        report_json=args.report_json,
-        max_pattern_examples=args.max_pattern_examples,
-        max_unmatched_examples_per_file=args.max_unmatched_examples_per_file,
-    )
-    stats = report["stats"]
-    logger.info(
-        (
-            "Completato: files=%s processati=%s errori=%s files_with_events=%s "
-            "events=%s rows_with_events=%s"
-        ),
-        stats["files_total"],
-        stats["files_processed"],
-        stats["files_error"],
-        stats["files_with_events"],
-        stats["events_extracted"],
-        stats["rows_with_events"],
-    )
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
