@@ -151,14 +151,32 @@ def to_dow(value: str) -> str | None:
     token = alpha_token(value)
     if not token:
         return None
-    for prefix, code in DOW_PREFIXES:
-        if token.startswith(prefix):
-            return code
+    for candidate in (token, _collapse_ocr_doubled_token(token)):
+        for prefix, code in DOW_PREFIXES:
+            if candidate.startswith(prefix):
+                return code
     return None
 
 
+def _normalize_ocr_day_prefix(line: str) -> str:
+    match = re.match(r"^\s*(?P<digits>\d{4})(?P<tail>.*)$", line)
+    if not match:
+        return line
+    digits = match.group("digits")
+    if not (digits[0] == digits[1] and digits[2] == digits[3]):
+        return line
+    collapsed = f"{digits[0]}{digits[2]}"
+    try:
+        day = int(collapsed)
+    except Exception:
+        return line
+    if not (1 <= day <= 31):
+        return line
+    return f"{collapsed}{match.group('tail')}"
+
+
 def parse_day_header(line: str) -> tuple[int, str] | None:
-    norm = normalize_text(line)
+    norm = _normalize_ocr_day_prefix(normalize_text(line))
     match = DAY_HEADER_RE.match(norm)
     if not match:
         return None

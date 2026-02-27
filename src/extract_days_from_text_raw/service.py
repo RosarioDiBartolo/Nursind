@@ -3,22 +3,20 @@ from __future__ import annotations
 import csv
 import logging
 import os
-import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
 from src.drive_service.fs_utils import ensure_parent_dir
 from src.raw_text_parsing import (
-    DAY_PREFIX_RE,
-    QTA_RE,
-    detect_doc_format,
     line_has_event,
-    normalize_text,
     parse_day_header,
     resolve_year_month,
 )
 
+from .parsers import ParseContext, resolve_parser
+from .parsers.base import BaseFormatParser
+from .parsers.common import normalized_raw
 from .options import (
     DEFAULT_MAX_NO_DAYS_FILES,
     DEFAULT_MAX_NO_DAYS_LINES,
@@ -28,9 +26,6 @@ from .options import (
 )
 
 logger = logging.getLogger(__name__)
-
-NUMBER_RE = re.compile(r"^[+-]?\d+(?:[.,]\d+)?$")
-HHMM_RE = re.compile(r"^[+-]?\d{1,3}:\d{2}$")
 
 
 @dataclass(frozen=True)
@@ -67,136 +62,11 @@ def _format_float(value: float | None) -> str:
     return text or "0"
 
 
-def _parse_hhmm(token: str) -> float | None:
-    clean = token.strip()
-    sign = -1.0 if clean.startswith("-") else 1.0
-    clean = clean.lstrip("+-")
-    if not HHMM_RE.fullmatch(clean):
-        return None
-    hour_s, minute_s = clean.split(":")
-    hour = int(hour_s)
-    minute = int(minute_s)
-    if not (0 <= minute <= 59):
-        return None
-    return sign * (hour + minute / 60.0)
-
-
-def _parse_decimal(token: str) -> float | None:
-    clean = token.strip()
-    if not NUMBER_RE.fullmatch(clean):
-        return None
-    normalized = clean.replace(",", ".")
-    value = float(normalized)
-    if "." not in normalized:
-        return value
-
-    sign = -1.0 if value < 0 else 1.0
-    abs_value = abs(value)
-    hours = int(abs_value)
-    minutes = int(round((abs_value - hours) * 100))
-    if 0 <= minutes <= 59:
-        return sign * (hours + minutes / 60.0)
-    return value
-
-
-def _parse_numeric_token(token: str, *, allow_hhmm: bool) -> float | None:
-    clean = token.strip().strip("|,;")
-    if not clean:
-        return None
-    if allow_hhmm:
-        hhmm = _parse_hhmm(clean)
-        if hhmm is not None:
-            return hhmm
-    return _parse_decimal(clean)
-
-
-def _extract_leading_values(value_text: str, *, allow_hhmm: bool) -> list[float]:
-    values: list[float] = []
-    for token in value_text.split():
-        parsed = _parse_numeric_token(token, allow_hhmm=allow_hhmm)
-        if parsed is not None:
-            values.append(parsed)
-    return values
-
-
-def _extract_trailing_values(value_text: str, *, allow_hhmm: bool) -> list[float]:
-    tokens = value_text.split()
-    out_rev: list[float] = []
-    collecting = False
-    for raw_token in reversed(tokens):
-        parsed = _parse_numeric_token(raw_token, allow_hhmm=allow_hhmm)
-        if parsed is None:
-            if collecting:
-                break
-            continue
-        collecting = True
-        out_rev.append(parsed)
-    out_rev.reverse()
-    return out_rev
-
-
-def _assign_cartellino(values: list[float]) -> tuple[float | None, float | None, float | None]:
-    if len(values) >= 3:
-        return values[-3], values[-2], values[-1]
-    if len(values) == 2:
-        return values[0], values[1], values[1]
-    if len(values) == 1:
-        return values[0], values[0], values[0]
-    return None, None, None
-
-
-def _assign_timbrature(
-    values: list[float],
+def _parse_rows_for_file(
+    text: str,
     *,
-    has_event: bool,
-    any_event: bool,
-) -> tuple[float | None, float | None, float | None]:
-    contratt: float | None = None
-    lavorato: float | None = None
-
-    if values:
-        if not has_event:
-            contratt = values[0]
-            lavorato = values[1] if len(values) >= 2 else values[0]
-        elif len(values) >= 2:
-            contratt = values[0]
-            lavorato = values[1]
-        else:
-            lavorato = values[0]
-
-    mo_f = 0.0 if contratt is None else contratt
-    mo_t = 0.0 if lavorato is None else lavorato
-    mo_lav = mo_t
-    if any_event and not has_event:
-        mo_lav = 0.0
-    return mo_f, mo_t, mo_lav
-
-
-def _assign_situazione(
-    values: list[float],
-    *,
-    has_event: bool,
-    any_event: bool,
-) -> tuple[float | None, float | None, float | None]:
-    contratt: float | None = None
-    lavorato: float | None = None
-    if len(values) >= 3:
-        contratt = values[1] if len(values) >= 4 else values[0]
-        lavorato = values[2]
-    elif len(values) == 2:
-        contratt, lavorato = values[0], values[1]
-    elif len(values) == 1:
-        contratt, lavorato = values[0], values[0]
-
-    mo_f = 0.0 if contratt is None else contratt
-    mo_t = 0.0 if lavorato is None else lavorato
-    mo_lav = mo_t
-    if any_event and not has_event:
-        mo_lav = 0.0
-    return mo_f, mo_t, mo_lav
-
-
-def _parse_rows_for_file(text: str, *, doc_format: str) -> tuple[list[ParsedRow], dict[str, Any]]:
+    parser: BaseFormatParser,
+) -> tuple[list[ParsedRow], dict[str, Any]]:
     lines = text.splitlines()
     candidates: list[tuple[int, str, bool]] = []
     for idx, line in enumerate(lines, start=1):
@@ -217,36 +87,12 @@ def _parse_rows_for_file(text: str, *, doc_format: str) -> tuple[list[ParsedRow]
         if header is None:
             continue
         day, dow = header
-        norm = normalize_text(raw)
-
-        if doc_format == "situazione_mensile":
-            values = _extract_trailing_values(norm, allow_hhmm=True)
-            mo_f, mo_t, mo_lav = _assign_situazione(
-                values,
-                has_event=has_event,
-                any_event=any_event,
-            )
-        elif doc_format == "timbrature_web":
-            rest = DAY_PREFIX_RE.sub("", norm, count=1)
-            rest = QTA_RE.sub("", rest)
-            values = _extract_leading_values(rest, allow_hhmm=False)
-            mo_f, mo_t, mo_lav = _assign_timbrature(
-                values,
-                has_event=has_event,
-                any_event=any_event,
-            )
-        elif doc_format == "cartellino_classic":
-            values = _extract_trailing_values(norm, allow_hhmm=False)
-            mo_f, mo_t, mo_lav = _assign_cartellino(values)
-        else:
-            rest = DAY_PREFIX_RE.sub("", norm, count=1)
-            rest = QTA_RE.sub("", rest)
-            values = _extract_leading_values(rest, allow_hhmm=False)
-            mo_f, mo_t, mo_lav = _assign_timbrature(
-                values,
-                has_event=has_event,
-                any_event=any_event,
-            )
+        values = parser.parse_row(
+            raw,
+            has_event=has_event,
+            any_event=any_event,
+            ctx=ParseContext(normalized_raw=normalized_raw(raw)),
+        )
 
         rows.append(
             ParsedRow(
@@ -255,9 +101,9 @@ def _parse_rows_for_file(text: str, *, doc_format: str) -> tuple[list[ParsedRow]
                 raw=raw,
                 line_no=line_no,
                 has_event=has_event,
-                mo_f=mo_f,
-                mo_t=mo_t,
-                mo_lav=mo_lav,
+                mo_f=values.mo_f,
+                mo_t=values.mo_t,
+                mo_lav=values.mo_lav,
             )
         )
 
@@ -357,8 +203,8 @@ def process_one_text_file(
 
     try:
         text = source_path.read_text(encoding="utf-8", errors="replace")
-        doc_format = detect_doc_format(text)
-        base_result["doc_format"] = doc_format
+        parser = resolve_parser(text)
+        base_result["doc_format"] = parser.legacy_doc_format
         year, month = resolve_year_month(text, source_path)
         base_result["year"] = year
         base_result["month"] = month
@@ -370,7 +216,7 @@ def process_one_text_file(
             base_result["header_preview"] = _header_preview(text)
             return base_result
 
-        rows, file_stats = _parse_rows_for_file(text, doc_format=doc_format)
+        rows, file_stats = _parse_rows_for_file(text, parser=parser)
         out_csv = _build_days_output_path(
             source_path,
             input_base=input_base_path,

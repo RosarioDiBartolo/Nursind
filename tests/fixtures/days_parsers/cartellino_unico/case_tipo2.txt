@@ -1,0 +1,6 @@
+Data e ora Stampa: 10/01/2026 03:17:35
+ACETO CATERINA, MAGGIO 2025, Cartellino Unico
+Giorno Orario Anomalie Ent 1 Usc 1 Ent 2 Usc 2 Ricon Contr Diff
+1 gio
+2 ven 771 07:50 20:05 18 12:10 6:00 6:10
+5 lun 1 6:00 -6:00

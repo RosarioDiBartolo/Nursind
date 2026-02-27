@@ -3,6 +3,7 @@ from pathlib import Path
 from src.raw_text_parsing import (
     infer_year_month_from_filename,
     infer_year_month_from_header,
+    parse_day_header,
     resolve_year_month,
 )
 
@@ -32,3 +33,7 @@ def test_resolve_year_month_uses_header_date_as_last_resort() -> None:
     text = "Ente:039 AUSL Toscana Sud-Est Elaborazione del 12/01/2026\n"
     year, month = resolve_year_month(text, Path("documento_senza_data.txt"))
     assert (year, month) == (2026, 1)
+
+
+def test_parse_day_header_handles_doubled_ocr_prefix_and_dow() -> None:
+    assert parse_day_header("0011 DDoo RRR ! ! ! !") == (1, "DO")

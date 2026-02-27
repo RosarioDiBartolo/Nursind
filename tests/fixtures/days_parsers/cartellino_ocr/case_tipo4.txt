@@ -1,0 +1,6 @@
+Ente:039 AUSL Toscana Sud-Est Elaborazione del 12/01/2026
+RR II LL EE VV AA ZZ II OO NN EE PP RR EE SS EE NN ZZ EE ddeell mmeessee ddii OOttttoobbrree 22002233 Pag. 1
+Data T I M B R A T U R E O R E
+0011 DDoo RRR ! ! ! !
+02 Lu *76 6,54 13,11 ! 6,15 6,00! 15 ! !
+03 Gi REC 19,47 ! 6,00! 6,00-! !
