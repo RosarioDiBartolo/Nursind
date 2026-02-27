@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
+from src.event_hints_slots import hint_columns, serialize_hint_slots
 from src.drive_service.fs_utils import ensure_parent_dir
 from src.raw_text_parsing import (
     line_has_event,
@@ -15,7 +16,7 @@ from src.raw_text_parsing import (
 )
 
 from .parsers import ParseContext, resolve_parser
-from .parsers.base import BaseFormatParser
+from .parsers.base import BaseFormatParser, EventHint
 from .parsers.common import normalized_raw
 from .options import (
     DEFAULT_MAX_NO_DAYS_FILES,
@@ -38,6 +39,8 @@ class ParsedRow:
     mo_f: float | None
     mo_t: float | None
     mo_lav: float | None
+    parser_id: str
+    event_hints: tuple[EventHint, ...]
 
 
 def _header_preview(text: str, *, max_lines: int = 3, max_chars: int = 240) -> str:
@@ -101,9 +104,11 @@ def _parse_rows_for_file(
                 raw=raw,
                 line_no=line_no,
                 has_event=has_event,
-                mo_f=values.mo_f,
-                mo_t=values.mo_t,
-                mo_lav=values.mo_lav,
+                mo_f=values.values.mo_f,
+                mo_t=values.values.mo_t,
+                mo_lav=values.values.mo_lav,
+                parser_id=parser.parser_id,
+                event_hints=values.event_hints,
             )
         )
 
@@ -135,23 +140,38 @@ def _write_days_csv(
     month: int | None,
 ) -> None:
     ensure_parent_dir(str(out_csv))
-    columns = ["year", "month", "day", "dow", "mo_f", "mo_t", "mo_lav", "raw"]
+    columns = [
+        "year",
+        "month",
+        "day",
+        "dow",
+        "mo_f",
+        "mo_t",
+        "mo_lav",
+        "raw",
+        *hint_columns(),
+    ]
     with open(out_csv, "w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=columns)
         writer.writeheader()
         for row in rows:
-            writer.writerow(
-                {
-                    "year": "" if year is None else year,
-                    "month": "" if month is None else month,
-                    "day": row.day,
-                    "dow": row.dow,
-                    "mo_f": _format_float(row.mo_f),
-                    "mo_t": _format_float(row.mo_t),
-                    "mo_lav": _format_float(row.mo_lav),
-                    "raw": row.raw,
-                }
+            payload = {
+                "year": "" if year is None else year,
+                "month": "" if month is None else month,
+                "day": row.day,
+                "dow": row.dow,
+                "mo_f": _format_float(row.mo_f),
+                "mo_t": _format_float(row.mo_t),
+                "mo_lav": _format_float(row.mo_lav),
+                "raw": row.raw,
+            }
+            payload.update(
+                serialize_hint_slots(
+                    parser_id=row.parser_id,
+                    event_hints=row.event_hints,
+                )
             )
+            writer.writerow(payload)
 
 
 def _build_days_output_path(

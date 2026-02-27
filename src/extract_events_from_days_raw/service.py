@@ -9,6 +9,7 @@ from typing import Any, Iterable
 import pandas as pd
 
 from src.drive_service.fs_utils import ensure_parent_dir
+from src.event_hints_slots import HINT_SLOT_COUNT, iter_hint_slot_values
 from src.raw_text_parsing import (
     EVENT_PATTERNS,
     extract_events,
@@ -57,6 +58,22 @@ def _coerce_int(value: Any) -> int | None:
         return None
 
 
+def _coerce_float(value: Any) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return None
+    try:
+        if pd.isna(value):
+            return None
+    except Exception:
+        pass
+    try:
+        return float(value)
+    except Exception:
+        return None
+
+
 def _to_dt(base_day: date, time_str: str) -> datetime | None:
     parsed = _parse_hhmm(time_str)
     if parsed is None:
@@ -66,6 +83,67 @@ def _to_dt(base_day: date, time_str: str) -> datetime | None:
     if day_offset:
         dt = dt + timedelta(days=day_offset)
     return dt
+
+
+def _coerce_str(value: Any) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return None
+    try:
+        if pd.isna(value):
+            return None
+    except Exception:
+        pass
+    text = str(value).strip()
+    if not text:
+        return None
+    if text.lower() == "nan":
+        return None
+    return text
+
+
+def _read_hint_events_from_row(
+    row: pd.Series,
+) -> tuple[list[dict[str, Any]], int, str]:
+    parser_id = _coerce_str(row.get("parser_id")) or "unknown"
+    hint_events: list[dict[str, Any]] = []
+    invalid_hints = 0
+
+    for slot in iter_hint_slot_values(row, slot_count=HINT_SLOT_COUNT):
+        slot_index = int(slot["slot_index"])
+        kind = _coerce_str(slot.get("kind"))
+        time_hhmm = _coerce_str(slot.get("time_hhmm"))
+        source = _coerce_str(slot.get("source")) or f"slot_{slot_index}"
+        confidence = _coerce_float(slot.get("confidence"))
+
+        if kind is None and time_hhmm is None:
+            continue
+        if kind is None or time_hhmm is None:
+            invalid_hints += 1
+            continue
+
+        kind = kind.upper()
+        if kind not in {"E", "U"}:
+            invalid_hints += 1
+            continue
+        parsed_time = _parse_hhmm(time_hhmm)
+        if parsed_time is None:
+            invalid_hints += 1
+            continue
+        day_offset, hour, minute = parsed_time
+        normalized_time = "24:00" if day_offset == 1 else f"{hour:02d}:{minute:02d}"
+
+        hint_events.append(
+            {
+                "kind": kind,
+                "time_hhmm": normalized_time,
+                "source": source,
+                "confidence": confidence,
+            }
+        )
+
+    return hint_events, invalid_hints, parser_id
 
 
 def _infer_year_month_from_days_path(days_path: Path) -> tuple[int | None, int | None]:
@@ -166,27 +244,64 @@ def _extract_events_from_days_df(
         "rows_without_events": 0,
         "events_extracted": 0,
         "rows_with_multi_events": 0,
+        "rows_with_hint_events": 0,
+        "rows_fallback_regex": 0,
+        "events_from_hints": 0,
+        "events_from_regex": 0,
+        "rows_with_invalid_hints": 0,
         "rows_without_events_examples": [],
     }
-    if df.empty or "raw" not in df.columns:
+    if df.empty:
         return _empty_events_df(), stats
 
     out_rows: list[dict[str, Any]] = []
     for row_index, row in df.iterrows():
-        raw = str(row.get("raw") or "").strip()
-        if not raw:
-            continue
-        stats["rows_with_raw"] += 1
+        hint_events, invalid_hints, parser_id = _read_hint_events_from_row(row)
+        if invalid_hints > 0:
+            stats["rows_with_invalid_hints"] += 1
 
-        events = extract_events(raw)
-        if not events:
-            stats["rows_without_events"] += 1
-            if len(stats["rows_without_events_examples"]) < max_unmatched_examples_per_file:
-                stats["rows_without_events_examples"].append(raw)
-            continue
+        raw = str(row.get("raw") or "").strip()
+        if raw:
+            stats["rows_with_raw"] += 1
+
+        resolved_events: list[dict[str, str]] = []
+        if hint_events:
+            stats["rows_with_hint_events"] += 1
+            for hint in hint_events:
+                source = str(hint["source"])
+                resolved_events.append(
+                    {
+                        "kind": str(hint["kind"]),
+                        "time_hhmm": str(hint["time_hhmm"]),
+                        "event_raw": f"{hint['kind']} {hint['time_hhmm']}",
+                        "event_pattern": f"hint:{parser_id}:{source}",
+                    }
+                )
+            stats["events_from_hints"] += len(resolved_events)
+        else:
+            if not raw:
+                continue
+            stats["rows_fallback_regex"] += 1
+            regex_events = extract_events(raw)
+            if not regex_events:
+                stats["rows_without_events"] += 1
+                if len(stats["rows_without_events_examples"]) < max_unmatched_examples_per_file:
+                    stats["rows_without_events_examples"].append(raw)
+                continue
+            for ev in regex_events:
+                resolved_events.append(
+                    {
+                        "kind": ev.kind,
+                        "time_hhmm": ev.time_str,
+                        "event_raw": raw[ev.start : ev.end],
+                        "event_pattern": ev.pattern,
+                    }
+                )
+            stats["events_from_regex"] += len(resolved_events)
+
         stats["rows_with_events"] += 1
-        stats["events_extracted"] += len(events)
-        if len(events) > 2:
+        stats["events_extracted"] += len(resolved_events)
+        if len(resolved_events) > 2:
             stats["rows_with_multi_events"] += 1
 
         year = _coerce_int(row.get("year"))
@@ -203,17 +318,20 @@ def _extract_events_from_days_df(
             default_month=default_month,
         )
 
-        for event_index, ev in enumerate(events):
-            pattern_counts[ev.pattern] = pattern_counts.get(ev.pattern, 0) + 1
+        for event_index, event in enumerate(resolved_events):
+            event_pattern = str(event["event_pattern"])
+            pattern_counts[event_pattern] = pattern_counts.get(event_pattern, 0) + 1
+            examples = pattern_examples.setdefault(event_pattern, [])
             if (
-                raw not in pattern_examples[ev.pattern]
-                and len(pattern_examples[ev.pattern]) < max_pattern_examples
+                raw
+                and raw not in examples
+                and len(examples) < max_pattern_examples
             ):
-                pattern_examples[ev.pattern].append(raw)
+                examples.append(raw)
 
             event_ts: str | None = None
             if day_value is not None:
-                event_dt = _to_dt(day_value, ev.time_str)
+                event_dt = _to_dt(day_value, str(event["time_hhmm"]))
                 if event_dt is not None:
                     event_ts = event_dt.strftime("%Y-%m-%d %H:%M:%S")
 
@@ -224,11 +342,11 @@ def _extract_events_from_days_df(
                     "day": day,
                     "dow": row.get("dow"),
                     "event_index": event_index,
-                    "event_kind": ev.kind,
-                    "event_time_hhmm": ev.time_str,
+                    "event_kind": event["kind"],
+                    "event_time_hhmm": event["time_hhmm"],
                     "event_ts": event_ts,
-                    "event_raw": raw[ev.start : ev.end],
-                    "event_pattern": ev.pattern,
+                    "event_raw": event["event_raw"],
+                    "event_pattern": event_pattern,
                     "raw": raw,
                     "source_row_index": row_index,
                     "source_days_csv": str(days_path),
@@ -275,6 +393,11 @@ def process_one_days_file(
         "rows_without_events": 0,
         "events_extracted": 0,
         "rows_with_multi_events": 0,
+        "rows_with_hint_events": 0,
+        "rows_fallback_regex": 0,
+        "events_from_hints": 0,
+        "events_from_regex": 0,
+        "rows_with_invalid_hints": 0,
         "coverage_ratio": None,
         "rows_without_events_examples": [],
         "error_code": None,
@@ -318,6 +441,11 @@ def process_one_days_file(
         base_result["rows_without_events"] = int(stats["rows_without_events"])
         base_result["events_extracted"] = int(stats["events_extracted"])
         base_result["rows_with_multi_events"] = int(stats["rows_with_multi_events"])
+        base_result["rows_with_hint_events"] = int(stats["rows_with_hint_events"])
+        base_result["rows_fallback_regex"] = int(stats["rows_fallback_regex"])
+        base_result["events_from_hints"] = int(stats["events_from_hints"])
+        base_result["events_from_regex"] = int(stats["events_from_regex"])
+        base_result["rows_with_invalid_hints"] = int(stats["rows_with_invalid_hints"])
         base_result["coverage_ratio"] = coverage_ratio
         base_result["rows_without_events_examples"] = list(
             stats["rows_without_events_examples"]
@@ -360,6 +488,11 @@ def process_many_days_files(
         "rows_without_events": 0,
         "events_extracted": 0,
         "rows_with_multi_events": 0,
+        "rows_with_hint_events": 0,
+        "rows_fallback_regex": 0,
+        "events_from_hints": 0,
+        "events_from_regex": 0,
+        "rows_with_invalid_hints": 0,
         "input_dir": os.path.abspath(resolved_input_dir) if resolved_input_dir else None,
         "output_dir": os.path.abspath(output_dir),
         "days_name": days_name,
@@ -406,6 +539,11 @@ def process_many_days_files(
             "rows_without_events",
             "events_extracted",
             "rows_with_multi_events",
+            "rows_with_hint_events",
+            "rows_fallback_regex",
+            "events_from_hints",
+            "events_from_regex",
+            "rows_with_invalid_hints",
         ):
             totals[key] += int(result[key])
 
@@ -418,6 +556,11 @@ def process_many_days_files(
                 "rows_without_events": int(result["rows_without_events"]),
                 "events_extracted": int(result["events_extracted"]),
                 "rows_with_multi_events": int(result["rows_with_multi_events"]),
+                "rows_with_hint_events": int(result["rows_with_hint_events"]),
+                "rows_fallback_regex": int(result["rows_fallback_regex"]),
+                "events_from_hints": int(result["events_from_hints"]),
+                "events_from_regex": int(result["events_from_regex"]),
+                "rows_with_invalid_hints": int(result["rows_with_invalid_hints"]),
                 "coverage_ratio": result["coverage_ratio"],
                 "rows_without_events_examples": list(
                     result["rows_without_events_examples"]

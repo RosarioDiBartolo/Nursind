@@ -1,14 +1,18 @@
 from __future__ import annotations
 
+import re
+
 from src.raw_text_parsing import normalize_text
 
-from .base import BaseFormatParser, ParseContext, ParseValues
+from .base import BaseFormatParser, EventHint, ParseContext, RowParseResult
 from .common import (
     extract_all_values,
     extract_trailing_values,
     finalize_presence_values,
+    hints_from_explicit_events,
     split_bang_segments,
     strip_day_prefix,
+    to_row_result,
 )
 
 
@@ -16,6 +20,7 @@ class CartellinoOcrParser(BaseFormatParser):
     parser_id = "cartellino_ocr"
     legacy_doc_format = "cartellino_classic"
     priority = 20
+    _TIME_RE = re.compile(r"(?<!\d)(?P<h>[0-2]?\d)[:.,](?P<m>[0-5]\d)(?!\d)")
 
     def score_document(self, text: str) -> int:
         norm = normalize_text(text)
@@ -70,6 +75,38 @@ class CartellinoOcrParser(BaseFormatParser):
 
         return contracted, worked
 
+    def _aligned_hints(self, body: str) -> tuple[EventHint, ...]:
+        segments = split_bang_segments(body)
+        if not segments:
+            return ()
+        primary = segments[0]
+        times: list[str] = []
+        for match in self._TIME_RE.finditer(primary):
+            hour = int(match.group("h"))
+            minute = int(match.group("m"))
+            if not ((0 <= hour <= 23) or (hour == 24 and minute == 0)):
+                continue
+            times.append(f"{hour:02d}:{minute:02d}")
+
+        if not times:
+            return ()
+
+        hints: list[EventHint] = []
+        confidence = 0.9 if len(times) >= 2 else 0.7
+        for idx, hhmm in enumerate(times[:12]):
+            kind = "E" if idx % 2 == 0 else "U"
+            if len(times) == 1 and "rec" in primary:
+                kind = "U"
+            hints.append(
+                EventHint(
+                    kind=kind,
+                    time_hhmm=hhmm,
+                    source=f"segment_1_pos_{idx+1}",
+                    confidence=confidence,
+                )
+            )
+        return tuple(hints)
+
     def parse_row(
         self,
         raw: str,
@@ -77,11 +114,11 @@ class CartellinoOcrParser(BaseFormatParser):
         has_event: bool,
         any_event: bool,
         ctx: ParseContext,
-    ) -> ParseValues:
-        segments = split_bang_segments(ctx.normalized_raw)
+    ) -> RowParseResult:
+        body = strip_day_prefix(ctx.normalized_raw)
+        segments = split_bang_segments(body)
         contracted, worked = self._from_segments(segments)
         if contracted is None and worked is None:
-            body = strip_day_prefix(ctx.normalized_raw)
             fallback = extract_trailing_values(
                 body,
                 allow_hhmm=True,
@@ -94,9 +131,15 @@ class CartellinoOcrParser(BaseFormatParser):
                 contracted = fallback[0]
                 worked = fallback[0]
 
-        return finalize_presence_values(
-            contracted,
-            worked,
-            has_event=has_event,
-            any_event=any_event,
+        hints = self._aligned_hints(body)
+        if not hints:
+            hints = hints_from_explicit_events(raw, source="explicit", confidence=0.85)
+        return to_row_result(
+            finalize_presence_values(
+                contracted,
+                worked,
+                has_event=has_event,
+                any_event=any_event,
+            ),
+            hints=hints,
         )

@@ -47,3 +47,16 @@ def test_parser_contracts_from_fixtures(expected_path: Path) -> None:
         _assert_hour_sanity(row.mo_f)
         _assert_hour_sanity(row.mo_t)
         _assert_hour_sanity(row.mo_lav)
+
+        expected_hints = expected_row.get("event_hints")
+        if expected_hints is None:
+            continue
+
+        assert len(row.event_hints) == len(expected_hints)
+        for index, expected_hint in enumerate(expected_hints):
+            hint = row.event_hints[index]
+            assert hint.kind == str(expected_hint["kind"])
+            assert hint.time_hhmm == str(expected_hint["time_hhmm"])
+            if "source" in expected_hint:
+                assert hint.source == str(expected_hint["source"])
+            assert 0.0 <= float(hint.confidence) <= 1.0

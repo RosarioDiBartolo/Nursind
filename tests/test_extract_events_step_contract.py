@@ -44,6 +44,14 @@ def test_extract_events_process_one_contract(tmp_path: Path) -> None:
     assert_process_one_contract(result, source_key="source_days_csv")
     assert result["status"] == "ok"
     assert int(result["events_extracted"]) == 2
+    for key in (
+        "rows_with_hint_events",
+        "rows_fallback_regex",
+        "events_from_hints",
+        "events_from_regex",
+        "rows_with_invalid_hints",
+    ):
+        assert key in result
     assert Path(str(result["output_events_csv"])).exists()
 
 
@@ -80,3 +88,11 @@ def test_extract_events_process_many_contract(tmp_path: Path) -> None:
     assert report["stats"]["files_total"] == 2
     assert report["stats"]["files_processed"] == 1
     assert report["stats"]["files_error"] == 1
+    for key in (
+        "rows_with_hint_events",
+        "rows_fallback_regex",
+        "events_from_hints",
+        "events_from_regex",
+        "rows_with_invalid_hints",
+    ):
+        assert key in report["stats"]

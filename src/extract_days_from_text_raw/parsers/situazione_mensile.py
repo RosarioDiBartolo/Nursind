@@ -2,8 +2,13 @@ from __future__ import annotations
 
 from src.raw_text_parsing import normalize_text
 
-from .base import BaseFormatParser, ParseContext, ParseValues
-from .common import assign_situazione, extract_trailing_values
+from .base import BaseFormatParser, ParseContext, RowParseResult
+from .common import (
+    assign_situazione,
+    extract_trailing_values,
+    hints_from_explicit_events,
+    to_row_result,
+)
 
 
 class SituazioneMensileParser(BaseFormatParser):
@@ -27,6 +32,9 @@ class SituazioneMensileParser(BaseFormatParser):
         has_event: bool,
         any_event: bool,
         ctx: ParseContext,
-    ) -> ParseValues:
+    ) -> RowParseResult:
         values = extract_trailing_values(ctx.normalized_raw, allow_hhmm=True)
-        return assign_situazione(values, has_event=has_event, any_event=any_event)
+        return to_row_result(
+            assign_situazione(values, has_event=has_event, any_event=any_event),
+            hints=hints_from_explicit_events(raw, source="explicit", confidence=0.9),
+        )

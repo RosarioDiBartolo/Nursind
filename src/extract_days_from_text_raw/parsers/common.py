@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import re
 
-from src.raw_text_parsing import DAY_PREFIX_RE, QTA_RE, normalize_text
+from src.raw_text_parsing import DAY_PREFIX_RE, QTA_RE, extract_events, normalize_text
 
-from .base import ParseValues
+from .base import EventHint, ParseValues, RowParseResult
 
 NUMBER_RE = re.compile(r"^[+-]?\d+(?:[.,]\d+)?$")
 HHMM_RE = re.compile(r"^[+-]?\d{1,3}:\d{2}$")
@@ -203,3 +203,26 @@ def assign_cartellino(values: list[float]) -> ParseValues:
 
 def normalized_raw(raw: str) -> str:
     return normalize_text(raw)
+
+
+def to_row_result(values: ParseValues, *, hints: list[EventHint] | tuple[EventHint, ...]) -> RowParseResult:
+    return RowParseResult(values=values, event_hints=tuple(hints))
+
+
+def hints_from_explicit_events(
+    raw: str,
+    *,
+    source: str = "regex",
+    confidence: float = 0.99,
+) -> tuple[EventHint, ...]:
+    hints: list[EventHint] = []
+    for event in extract_events(raw):
+        hints.append(
+            EventHint(
+                kind=event.kind,
+                time_hhmm=event.time_str,
+                source=source,
+                confidence=confidence,
+            )
+        )
+    return tuple(hints)

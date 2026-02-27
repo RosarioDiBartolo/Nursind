@@ -16,6 +16,20 @@ class ParseValues:
     mo_lav: float | None
 
 
+@dataclass(frozen=True, slots=True)
+class EventHint:
+    kind: str
+    time_hhmm: str
+    source: str
+    confidence: float
+
+
+@dataclass(frozen=True, slots=True)
+class RowParseResult:
+    values: ParseValues
+    event_hints: tuple[EventHint, ...]
+
+
 class BaseFormatParser(ABC):
     parser_id: str = ""
     legacy_doc_format: str = "unknown"
@@ -33,5 +47,5 @@ class BaseFormatParser(ABC):
         has_event: bool,
         any_event: bool,
         ctx: ParseContext,
-    ) -> ParseValues:
+    ) -> RowParseResult:
         raise NotImplementedError

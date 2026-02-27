@@ -3,8 +3,13 @@ from __future__ import annotations
 from src.raw_text_parsing import DAY_HEADER_RE
 from src.raw_text_parsing import normalize_text
 
-from .base import BaseFormatParser, ParseContext, ParseValues
-from .common import assign_cartellino, extract_trailing_values
+from .base import BaseFormatParser, ParseContext, RowParseResult
+from .common import (
+    assign_cartellino,
+    extract_trailing_values,
+    hints_from_explicit_events,
+    to_row_result,
+)
 
 
 class CartellinoClassicParser(BaseFormatParser):
@@ -44,6 +49,9 @@ class CartellinoClassicParser(BaseFormatParser):
         has_event: bool,
         any_event: bool,
         ctx: ParseContext,
-    ) -> ParseValues:
+    ) -> RowParseResult:
         values = extract_trailing_values(ctx.normalized_raw, allow_hhmm=False)
-        return assign_cartellino(values)
+        return to_row_result(
+            assign_cartellino(values),
+            hints=hints_from_explicit_events(raw, source="explicit", confidence=0.95),
+        )

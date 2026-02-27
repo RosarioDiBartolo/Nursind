@@ -4,8 +4,14 @@ import re
 
 from src.raw_text_parsing import normalize_text
 
-from .base import BaseFormatParser, ParseContext, ParseValues
-from .common import assign_timbrature, extract_leading_values, strip_day_prefix_and_qta
+from .base import BaseFormatParser, ParseContext, RowParseResult
+from .common import (
+    assign_timbrature,
+    extract_leading_values,
+    hints_from_explicit_events,
+    strip_day_prefix_and_qta,
+    to_row_result,
+)
 
 
 class TimbratureWebParser(BaseFormatParser):
@@ -31,7 +37,10 @@ class TimbratureWebParser(BaseFormatParser):
         has_event: bool,
         any_event: bool,
         ctx: ParseContext,
-    ) -> ParseValues:
+    ) -> RowParseResult:
         rest = strip_day_prefix_and_qta(ctx.normalized_raw)
         values = extract_leading_values(rest, allow_hhmm=False)
-        return assign_timbrature(values, has_event=has_event, any_event=any_event)
+        return to_row_result(
+            assign_timbrature(values, has_event=has_event, any_event=any_event),
+            hints=hints_from_explicit_events(raw, source="explicit", confidence=0.99),
+        )

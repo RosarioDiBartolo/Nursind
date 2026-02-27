@@ -45,6 +45,13 @@ def test_process_one_text_file_writes_days_csv(tmp_path: Path) -> None:
     assert rows[0]["month"] == "1"
     assert rows[0]["day"] == "1"
     assert rows[0]["dow"] == "LU"
+    assert rows[0]["parser_id"] == "cartellino_classic"
+    assert rows[0]["hint_count"] == "2"
+    assert rows[0]["hint_overflow"] == "0"
+    assert rows[0]["hint_1_kind"] == "E"
+    assert rows[0]["hint_1_time_hhmm"] == "08:00"
+    assert rows[0]["hint_2_kind"] == "U"
+    assert rows[0]["hint_2_time_hhmm"] == "14:00"
 
 
 def test_process_many_text_files_handles_small_batch(tmp_path: Path) -> None:
