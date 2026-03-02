@@ -1,27 +1,22 @@
 # Schemas (CSV)
 
-## days.csv
-
-Columns:
-- `year`, `month`, `day`, `dow`
-- `mo_f`, `mo_t`, `mo_lav`
-- `raw`
-
-Produced by: `src.extract_days_from_text_raw`
-
-## events_from_days_raw.csv
+## events_from_text_raw.csv
 
 Columns:
 - `year`, `month`, `day`, `dow`
 - `event_index`, `event_kind`, `event_time_hhmm`, `event_ts`
-- `event_raw`, `event_pattern`, `raw`
-- `source_row_index`, `source_days_csv`
+- `event_raw`, `event_pattern`
+- `source_txt`, `source_line_no`, `source_line_text`
+- `source_line_start_char`, `source_line_end_char`
+- `source_match_start_char`, `source_match_end_char`
+- `source_match_col_start`, `source_match_col_end`
+- `source_event_ref`
 
-Produced by: `src.extract_events_from_days_raw`
+Produced by: `src.extract_events_from_text_raw`
 
-## events_from_days_raw.cleaned.csv
+## events_from_text_raw.cleaned.csv
 
-Same schema as `events_from_days_raw.csv`, but with fake-midnight events removed.
+Same schema as `events_from_text_raw.csv`, but with fake-midnight events removed.
 
 Produced by: `src.filter_midnight_events_from_days_raw`
 

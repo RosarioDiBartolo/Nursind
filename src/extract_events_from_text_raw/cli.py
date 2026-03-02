@@ -18,14 +18,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     stats = report["stats"]
     logger.info(
         (
-            "Completato: files=%s processati=%s errori=%s "
-            "files_with_days=%s rows=%s rows_with_event=%s"
+            "Completed: files=%s processed=%s errors=%s "
+            "files_with_events=%s events=%s rows_with_events=%s"
         ),
         stats["files_total"],
         stats["files_processed"],
         stats["files_error"],
-        stats["files_with_days"],
-        stats["rows_total"],
-        stats["rows_with_event"],
+        stats["files_with_events"],
+        stats["events_extracted"],
+        stats["rows_with_events"],
     )
     return 0

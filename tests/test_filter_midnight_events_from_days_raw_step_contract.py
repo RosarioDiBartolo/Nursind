@@ -23,9 +23,16 @@ def _write_events_csv(path: Path, rows: list[dict[str, str]]) -> None:
         "event_ts",
         "event_raw",
         "event_pattern",
-        "raw",
-        "source_row_index",
-        "source_days_csv",
+        "source_txt",
+        "source_line_no",
+        "source_line_text",
+        "source_line_start_char",
+        "source_line_end_char",
+        "source_match_start_char",
+        "source_match_end_char",
+        "source_match_col_start",
+        "source_match_col_end",
+        "source_event_ref",
     ]
     with path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=columns)
@@ -37,7 +44,7 @@ def _write_events_csv(path: Path, rows: list[dict[str, str]]) -> None:
 def test_filter_midnight_process_one_contract(tmp_path: Path) -> None:
     input_base = tmp_path / "events"
     output_dir = tmp_path / "cleaned"
-    events_csv = input_base / "Mario Rossi" / "sample.events_from_days_raw.csv"
+    events_csv = input_base / "Mario Rossi" / "sample.events_from_text_raw.csv"
     _write_events_csv(
         events_csv,
         [
@@ -52,9 +59,16 @@ def test_filter_midnight_process_one_contract(tmp_path: Path) -> None:
                 "event_ts": "2023-01-01 00:00:00",
                 "event_raw": "E 00:00",
                 "event_pattern": "default",
-                "raw": "01 lu E 00:00 U 07:00",
-                "source_row_index": "0",
-                "source_days_csv": "input.days.csv",
+                "source_txt": "input.txt",
+                "source_line_no": "1",
+                "source_line_text": "01 lu E 00:00 U 07:00",
+                "source_line_start_char": "0",
+                "source_line_end_char": "21",
+                "source_match_start_char": "6",
+                "source_match_end_char": "13",
+                "source_match_col_start": "7",
+                "source_match_col_end": "14",
+                "source_event_ref": "input.txt:1:7",
             },
             {
                 "year": "2023",
@@ -67,9 +81,16 @@ def test_filter_midnight_process_one_contract(tmp_path: Path) -> None:
                 "event_ts": "2023-01-01 07:00:00",
                 "event_raw": "U 07:00",
                 "event_pattern": "default",
-                "raw": "01 lu E 00:00 U 07:00",
-                "source_row_index": "0",
-                "source_days_csv": "input.days.csv",
+                "source_txt": "input.txt",
+                "source_line_no": "1",
+                "source_line_text": "01 lu E 00:00 U 07:00",
+                "source_line_start_char": "0",
+                "source_line_end_char": "21",
+                "source_match_start_char": "14",
+                "source_match_end_char": "21",
+                "source_match_col_start": "15",
+                "source_match_col_end": "22",
+                "source_event_ref": "input.txt:1:15",
             },
         ],
     )
@@ -77,7 +98,7 @@ def test_filter_midnight_process_one_contract(tmp_path: Path) -> None:
     result = process_one_events_file(
         events_csv,
         output_dir=str(output_dir),
-        out_name="events_from_days_raw.cleaned.csv",
+        out_name="events_from_text_raw.cleaned.csv",
         input_base=input_base,
     )
     assert_process_one_contract(result, source_key="source_events_csv")
@@ -94,7 +115,7 @@ def test_filter_midnight_process_one_contract(tmp_path: Path) -> None:
 def test_filter_midnight_process_many_contract(tmp_path: Path) -> None:
     input_base = tmp_path / "events"
     output_dir = tmp_path / "cleaned"
-    good_events = input_base / "Mario Rossi" / "good.events_from_days_raw.csv"
+    good_events = input_base / "Mario Rossi" / "good.events_from_text_raw.csv"
     _write_events_csv(
         good_events,
         [
@@ -109,21 +130,28 @@ def test_filter_midnight_process_many_contract(tmp_path: Path) -> None:
                 "event_ts": "2023-02-01 08:00:00",
                 "event_raw": "E 08:00",
                 "event_pattern": "default",
-                "raw": "01 ma E 08:00 U 14:00",
-                "source_row_index": "0",
-                "source_days_csv": "input.days.csv",
+                "source_txt": "input.txt",
+                "source_line_no": "1",
+                "source_line_text": "01 ma E 08:00 U 14:00",
+                "source_line_start_char": "0",
+                "source_line_end_char": "21",
+                "source_match_start_char": "6",
+                "source_match_end_char": "13",
+                "source_match_col_start": "7",
+                "source_match_col_end": "14",
+                "source_event_ref": "input.txt:1:7",
             }
         ],
     )
-    missing_events = input_base / "Mario Rossi" / "missing.events_from_days_raw.csv"
+    missing_events = input_base / "Mario Rossi" / "missing.events_from_text_raw.csv"
 
     report = process_many_events_files(
         [good_events, missing_events],
         output_dir=str(output_dir),
-        out_name="events_from_days_raw.cleaned.csv",
+        out_name="events_from_text_raw.cleaned.csv",
         input_base=input_base,
         input_dir=str(input_base),
-        events_name="*.events_from_days_raw.csv",
+        events_name="*.events_from_text_raw.csv",
     )
 
     assert_process_many_contract(report)

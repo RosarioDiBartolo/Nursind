@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from src.extract_days_from_text_raw.parsers import resolve_parser
-from src.extract_days_from_text_raw.service import _parse_rows_for_file
+from src.extract_events_from_text_raw.parsers import resolve_parser
+from src.extract_events_from_text_raw.service import _parse_rows_for_file
 
 FIXTURES_ROOT = Path(__file__).parent / "fixtures" / "days_parsers"
 

@@ -8,13 +8,13 @@ from src.drive_service.output_paths import build_output_paths
 
 DEFAULT_OUTPUTS = build_output_paths()
 DEFAULT_INPUT_DIR = str(DEFAULT_OUTPUTS.events_output)
-DEFAULT_EVENTS_NAME = "*.events_from_days_raw.csv"
-DEFAULT_OUT_NAME = "events_from_days_raw.cleaned.csv"
+DEFAULT_EVENTS_NAME = "*.events_from_text_raw.csv"
+DEFAULT_OUT_NAME = "events_from_text_raw.cleaned.csv"
 DEFAULT_REPORT_JSON = str(
-    DEFAULT_OUTPUTS.events_output / "events_from_days_raw.clean_midnight.report.json"
+    DEFAULT_OUTPUTS.events_output / "events_from_text_raw.clean_midnight.report.json"
 )
 DEFAULT_REMOVED_CSV = str(
-    DEFAULT_OUTPUTS.events_output / "events_from_days_raw.midnight_removed.csv"
+    DEFAULT_OUTPUTS.events_output / "events_from_text_raw.midnight_removed.csv"
 )
 DEFAULT_MAX_REMOVED_EXAMPLES_PER_FILE = 10
 
@@ -33,31 +33,31 @@ class FilterMidnightEventsOptions:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Filtra eventi con timestamp a mezzanotte dai CSV eventi per-file."
+        description="Filter midnight events from per-file raw events CSVs."
     )
     parser.add_argument(
         "--input-dir",
         default=DEFAULT_INPUT_DIR,
-        help=f"Directory radice in cui cercare i CSV eventi (default: {DEFAULT_INPUT_DIR})",
+        help=f"Root directory containing per-file raw events CSVs (default: {DEFAULT_INPUT_DIR})",
     )
     parser.add_argument(
         "--events-name",
         default=DEFAULT_EVENTS_NAME,
-        help="Pattern file eventi da cercare ricorsivamente (default: *.events_from_days_raw.csv)",
+        help="Recursive glob for raw events files (default: *.events_from_text_raw.csv)",
     )
     parser.add_argument(
         "--out-name",
         default=DEFAULT_OUT_NAME,
         help=(
-            "Nome file output pulito accanto a ogni file eventi "
-            "(default: events_from_days_raw.cleaned.csv)"
+            "Cleaned output filename written next to each raw events file "
+            "(default: events_from_text_raw.cleaned.csv)"
         ),
     )
     parser.add_argument(
         "--report-json",
         default=DEFAULT_REPORT_JSON,
         help=(
-            "Path report JSON finale "
+            "Path of the final JSON report "
             f"(default: {DEFAULT_REPORT_JSON})"
         ),
     )
@@ -65,7 +65,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--removed-csv",
         default=DEFAULT_REMOVED_CSV,
         help=(
-            "Path CSV aggregato con tutte le righe rimosse "
+            "Path of the aggregate CSV containing all removed rows "
             f"(default: {DEFAULT_REMOVED_CSV})"
         ),
     )
@@ -73,12 +73,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--max-removed-examples-per-file",
         type=int,
         default=DEFAULT_MAX_REMOVED_EXAMPLES_PER_FILE,
-        help="Massimo numero di esempi rimossi per file nel report JSON (default: 10)",
+        help="Maximum removed-row examples retained per file in the JSON report (default: 10)",
     )
     parser.add_argument(
         "--in-place",
         action="store_true",
-        help="Sovrascrive i file eventi originali invece di scrivere *.cleaned.csv",
+        help="Overwrite the raw event files instead of writing a separate *.cleaned.csv file",
     )
     parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose logging")
     return parser

@@ -14,7 +14,7 @@ Input shape:
 
 Core outputs:
 
-- Per-document parsed days/events
+- Per-document raw event streams
 - Per-employee paired shifts
 - Per-employee enriched shifts
 - Per-employee yearly shift summaries
@@ -23,12 +23,11 @@ Core outputs:
 
 1. Drive indexing
 2. Text extraction
-3. Dynamic day parsing
-4. Raw event extraction
-5. Midnight-event cleaning
-6. Employee-level pairing
-7. Shift enrichment
-8. Yearly aggregation
+3. Direct text-to-events extraction
+4. Midnight-event cleaning
+5. Employee-level pairing
+6. Shift enrichment
+7. Yearly aggregation
 
 ## Technical Implementation Details
 
@@ -140,44 +139,28 @@ Behavior:
 - ZIP-member files are downloaded via archive and extracted per member.
 - Main pipeline stores extracted text, not PDF binaries.
 
-### 3) Dynamic Parsing
+### 3) Direct Text-To-Events Extraction
 
-Entry point: `python -m "src.extract_days_from_text_raw"`
+Entry point: `python -m "src.extract_events_from_text_raw"`
 
 Input: extracted text files  
-Output: `output/parsed_from_text/**/days.csv`
+Output: `output/events/**/events_from_text_raw.csv`
 
 Behavior:
 
 - Format detection is dynamic (`cartellino_classic`, `timbrature_web`, `situazione_mensile`, fallback).
-- Parsing is layout-aware and does not depend on a single fixed template.
+- Documents are parsed once and events are emitted directly from full-document context.
+- Each event row carries source traceability fields (`source_txt`, line number, line text, char offsets, column offsets, and `source_event_ref`).
+- `24:00` is normalized to the next calendar day in `event_ts`.
 
-### 4) Raw Event Extraction
-
-Entry point: `python -m "src.extract_events_from_days_raw"`
-
-Input: `days.csv`  
-Output: `output/parsed_from_text/**/events_from_days_raw.csv`
-
-Event model includes:
-
-- `event_kind` (`E`/`U`)
-- `event_time_hhmm`, `event_ts`
-- `event_raw`, `event_pattern`
-- source row references
-
-Special handling:
-
-- `24:00` is normalized to the next calendar day.
-
-### 5) Midnight Event Cleaning
+### 4) Midnight Event Cleaning
 
 Entry point: `python -m "src.filter_midnight_events_from_days_raw"`
 
-Input: `events_from_days_raw.csv`  
+Input: `events_from_text_raw.csv`  
 Outputs:
 
-- `events_from_days_raw.cleaned.csv`
+- `events_from_text_raw.cleaned.csv`
 - aggregate removed rows CSV
 
 Behavior:
@@ -185,7 +168,7 @@ Behavior:
 - Removes midnight events (`00:00`, `0:00`, `24:00`) according to project cleaning rules.
 - Preserves traceability through dedicated reports and removed-row exports.
 
-### 6) Employee-Level Pairing
+### 5) Employee-Level Pairing
 
 Entry point: `python -m "src.pair_employee_events_from_days_raw"`
 
@@ -204,7 +187,7 @@ Unmatched handling:
 - Rows missing complete `entry_ts` + `exit_ts` are excluded from final pairs output.
 - Unmatched totals are tracked in reports (`rows_unmatched_after_close`).
 
-### 7) Shift Enrichment
+### 6) Shift Enrichment
 
 Entry point: `python -m "src.turni_enrichment"`
 
@@ -223,7 +206,7 @@ Classification:
 - `turno_bucket` uses configurable `--min-hours`.
 - Holidays use Italian calendar rules, with optional `--no-holidays`.
 
-### 8) Yearly Aggregation
+### 7) Yearly Aggregation
 
 Entry point: `python -m "src.turni_employee_summary"`
 
@@ -251,10 +234,9 @@ Behavior:
 python -m pip install -e .[dev]
 python -m "src.scan_directory" --root "<DRIVE_ROOT_FOLDER_ID>" --out "scan" --included "included.index.json" --filtered "filtered.index.json" --report "scan_directory.report.json" --verbose
 python -m "src.extract_text_from_index" --index "scan/included.index.json" --out "output/text_extracted" --verbose
-python -m "src.extract_days_from_text_raw" --input-dir "output/text_extracted" --out-dir "output/parsed_from_text" --verbose
-python -m "src.extract_events_from_days_raw" --input-dir "output/parsed_from_text" --verbose
-python -m "src.filter_midnight_events_from_days_raw" --input-dir "output/parsed_from_text" --verbose
-python -m "src.pair_employee_events_from_days_raw" --input-dir "output/parsed_from_text" --output-dir "output/employee_shifts_from_raw" --verbose
+python -m "src.extract_events_from_text_raw" --input-dir "output/text_extracted" --output-dir "output/events" --verbose
+python -m "src.filter_midnight_events_from_days_raw" --input-dir "output/events" --verbose
+python -m "src.pair_employee_events_from_days_raw" --input-dir "output/events" --output-dir "output/employee_shifts_from_raw" --verbose
 python -m "src.turni_enrichment" --input-dir "output/employee_shifts_from_raw" --out-dir "output/enriched/employee_pairs" --verbose
 python -m "src.turni_employee_summary" --enriched-dir "output/enriched/employee_pairs" --out "output/aggregates/turni_employee_summary.csv" --format "csv" --verbose
 ```

@@ -10,7 +10,7 @@ DEFAULT_OUTPUTS = build_output_paths()
 DEFAULT_INPUT_DIR = str(DEFAULT_OUTPUTS.events_output)
 DEFAULT_INDEX = None
 DEFAULT_OUTPUT_DIR = str(DEFAULT_OUTPUTS.shifts_output)
-DEFAULT_EVENTS_NAME = "*.events_from_days_raw.cleaned.csv"
+DEFAULT_EVENTS_NAME = "*.events_from_text_raw.cleaned.csv"
 DEFAULT_REPORT_JSON = str(
     DEFAULT_OUTPUTS.shifts_output / "pair_employee_events_from_days_raw.report.json"
 )
@@ -41,8 +41,8 @@ def build_parser() -> argparse.ArgumentParser:
         "--input-dir",
         default=DEFAULT_INPUT_DIR,
         help=(
-            "Directory radice con eventi per-file in struttura "
-            "<employee>/<document>/events_from_days_raw.cleaned.csv "
+            "Root directory with per-file cleaned events in structure "
+            "<employee>/<document>/events_from_text_raw.cleaned.csv "
             f"(default: {DEFAULT_INPUT_DIR})"
         ),
     )
@@ -57,35 +57,35 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--output-dir",
         default=DEFAULT_OUTPUT_DIR,
-        help="Directory output separata per i pairs per dipendente.",
+        help="Output directory for per-employee pairs.",
     )
     parser.add_argument(
         "--events-name",
         default=DEFAULT_EVENTS_NAME,
         help=(
-            "Nome file eventi puliti da leggere accanto a days.csv "
+            "Filename pattern for cleaned event files to pair "
             f"(default: {DEFAULT_EVENTS_NAME})"
         ),
     )
     parser.add_argument(
         "--report-json",
         default=DEFAULT_REPORT_JSON,
-        help="Path report JSON finale.",
+        help="Path of the final JSON report.",
     )
     parser.add_argument(
         "--max-gap-hours",
         type=float,
         default=DEFAULT_MAX_GAP_HOURS,
-        help="Massimo gap ore per chiudere entry/exit (default: 16).",
+        help="Maximum allowed entry/exit gap in hours (default: 16).",
     )
     parser.add_argument(
         "--employee",
-        help="Filtra per dipendente (case-insensitive).",
+        help="Filter by employee (case-insensitive).",
     )
     parser.add_argument(
         "--keep-inferred-column",
         action="store_true",
-        help="Mantieni la colonna closed_inferred nell'output per dipendente.",
+        help="Keep the closed_inferred column in the per-employee output.",
     )
     parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose logging")
     return parser

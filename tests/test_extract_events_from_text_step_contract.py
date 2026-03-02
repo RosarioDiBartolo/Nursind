@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from src.extract_days_from_text_raw import process_many_text_files, process_one_text_file
+from src.extract_events_from_text_raw import process_many_text_files, process_one_text_file
 from tests.step_contract import assert_process_many_contract, assert_process_one_contract
 
 
@@ -9,9 +9,9 @@ def _write_text(path: Path, content: str) -> None:
     path.write_text(content, encoding="utf-8")
 
 
-def test_extract_days_process_one_contract(tmp_path: Path) -> None:
+def test_extract_events_from_text_process_one_contract(tmp_path: Path) -> None:
     input_base = tmp_path / "input"
-    out_dir = tmp_path / "out"
+    output_dir = tmp_path / "events"
     source_txt = input_base / "Mario Rossi" / "aprile23.txt"
     _write_text(
         source_txt,
@@ -23,15 +23,16 @@ def test_extract_days_process_one_contract(tmp_path: Path) -> None:
 
     result = process_one_text_file(
         source_txt,
-        out_dir=str(out_dir),
+        output_dir=str(output_dir),
         input_base=input_base,
     )
     assert_process_one_contract(result, source_key="source_txt")
+    assert Path(str(result["output_events_csv"])).exists()
 
 
-def test_extract_days_process_many_contract(tmp_path: Path) -> None:
+def test_extract_events_from_text_process_many_contract(tmp_path: Path) -> None:
     input_base = tmp_path / "input"
-    out_dir = tmp_path / "out"
+    output_dir = tmp_path / "events"
 
     good_txt = input_base / "Mario Rossi" / "maggio23.txt"
     _write_text(
@@ -50,7 +51,7 @@ def test_extract_days_process_many_contract(tmp_path: Path) -> None:
 
     report = process_many_text_files(
         [good_txt, missing_year_month_txt],
-        out_dir=str(out_dir),
+        output_dir=str(output_dir),
         input_base=input_base,
         input_dir=str(input_base),
     )

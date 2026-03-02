@@ -16,7 +16,7 @@ def _write_events_csv(path: Path, rows: list[dict[str, str]]) -> None:
         "event_kind",
         "event_ts",
         "event_raw",
-        "source_row_index",
+        "source_line_no",
         "event_index",
     ]
     with path.open("w", encoding="utf-8", newline="") as handle:
@@ -29,7 +29,7 @@ def _write_events_csv(path: Path, rows: list[dict[str, str]]) -> None:
 def test_pair_employee_process_one_contract(tmp_path: Path) -> None:
     input_base = tmp_path / "events"
     output_dir = tmp_path / "pairs"
-    events_csv = input_base / "Mario Rossi" / "sample.events_from_days_raw.cleaned.csv"
+    events_csv = input_base / "Mario Rossi" / "sample.events_from_text_raw.cleaned.csv"
     _write_events_csv(
         events_csv,
         [
@@ -37,14 +37,14 @@ def test_pair_employee_process_one_contract(tmp_path: Path) -> None:
                 "event_kind": "E",
                 "event_ts": "2023-01-01 08:00:00",
                 "event_raw": "E 08:00",
-                "source_row_index": "0",
+                "source_line_no": "1",
                 "event_index": "0",
             },
             {
                 "event_kind": "U",
                 "event_ts": "2023-01-01 14:00:00",
                 "event_raw": "U 14:00",
-                "source_row_index": "0",
+                "source_line_no": "1",
                 "event_index": "1",
             },
         ],
@@ -79,7 +79,7 @@ def test_pair_employee_process_one_contract(tmp_path: Path) -> None:
 def test_pair_employee_process_many_contract(tmp_path: Path) -> None:
     input_base = tmp_path / "events"
     output_dir = tmp_path / "pairs"
-    good_csv = input_base / "Mario Rossi" / "good.events_from_days_raw.cleaned.csv"
+    good_csv = input_base / "Mario Rossi" / "good.events_from_text_raw.cleaned.csv"
     _write_events_csv(
         good_csv,
         [
@@ -87,14 +87,14 @@ def test_pair_employee_process_many_contract(tmp_path: Path) -> None:
                 "event_kind": "E",
                 "event_ts": "2023-01-02 08:00:00",
                 "event_raw": "E 08:00",
-                "source_row_index": "0",
+                "source_line_no": "1",
                 "event_index": "0",
             },
             {
                 "event_kind": "U",
                 "event_ts": "2023-01-02 14:00:00",
                 "event_raw": "U 14:00",
-                "source_row_index": "0",
+                "source_line_no": "1",
                 "event_index": "1",
             },
         ],
@@ -120,7 +120,7 @@ def test_pair_employee_process_many_contract(tmp_path: Path) -> None:
                     "events_csv": str(
                         input_base
                         / "Giulia Bianchi"
-                        / "missing.events_from_days_raw.cleaned.csv"
+                        / "missing.events_from_text_raw.cleaned.csv"
                     ),
                     "file_id": "file-2",
                     "file_name": "missing",
@@ -135,7 +135,7 @@ def test_pair_employee_process_many_contract(tmp_path: Path) -> None:
         max_gap_hours=16.0,
         input_mode="folder",
         input_dir=str(input_base),
-        events_name="*.events_from_days_raw.cleaned.csv",
+        events_name="*.events_from_text_raw.cleaned.csv",
     )
 
     assert_process_many_contract(report)

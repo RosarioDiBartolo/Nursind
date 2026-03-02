@@ -28,9 +28,8 @@ logger = logging.getLogger(__name__)
 def _source_name_from_events_csv(event_path: Path) -> str:
     name = event_path.name
     for marker in (
-        ".events_from_days_raw.cleaned.csv",
-        ".events_from_days_raw.csv",
-        ".days.csv",
+        ".events_from_text_raw.cleaned.csv",
+        ".events_from_text_raw.csv",
     ):
         if name.endswith(marker):
             return name[: -len(marker)] or "unknown"
@@ -80,29 +79,35 @@ def _resolve_cleaned_events_path(
     events_name: str,
 ) -> str:
     outputs = doc_attr(inc, "outputs")
-    days_rel = doc_attr(outputs, "days_csv") if outputs else None
-    if days_rel:
-        days_abs = os.path.abspath(os.path.join(index_dir, days_rel))
+    events_rel = doc_attr(outputs, "events_csv") if outputs else None
+    if events_rel:
+        event_abs = os.path.abspath(os.path.join(index_dir, events_rel))
+        event_name = os.path.basename(event_abs)
+        return event_abs
+
+    expected_pairs = resolver.expected_pairs_path(
+        emp_name,
+        doc_attr(inc, "file_name"),
+        doc_attr(inc, "file_id"),
+    )
+    source_name = os.path.basename(expected_pairs)
+    if source_name.endswith(".pairs.csv"):
+        source_name = source_name[: -len(".pairs.csv")] + ".events_from_text_raw.cleaned.csv"
     else:
-        expected_pairs = resolver.expected_pairs_path(
-            emp_name,
-            doc_attr(inc, "file_name"),
-            doc_attr(inc, "file_id"),
-        )
-        days_abs = os.path.join(os.path.dirname(expected_pairs), "days.csv")
-    days_name = os.path.basename(days_abs)
+        source_name = "events_from_text_raw.cleaned.csv"
     if "*" in events_name:
         suffix = events_name.replace("*", "").lstrip(".")
-        if days_name == "days.csv":
-            event_name = suffix
-        elif days_name.endswith(".days.csv"):
-            prefix = days_name[: -len(".days.csv")]
-            event_name = f"{prefix}.{suffix}"
+        if source_name.endswith(".events_from_text_raw.cleaned.csv"):
+            prefix = source_name[: -len(".events_from_text_raw.cleaned.csv")]
+            event_name = f"{prefix}.{suffix}" if prefix else suffix
+        elif source_name.endswith(".events_from_text_raw.csv"):
+            prefix = source_name[: -len(".events_from_text_raw.csv")]
+            event_name = f"{prefix}.{suffix}" if prefix else suffix
         else:
-            event_name = f"{os.path.splitext(days_name)[0]}.{suffix}"
+            event_name = suffix
     else:
         event_name = events_name
-    return os.path.abspath(os.path.join(os.path.dirname(days_abs), event_name))
+    return os.path.abspath(os.path.join(os.path.dirname(expected_pairs), event_name))
 
 
 def _discover_employees_from_index(

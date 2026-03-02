@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from src.extract_days_from_text_raw.parsers import load_parsers, resolve_parser
+from src.extract_events_from_text_raw.parsers import load_parsers, resolve_parser
 
 FIXTURES_ROOT = Path(__file__).parent / "fixtures" / "days_parsers"
 

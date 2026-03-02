@@ -23,7 +23,10 @@ def normalize_employee(name: str | None) -> str:
 def _event_sort_key(df: pd.DataFrame) -> pd.DataFrame:
     working = df.copy()
     if "source_row_index" not in working.columns:
-        working["source_row_index"] = pd.NA
+        if "source_line_no" in working.columns:
+            working["source_row_index"] = working["source_line_no"]
+        else:
+            working["source_row_index"] = pd.NA
     if "event_index" not in working.columns:
         working["event_index"] = pd.NA
     working["source_row_index"] = pd.to_numeric(working["source_row_index"], errors="coerce")
@@ -91,7 +94,10 @@ def _normalize_events_file(
     if "event_raw" not in working.columns:
         working["event_raw"] = None
     if "source_row_index" not in working.columns:
-        working["source_row_index"] = pd.NA
+        if "source_line_no" in working.columns:
+            working["source_row_index"] = df.loc[valid_mask, "source_line_no"]
+        else:
+            working["source_row_index"] = pd.NA
     if "event_index" not in working.columns:
         working["event_index"] = pd.NA
     working["file_id"] = file_id

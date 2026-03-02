@@ -15,6 +15,7 @@ class Outputs(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     days_csv: Optional[str] = None
+    events_csv: Optional[str] = None
     pairs_csv: Optional[str] = None
     totals_json: Optional[str] = None
     report_json: Optional[str] = None

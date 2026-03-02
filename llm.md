@@ -1,5 +1,5 @@
 # LLM Context Index
-Last updated: 2026-02-19
+Last updated: 2026-03-02
 
 Purpose: this file is a lightweight map to the canonical project docs. Do not duplicate detailed behavior here.
 
@@ -9,7 +9,7 @@ Purpose: this file is a lightweight map to the canonical project docs. Do not du
 
 ## Stage Docs
 - `docs/ingestion.md`: scan + text extraction.
-- `docs/preparation.md`: days/events extraction, midnight cleanup, pairing.
+- `docs/preparation.md`: direct text-to-events extraction, midnight cleanup, pairing.
 - `docs/enrichment.md`: enrichment step and fields.
 - `docs/aggregation.md`: yearly employee summary.
 - `docs/schemas.md`: CSV schemas and field reference.
@@ -22,8 +22,7 @@ Purpose: this file is a lightweight map to the canonical project docs. Do not du
 ## Code Entry Points
 - `src/scan_directory`
 - `src/extract_text_from_index`
-- `src/extract_days_from_text_raw.py`
-- `src/extract_events_from_days_raw.py`
+- `src/extract_events_from_text_raw.py`
 - `src/filter_midnight_events_from_days_raw.py`
 - `src/pair_employee_events_from_days_raw.py`
 - `src/turni_enrichment.py`

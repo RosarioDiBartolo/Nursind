@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from src.extract_days_from_text_raw.parsers import load_parsers
+from src.extract_events_from_text_raw.parsers import load_parsers
 
 FIXTURES_ROOT = Path(__file__).parent / "fixtures" / "days_parsers"
 

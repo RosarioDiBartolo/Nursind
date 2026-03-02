@@ -96,7 +96,7 @@ def _build_cleaned_output_path(
     if in_place:
         return event_path
 
-    if event_path.name == "events_from_days_raw.csv":
+    if event_path.name == "events_from_text_raw.csv":
         if input_base is None:
             rel_dir = Path(event_path.parent.name)
         else:
@@ -106,7 +106,7 @@ def _build_cleaned_output_path(
                 rel_dir = Path(event_path.parent.name)
         return output_base / rel_dir / out_name
 
-    marker = ".events_from_days_raw.csv"
+    marker = ".events_from_text_raw.csv"
     if event_path.name.endswith(marker):
         prefix = event_path.name[: -len(marker)]
     else:
