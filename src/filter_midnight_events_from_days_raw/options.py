@@ -4,9 +4,9 @@ import argparse
 from dataclasses import dataclass
 from typing import Sequence
 
-from src.drive_service.output_paths import build_output_paths
+from src.drive_service.output_paths import build_pipelines_paths
 
-DEFAULT_OUTPUTS = build_output_paths()
+DEFAULT_OUTPUTS = build_pipelines_paths()
 DEFAULT_INPUT_DIR = str(DEFAULT_OUTPUTS.events_output)
 DEFAULT_EVENTS_NAME = "*.events_from_text_raw.csv"
 DEFAULT_OUT_NAME = "events_from_text_raw.cleaned.csv"

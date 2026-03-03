@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import re
 
-from src.raw_text_parsing import normalize_text
+from src.raw_text_parsing import normalize_text, parse_day_header
 
-from .base import BaseFormatParser, EventHint, ParseContext, RowParseResult
+from ..models import ParsedEvent
+from .base import BaseFormatParser
 from .common import (
-    extract_trailing_values,
-    finalize_presence_values,
+    document_text,
+    explicit_events_for_line,
+    iter_preferred_lines,
+    normalized_raw,
     strip_day_prefix,
     to_row_result,
 )
@@ -19,7 +22,8 @@ class CartellinoUnicoParser(BaseFormatParser):
     priority = 10
     _TIME_RE = re.compile(r"^(?P<h>[0-2]?\d)[:.,](?P<m>[0-5]\d)$")
 
-    def score_document(self, text: str) -> int:
+    def score_document(self, document: dict[str, object]) -> int:
+        text = document_text(document)
         norm = normalize_text(text)
         score = -100
         if "cartellino unico" in norm:
@@ -29,29 +33,6 @@ class CartellinoUnicoParser(BaseFormatParser):
         if "data e ora stampa" in norm:
             score += 20
         return score
-
-    def _infer_presence_values(self, values: list[float]) -> tuple[float | None, float | None]:
-        if len(values) >= 3:
-            recognized = values[-3]
-            contracted = values[-2]
-            last = values[-1]
-            if last < 0:
-                worked = contracted + last
-            elif abs((recognized - contracted) - last) <= 0.2:
-                worked = recognized
-            else:
-                worked = last
-            return contracted, worked
-
-        if len(values) == 2:
-            contracted = values[0]
-            last = values[1]
-            worked = contracted + last if last < 0 else last
-            return contracted, worked
-
-        if len(values) == 1:
-            return values[0], values[0]
-        return None, None
 
     def _parse_time(self, token: str) -> tuple[str, int] | None:
         match = self._TIME_RE.match(token)
@@ -65,7 +46,7 @@ class CartellinoUnicoParser(BaseFormatParser):
         minutes = hour * 60 + minute
         return hhmm, minutes
 
-    def _aligned_hints(self, norm_body: str) -> tuple[EventHint, ...]:
+    def _aligned_events(self, *, day: int, dow: str, line, norm_body: str) -> tuple[ParsedEvent, ...]:
         tokens = norm_body.split()
         marker_positions: set[int] = set()
         all_times: list[tuple[int, str, int]] = []
@@ -85,7 +66,6 @@ class CartellinoUnicoParser(BaseFormatParser):
             return ()
 
         selected: list[tuple[str, int]]
-        confidence = 0.75
 
         if marker_positions:
             selected_positions = sorted(marker_positions)
@@ -98,7 +78,6 @@ class CartellinoUnicoParser(BaseFormatParser):
                 for pos, hhmm, minutes in all_times
                 if pos in set(selected_positions)
             ]
-            confidence = 0.9
         else:
             if len(all_times) < 2:
                 return ()
@@ -111,37 +90,35 @@ class CartellinoUnicoParser(BaseFormatParser):
                 return ()
             selected = [(first[1], first[2]), (second[1], second[2])]
 
-        hints: list[EventHint] = []
+        events: list[ParsedEvent] = []
         for idx, (hhmm, _) in enumerate(selected[:12]):
             kind = "E" if idx % 2 == 0 else "U"
-            hints.append(
-                EventHint(
-                    kind=kind,
-                    time_hhmm=hhmm,
-                    source=f"aligned_{idx+1}",
-                    confidence=confidence,
+            events.append(
+                ParsedEvent(
+                    line=line,
+                    day=day,
+                    dow=dow,
+                    event_kind=kind,
+                    event_time_hhmm=hhmm,
+                    event_raw=f"{kind} {hhmm}",
+                    event_pattern=f"{self.parser_id}:aligned_{idx+1}",
+                    source_origin="text_alignment",
                 )
             )
-        return tuple(hints)
+        return tuple(events)
 
-    def parse_row(
-        self,
-        raw: str,
-        *,
-        has_event: bool,
-        any_event: bool,
-        ctx: ParseContext,
-    ) -> RowParseResult:
-        rest = strip_day_prefix(ctx.normalized_raw)
-        values = extract_trailing_values(rest, allow_hhmm=True, max_abs=24.0)
-        contracted, worked = self._infer_presence_values(values)
-        hints = self._aligned_hints(rest)
-        return to_row_result(
-            finalize_presence_values(
-                contracted,
-                worked,
-                has_event=has_event,
-                any_event=any_event,
-            ),
-            hints=hints,
-        )
+    def parse_document(self, document: dict[str, object]):
+        rows = []
+        for line in iter_preferred_lines(document):
+            if not line.text.strip():
+                continue
+            header = parse_day_header(line.text)
+            if header is None:
+                continue
+            day, dow = header
+            rest = strip_day_prefix(normalized_raw(line.text))
+            events = list(self._aligned_events(day=day, dow=dow, line=line, norm_body=rest))
+            if not events:
+                events.extend(explicit_events_for_line(line, day=day, dow=dow))
+            rows.append(to_row_result(day, dow, line, events))
+        return tuple(rows)

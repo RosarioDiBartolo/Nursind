@@ -25,4 +25,4 @@ def test_discovered_parser_contract_shape() -> None:
         assert isinstance(parser.legacy_doc_format, str) and parser.legacy_doc_format
         assert isinstance(parser.priority, int)
         assert callable(parser.score_document)
-        assert callable(parser.parse_row)
+        assert callable(parser.parse_document)

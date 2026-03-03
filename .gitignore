@@ -9,6 +9,7 @@ token.json
 # C extensions
 *.so
 *.json
+!src/notebooks/shared_config.json
 *.csv
 data/*
 output

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from src.drive_service.archive_utils import (
     BadZipFile,
     extract_zip_member_bytes,
@@ -62,6 +64,8 @@ def download_pdf_bytes_for_index_item(
     drive,
     *,
     file_id: str,
+    local: bool = False,
+    drive_path: str | None = None,
     source_kind: str | None = None,
     archive_file_id: str | None = None,
     archive_member_path: str | None = None,
@@ -70,6 +74,26 @@ def download_pdf_bytes_for_index_item(
     zip_cache_order: list[str] | None = None,
     zip_cache_max_items: int = 0,
 ) -> dict:
+    resolved_local = bool(local) or str(file_id).startswith("local::")
+    if resolved_local:
+        if not drive_path:
+            return {"status": "failed", "reason": "local_file_path_missing"}
+        path = Path(drive_path)
+        if not path.exists():
+            return {"status": "failed", "reason": "local_file_not_found"}
+        if not path.is_file():
+            return {"status": "failed", "reason": "local_file_invalid_path"}
+        try:
+            return {
+                "status": "success",
+                "data": path.read_bytes(),
+                "source_kind": "local_pdf",
+                "archive_file_id": None,
+                "archive_member_path": None,
+            }
+        except Exception as exc:
+            return {"status": "failed", "reason": f"local_file_read_error:{type(exc).__name__}"}
+
     resolved_source_kind, resolved_archive_file_id, resolved_archive_member_path = (
         resolve_index_pdf_source(
             file_id,

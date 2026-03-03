@@ -22,7 +22,7 @@ Core outputs:
 ## Architecture Flow
 
 1. Drive indexing
-2. Text extraction
+2. Document extraction
 3. Direct text-to-events extraction
 4. Midnight-event cleaning
 5. Employee-level pairing
@@ -49,7 +49,7 @@ The project uses an included/excluded split to make processing outcomes explicit
 In practice:
 
 - Drive scan emits `scan/included.index.json` and `scan/filtered.index.json`.
-- Text extraction maintains `included_text.index.json` and `excluded_text.index.json`.
+- Document extraction maintains `included_documents.index.json` and `excluded_documents.index.json`.
 
 Semantics:
 
@@ -60,7 +60,7 @@ This gives traceability without mixing successful and failed records.
 
 ### Resumability and Reprocessing Controls
 
-Text extraction is explicitly resumable across runs by loading prior included/excluded indexes.
+Document extraction is explicitly resumable across runs by loading prior included/excluded indexes.
 
 Default behavior:
 
@@ -118,39 +118,42 @@ Notes:
 - Employee identity is anchored to the Drive folder scope (`employee_id`).
 - Scan continues on per-employee failures and records them in `scan/scan_directory.report.json`.
 
-### 2) Text Extraction
+### 2) Document Extraction
 
-Entry point: `python -m "src.extract_text_from_index"`
+Entry point: `python -m "src.extract_documents_from_index"`
 
 Input: `scan/included.index.json`  
 Output folder: `output/text_extracted`
 
 Produced artifacts:
 
-- `output/text_extracted/<employee>/*.txt`
-- `output/text_extracted/included_text.index.json`
-- `output/text_extracted/excluded_text.index.json`
-- `output/text_extracted/extract_text_from_index.report.json`
+- `output/text_extracted/docs/*.json`
+- `output/text_extracted/<employee>.csv`
+- `output/text_extracted/included_documents.index.json`
+- `output/text_extracted/excluded_documents.index.json`
+- `output/text_extracted/extract_documents_from_index.report.json`
 
 Behavior:
 
 - Resumable via included/excluded text indexes.
 - `--skip-included` is enabled by default.
 - ZIP-member files are downloaded via archive and extracted per member.
-- Main pipeline stores extracted text, not PDF binaries.
+- PDFs without a text layer are excluded at this step and recorded in the excluded text index with reason `missing_text_layer`.
+- Main pipeline stores one structured JSON per document (`docs/*.json`) as the canonical artifact, plus one thin manifest CSV per employee pointing to those JSON files.
 
 ### 3) Direct Text-To-Events Extraction
 
 Entry point: `python -m "src.extract_events_from_text_raw"`
 
-Input: extracted text files  
+Input: per-employee extracted text manifest CSVs + canonical `docs/*.json` payloads  
 Output: `output/events/**/events_from_text_raw.csv`
 
 Behavior:
 
 - Format detection is dynamic (`cartellino_classic`, `timbrature_web`, `situazione_mensile`, fallback).
-- Documents are parsed once and events are emitted directly from full-document context.
-- Each event row carries source traceability fields (`source_txt`, line number, line text, char offsets, column offsets, and `source_event_ref`).
+- Documents are parsed from the canonical extracted document JSON payloads and emitted once from full-document context.
+- The step requires employee manifest CSVs plus canonical `docs/*.json` payloads; it no longer falls back to legacy raw `.txt` inputs.
+- Each event row carries source traceability fields (`source_doc_json`, source file metadata, page/line/slot positions, char offsets, geometry, and `source_event_ref`).
 - `24:00` is normalized to the next calendar day in `event_ts`.
 
 ### 4) Midnight Event Cleaning
@@ -233,7 +236,7 @@ Behavior:
 ```powershell
 python -m pip install -e .[dev]
 python -m "src.scan_directory" --root "<DRIVE_ROOT_FOLDER_ID>" --out "scan" --included "included.index.json" --filtered "filtered.index.json" --report "scan_directory.report.json" --verbose
-python -m "src.extract_text_from_index" --index "scan/included.index.json" --out "output/text_extracted" --verbose
+python -m "src.extract_documents_from_index" --index "scan/included.index.json" --out "output/text_extracted" --verbose
 python -m "src.extract_events_from_text_raw" --input-dir "output/text_extracted" --output-dir "output/events" --verbose
 python -m "src.filter_midnight_events_from_days_raw" --input-dir "output/events" --verbose
 python -m "src.pair_employee_events_from_days_raw" --input-dir "output/events" --output-dir "output/employee_shifts_from_raw" --verbose
@@ -270,20 +273,22 @@ Notes:
 Use step notebooks in `src/notebooks` to demonstrate each pipeline stage with reproducible checks.
 
 - `src/notebooks/_step_template.ipynb`: solid scaffold to start any new step notebook.
-- `src/notebooks/scan.ipynb`: Drive indexing step showcase with two modes:
-  - `live`: scans Drive from `ROOT_ID` and writes canonical scan outputs.
-  - `demo`: loads existing index files and re-saves to canonical output paths.
+- `src/notebooks/shared_config.json`: single place to set the shared `root_id`, output root, and per-step filenames for all notebooks.
+- `src/notebooks/run_pipeline.ipynb`: runs the full pipeline end-to-end using the same shared notebook config.
+- `src/notebooks/scan.ipynb`: runs the current Drive scan runtime using the shared notebook config.
+- `src/notebooks/extract_documents.ipynb`: runs document extraction against the shared scan output.
+- `src/notebooks/extract_events_from_text_raw.ipynb`: runs direct text-to-events parsing against the shared extraction output.
 
-Expected scan artifacts from the notebook:
+Expected scan artifacts from the scan notebook:
 
-- `scan/included.index.json`
-- `scan/filtered.index.json`
-- `scan/scan_directory.report.json`
+- `<shared_output_root>/scan/included.index.json`
+- `<shared_output_root>/scan/filtered.index.json`
+- `<shared_output_root>/scan/scan_directory.report.json`
 
 Next command after scan notebook:
 
 ```powershell
-python -m "src.extract_text_from_index" --index "scan/included.index.json" --out "output/text_extracted" --included "included_text.index.json" --excluded "excluded_text.index.json" --verbose
+python -m "src.extract_documents_from_index" --index "<shared_output_root>/scan/included.index.json" --out "<shared_output_root>/text_extracted" --included "included_documents.index.json" --excluded "excluded_documents.index.json" --verbose
 ```
 
 ## Documentation Map

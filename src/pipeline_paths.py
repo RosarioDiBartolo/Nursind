@@ -12,23 +12,20 @@ from src.drive_service.fs_utils import ensure_dir
 class PipelinePaths:
     root_output: Path
     scan_output: Path
-    text_extraction_output: Path
+    documents_output: Path
     parsing_output: Path
     events_output: Path
     shifts_output: Path
     enrichment_output: Path
     aggregation_output: Path
 
-    @property
-    def evetns_output(self) -> Path:
-        # Backward-compatible typo alias used in some notebooks.
-        return self.events_output
-
+ 
+ 
     def ensure_dirs(self) -> None:
         for path in (
             self.root_output,
             self.scan_output,
-            self.text_extraction_output,
+            self.documents_output,
             self.parsing_output,
             self.events_output,
             self.shifts_output,
@@ -71,7 +68,7 @@ def build_pipelines_paths(
     outputs = PipelinePaths(
         root_output=root_output,
         scan_output=root_output / "scan",
-        text_extraction_output=root_output / "text_extracted",
+        documents_output=root_output / "documents",
         parsing_output=root_output / "days",
         events_output=root_output / "events",
         shifts_output=root_output / "shifts",

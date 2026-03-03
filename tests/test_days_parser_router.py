@@ -8,6 +8,17 @@ from src.extract_events_from_text_raw.parsers import load_parsers, resolve_parse
 FIXTURES_ROOT = Path(__file__).parent / "fixtures" / "days_parsers"
 
 
+def _document(text: str) -> dict[str, object]:
+    return {
+        "document": {
+            "full_text": text,
+        },
+        "layout": {
+            "pages": [],
+        },
+    }
+
+
 def test_load_parsers_discovers_expected_ids() -> None:
     parser_ids = {parser.parser_id for parser in load_parsers()}
     assert {
@@ -20,7 +31,7 @@ def test_load_parsers_discovers_expected_ids() -> None:
 
 
 def test_resolve_parser_uses_deterministic_fallback() -> None:
-    parser = resolve_parser("documento senza indicatori forti")
+    parser = resolve_parser(_document("documento senza indicatori forti"))
     assert parser.parser_id == "timbrature_web"
 
 
@@ -31,5 +42,5 @@ def test_resolve_parser_matches_fixture_expectations() -> None:
             expected_path.name.replace(".expected.json", ".txt")
         )
         text = text_path.read_text(encoding="utf-8")
-        parser = resolve_parser(text)
+        parser = resolve_parser(_document(text))
         assert parser.parser_id == str(payload["parser_id"])

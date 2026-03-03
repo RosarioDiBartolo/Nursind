@@ -4,11 +4,11 @@ import argparse
 from dataclasses import dataclass
 from typing import Literal, Sequence
 
-from src.drive_service.output_paths import build_output_paths
+from src.drive_service.output_paths import build_pipelines_paths
 
 DEFAULT_YEAR_START = 2016
 DEFAULT_YEAR_END = 2025
-DEFAULT_OUTPUTS = build_output_paths()
+DEFAULT_OUTPUTS = build_pipelines_paths()
 DEFAULT_ENRICHED_DIR = str(DEFAULT_OUTPUTS.enrichment_output)
 DEFAULT_SUMMARY_CSV = str(DEFAULT_OUTPUTS.aggregation_output / "turni_employee_summary.csv")
 DEFAULT_REPORT_JSON = str(

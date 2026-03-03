@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from src.raw_text_parsing import normalize_text
+from src.raw_text_parsing import normalize_text, parse_day_header
 
-from .base import BaseFormatParser, ParseContext, RowParseResult
+from .base import BaseFormatParser
 from .common import (
-    assign_situazione,
-    extract_trailing_values,
-    hints_from_explicit_events,
+    document_text,
+    explicit_events_for_line,
+    iter_preferred_lines,
     to_row_result,
 )
 
@@ -16,7 +16,8 @@ class SituazioneMensileParser(BaseFormatParser):
     legacy_doc_format = "situazione_mensile"
     priority = 50
 
-    def score_document(self, text: str) -> int:
+    def score_document(self, document: dict[str, object]) -> int:
+        text = document_text(document)
         norm = normalize_text(text)
         score = -100
         if "situazione mensile presenze" in norm:
@@ -25,16 +26,21 @@ class SituazioneMensileParser(BaseFormatParser):
             score += 20
         return score
 
-    def parse_row(
-        self,
-        raw: str,
-        *,
-        has_event: bool,
-        any_event: bool,
-        ctx: ParseContext,
-    ) -> RowParseResult:
-        values = extract_trailing_values(ctx.normalized_raw, allow_hhmm=True)
-        return to_row_result(
-            assign_situazione(values, has_event=has_event, any_event=any_event),
-            hints=hints_from_explicit_events(raw, source="explicit", confidence=0.9),
-        )
+    def parse_document(self, document: dict[str, object]):
+        rows = []
+        for line in iter_preferred_lines(document):
+            if not line.text.strip():
+                continue
+            header = parse_day_header(line.text)
+            if header is None:
+                continue
+            day, dow = header
+            rows.append(
+                to_row_result(
+                    day,
+                    dow,
+                    line,
+                    explicit_events_for_line(line, day=day, dow=dow),
+                )
+            )
+        return tuple(rows)

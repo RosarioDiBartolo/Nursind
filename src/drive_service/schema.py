@@ -14,6 +14,8 @@ from .names import normalize_name
 class Outputs(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    text_csv: Optional[str] = None
+    doc_json: Optional[str] = None
     days_csv: Optional[str] = None
     events_csv: Optional[str] = None
     pairs_csv: Optional[str] = None
@@ -25,6 +27,7 @@ class IndexFile(BaseModel):
     model_config = ConfigDict(extra="forbid")
     employee: str
     employee_id: Optional[str] = None
+    local: bool = False
 
     file_id: Optional[str] = None
     file_name: Optional[str] = None

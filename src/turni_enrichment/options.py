@@ -4,10 +4,10 @@ import argparse
 from dataclasses import dataclass
 from typing import Sequence
 
-from src.drive_service.output_paths import build_output_paths
+from src.drive_service.output_paths import build_pipelines_paths
 
 DEFAULT_MIN_HOURS = 6.0
-DEFAULT_OUTPUTS = build_output_paths()
+DEFAULT_OUTPUTS = build_pipelines_paths()
 DEFAULT_INPUT_DIR = str(DEFAULT_OUTPUTS.shifts_output)
 DEFAULT_OUTPUT_DIR = str(DEFAULT_OUTPUTS.enrichment_output)
 DEFAULT_REPORT_JSON = str(DEFAULT_OUTPUTS.enrichment_output / "turni_enrichment.stats.json")

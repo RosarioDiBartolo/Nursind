@@ -21,6 +21,7 @@ def build_initial_stats(source_total: int) -> dict:
         "failed": 0,
         "download_failed": 0,
         "extract_failed": 0,
+        "excluded_missing_text_layer": 0,
         "used_vertical": 0,
     }
 
@@ -30,12 +31,14 @@ def collect_docs(
     included_map: dict,
     excluded_map: dict,
     *,
+    existing_text_rows: dict | None = None,
     skip_included: bool,
     skip_excluded: bool,
     limit: int,
     stats: dict,
 ) -> list[dict]:
     docs: list[dict] = []
+    existing_text_rows = existing_text_rows or {}
     for doc in source_files.values():
         file_id = doc_attr(doc, "file_id")
         if not file_id:
@@ -47,7 +50,7 @@ def collect_docs(
         if skip_excluded and file_id in excluded_map:
             stats["skipped_excluded"] += 1
             continue
-        if skip_included and file_id in included_map:
+        if skip_included and file_id in included_map and file_id in existing_text_rows:
             stats["skipped_included"] += 1
             continue
 
@@ -55,6 +58,7 @@ def collect_docs(
             _build_doc_payload(
                 employee=doc_attr(doc, "employee") or "unknown",
                 employee_id=doc_attr(doc, "employee_id"),
+                local=bool(doc_attr(doc, "local")) or str(file_id).startswith("local::"),
                 file_id=file_id,
                 file_name=doc_attr(doc, "file_name") or file_id,
                 drive_path=doc_attr(doc, "drive_path"),
@@ -88,14 +92,23 @@ def _assign_output_stems(docs: list[dict]) -> None:
             doc["out_stem"] = stem
 
 
-def _build_doc_payload(*, employee: str, employee_id: str | None, file_id: str, file_name: str, drive_path: str | None) -> dict:
+def _build_doc_payload(
+    *,
+    employee: str,
+    employee_id: str | None,
+    local: bool,
+    file_id: str,
+    file_name: str,
+    drive_path: str | None,
+) -> dict:
     payload = {
         "employee": employee,
         "employee_id": employee_id,
+        "local": local,
         "file_id": file_id,
         "file_name": file_name,
         "drive_path": drive_path,
-        "source_kind": "drive_pdf",
+        "source_kind": "local_pdf" if local else "drive_pdf",
     }
     parsed = parse_archive_member_id(file_id)
     if parsed:

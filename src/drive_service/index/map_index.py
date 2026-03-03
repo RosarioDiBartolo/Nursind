@@ -76,5 +76,7 @@ def _normalize_files_map(files: dict[str, Any]) -> dict[str, dict]:
         if entry_file_id and entry_file_id != key:
             raise ValueError(f"File map key mismatch: {key} != {entry_file_id}")
         payload["file_id"] = key
+        if "local" not in payload:
+            payload["local"] = str(key).startswith("local::")
         normalized[key] = payload
     return normalized

@@ -74,6 +74,7 @@ def collect_files_recursive(
             logger.debug("[%s] skipping folder: %s", emp["name"], name)
             excluded_folders.append(
                 {
+                    "local": False,
                     "file_id": fid,
                     "file_name": name,
                     "drive_path": path,
@@ -93,6 +94,7 @@ def collect_files_recursive(
                 if not is_zip:
                     files.append(
                         {
+                            "local": False,
                             "file_id": item["id"],
                             "file_name": item["name"],
                             "drive_path": file_path,
@@ -107,7 +109,7 @@ def collect_files_recursive(
                     filtered_files.append(
                         {
                             "employee": emp["name"],   
-
+                            "local": False,
                             "file_id": item["id"],
                             "file_name": item["name"],
                             "drive_path": file_path,
@@ -121,7 +123,7 @@ def collect_files_recursive(
                     filtered_files.append(
                         {
                             "employee": emp["name"],   
-
+                            "local": False,
                             "file_id": item["id"],
                             "file_name": item["name"],
                             "drive_path": file_path,
@@ -135,6 +137,7 @@ def collect_files_recursive(
                     filtered_files.append(
                         {
                             "employee": emp["name"],   
+                            "local": False,
                             "file_id": item["id"],
                             "file_name": item["name"],
                             "drive_path": file_path,
@@ -149,6 +152,7 @@ def collect_files_recursive(
                     files.append(
                         {
                             "type": "zip_member",
+                            "local": False,
                             "employee": emp["name"],
                             "file_id": build_archive_member_id(item["id"], member_path),
                             "file_name": member_name,
@@ -175,6 +179,7 @@ def build_folder_report(
         payload = {
             "employee": emp["name"],
             "employee_id": emp["id"],
+            "local": False,
             "file_id": item["file_id"],
             "file_name": fname,
             "drive_path": item.get("drive_path"),
@@ -197,6 +202,7 @@ def build_folder_report(
             {
                 "employee": emp["name"],
                 "employee_id": emp["id"],
+                "local": False,
                 "file_id": item["file_id"],
                 "file_name": item["file_name"],
                 "drive_path": item.get("drive_path"),

@@ -2,12 +2,20 @@ from __future__ import annotations
 
 import os
 import threading
+from io import BytesIO
 
 from src.drive_service.drive_client import get_drive_service
-from src.drive_service.fs_utils import ensure_dir
 from src.drive_service.index_downloads import download_pdf_bytes_for_index_item
 from src.drive_service.logging_utils import get_logger
 from src.drive_service.names import safe_name
+from src.drive_service.text_extraction_csv import (
+    TEXT_EXTRACTION_DOC_SCHEMA_VERSION,
+    build_google_drive_file_id,
+    build_google_drive_file_link,
+    build_source_text_ref,
+    write_text_extraction_doc,
+)
+from src.pdf_text_extraction import extract_layout
 
 from .quality import extract_best_text
 
@@ -35,22 +43,14 @@ def _get_zip_cache() -> tuple[dict[str, bytes], list[str]]:
     return cache, order
 
 
-def _build_output_paths(
-    emp_name: str,
+def _resolve_output_stem(
     file_name: str,
-    file_id: str,
-    out_dir: str,
+    file_id: str | None,
     out_stem: str | None = None,
-):
-    safe_emp = safe_name(emp_name)
+) -> str:
     base_name = safe_name(file_name or file_id or "unknown.pdf")
     stem, _ = os.path.splitext(base_name)
-    chosen_stem = safe_name(out_stem) if out_stem else stem
-    out_name = f"{chosen_stem}.txt"
-    file_dir = os.path.join(out_dir, safe_emp)
-    text_path = os.path.join(file_dir, out_name)
-    rel_text = os.path.join(safe_emp, out_name)
-    return {"file_dir": file_dir, "text_path": text_path, "rel_text": rel_text}
+    return safe_name(out_stem) if out_stem else stem
 
 
 def download_pdf_bytes(
@@ -70,12 +70,20 @@ def download_pdf_bytes(
             "doc": doc_info,
         }
 
+    is_local = bool(doc_info.get("local")) or str(file_id).startswith("local::")
+
     try:
-        drive = _get_drive(creds)
-        zip_cache, zip_cache_order = _get_zip_cache()
+        drive = None if is_local else _get_drive(creds)
+        if is_local:
+            zip_cache = {}
+            zip_cache_order = []
+        else:
+            zip_cache, zip_cache_order = _get_zip_cache()
         result = download_pdf_bytes_for_index_item(
             drive,
             file_id=file_id,
+            local=is_local,
+            drive_path=doc_info.get("drive_path"),
             source_kind=doc_info.get("source_kind"),
             archive_file_id=doc_info.get("archive_file_id"),
             archive_member_path=doc_info.get("archive_member_path"),
@@ -120,7 +128,22 @@ def extract_and_write(
     employee = doc_info.get("employee") or "unknown"
     employee_id = doc_info.get("employee_id")
     drive_path = doc_info.get("drive_path")
-    paths = _build_output_paths(employee, file_name, file_id, out_dir, out_stem=out_stem)
+    local = bool(doc_info.get("local")) or str(file_id or "").startswith("local::")
+    source_kind = doc_info.get("source_kind")
+    archive_file_id = doc_info.get("archive_file_id")
+    archive_member_path = doc_info.get("archive_member_path")
+    chosen_stem = _resolve_output_stem(file_name, file_id, out_stem=out_stem)
+    source_text_ref = build_source_text_ref(employee, chosen_stem)
+    google_drive_file_id = build_google_drive_file_id(
+        file_id=file_id,
+        source_kind=source_kind,
+        archive_file_id=archive_file_id,
+    )
+    file_link = build_google_drive_file_link(
+        file_id=file_id,
+        source_kind=source_kind,
+        archive_file_id=archive_file_id,
+    )
 
     try:
         extracted = extract_best_text(
@@ -131,14 +154,51 @@ def extract_and_write(
         extracted_text = extracted.get("text", "")
         if not extracted_text.strip():
             raise ValueError("Extracted text is empty; skipping output write")
-        ensure_dir(paths["file_dir"])
-        with open(paths["text_path"], "w", encoding="utf-8") as out_file:
-            out_file.write(extracted_text)
+        layout = extract_layout(BytesIO(pdf_bytes))
+        doc_json = write_text_extraction_doc(
+            out_dir,
+            file_id,
+            {
+                "schema_version": TEXT_EXTRACTION_DOC_SCHEMA_VERSION,
+                "source": {
+                    "employee": employee,
+                    "employee_id": employee_id,
+                    "local": local,
+                    "file_id": file_id,
+                    "google_drive_file_id": google_drive_file_id,
+                    "file_name": file_name,
+                    "file_link": file_link,
+                    "drive_path": drive_path,
+                    "source_kind": source_kind,
+                    "archive_file_id": archive_file_id,
+                    "archive_member_path": archive_member_path,
+                    "source_text_ref": source_text_ref,
+                },
+                "extraction": {
+                    "has_text_layer": True,
+                    "selected_mode": extracted["mode"],
+                    "tried_vertical": extracted["tried_vertical"],
+                    "normal_quality": extracted["normal_quality"],
+                    "vertical_quality": extracted["vertical_quality"],
+                },
+                "document": {
+                    "page_count": layout["page_count"],
+                    "full_text": extracted_text,
+                },
+                "layout": {
+                    "pages": layout["pages"],
+                },
+            },
+        )
     except Exception as exc:
+        if isinstance(exc, ValueError) and str(exc) == "PDF_HAS_NO_TEXT_LAYER":
+            reason = "missing_text_layer"
+        else:
+            reason = f"{type(exc).__name__}: {exc}"
         return {
             "status": "failed",
             "stage": "extract",
-            "reason": f"{type(exc).__name__}: {exc}",
+            "reason": reason,
             "doc": doc_info,
         }
 
@@ -146,12 +206,23 @@ def extract_and_write(
         "status": "success",
         "employee": employee,
         "employee_id": employee_id,
+        "local": local,
         "file_id": file_id,
         "file_name": file_name,
         "drive_path": drive_path,
-        "text_output": paths["rel_text"],
+        "source_kind": source_kind,
+        "archive_file_id": archive_file_id,
+        "archive_member_path": archive_member_path,
+        "source_text_ref": source_text_ref,
+        "doc_json": doc_json,
+        "has_text_layer": True,
+        "google_drive_file_id": google_drive_file_id,
+        "file_link": file_link,
         "selected_mode": extracted["mode"],
         "tried_vertical": extracted["tried_vertical"],
         "normal_quality": extracted["normal_quality"],
         "vertical_quality": extracted["vertical_quality"],
     }
+
+
+__all__ = ["download_pdf_bytes", "extract_and_write"]

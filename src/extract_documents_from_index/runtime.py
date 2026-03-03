@@ -7,6 +7,7 @@ from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_compl
 
 from src.drive_service.auth_service import load_creds
 from src.drive_service.fs_utils import ensure_dir
+from src.drive_service.index import MapIndex
 from src.drive_service.index_runtime import (
     maybe_flush_indexes,
     resolve_output_path,
@@ -14,10 +15,16 @@ from src.drive_service.index_runtime import (
 )
 from src.drive_service.io_json import write_json
 from src.drive_service.logging_utils import get_logger, setup_logging
-from src.drive_service.index import MapIndex
-from src.drive_service.schema import IndexFile
+from src.drive_service.schema import IndexFile, Outputs
+from src.drive_service.text_extraction_csv import (
+    build_employee_csv_rel_path,
+    build_text_extraction_row,
+    load_text_extraction_rows,
+    prune_stale_text_extraction_docs,
+    write_text_extraction_rows,
+)
 
-from .options import ExtractTextFromIndexOptions
+from .options import ExtractDocumentsFromIndexOptions
 from .planning import build_initial_stats, collect_docs
 from .workers import download_pdf_bytes, extract_and_write
 
@@ -28,20 +35,44 @@ def _apply_result(
     items: list,
     included_map: dict[str, IndexFile],
     excluded_map: dict[str, IndexFile],
+    text_rows_by_file_id: dict[str, dict[str, object]],
 ) -> None:
-    items.append(result)
+    items.append(dict(result))
     if result["status"] == "success":
         stats["succeeded"] += 1
         if result.get("selected_mode") == "vertical":
             stats["used_vertical"] += 1
         file_id = result.get("file_id")
         if file_id:
-            included_map[file_id] = IndexFile(
-                employee=result.get("employee") or "unknown",
+            employee = result.get("employee") or "unknown"
+            text_rows_by_file_id[file_id] = build_text_extraction_row(
+                employee=employee,
                 employee_id=result.get("employee_id"),
                 file_id=file_id,
                 file_name=result.get("file_name"),
                 drive_path=result.get("drive_path"),
+                source_kind=result.get("source_kind"),
+                archive_file_id=result.get("archive_file_id"),
+                archive_member_path=result.get("archive_member_path"),
+                source_text_ref=result.get("source_text_ref"),
+                doc_json=result.get("doc_json"),
+                has_text_layer=result.get("has_text_layer"),
+                selected_mode=result.get("selected_mode"),
+                tried_vertical=result.get("tried_vertical"),
+                normal_quality=result.get("normal_quality"),
+                vertical_quality=result.get("vertical_quality"),
+            )
+            included_map[file_id] = IndexFile(
+                employee=employee,
+                employee_id=result.get("employee_id"),
+                local=bool(result.get("local")),
+                file_id=file_id,
+                file_name=result.get("file_name"),
+                drive_path=result.get("drive_path"),
+                outputs=Outputs(
+                    text_csv=build_employee_csv_rel_path(employee),
+                    doc_json=result.get("doc_json"),
+                ),
             )
             excluded_map.pop(file_id, None)
         return
@@ -52,13 +83,18 @@ def _apply_result(
         stats["download_failed"] += 1
     elif stage == "extract":
         stats["extract_failed"] += 1
+        if result.get("reason") == "missing_text_layer":
+            stats["excluded_missing_text_layer"] += 1
 
     doc_info = result.get("doc") or {}
     file_id = doc_info.get("file_id")
     if file_id:
+        text_rows_by_file_id.pop(file_id, None)
+        included_map.pop(file_id, None)
         excluded_map[file_id] = IndexFile(
             employee=doc_info.get("employee") or "unknown",
             employee_id=doc_info.get("employee_id"),
+            local=bool(doc_info.get("local")),
             file_id=file_id,
             file_name=doc_info.get("file_name"),
             drive_path=doc_info.get("drive_path"),
@@ -96,10 +132,10 @@ def _flush_progress(
     )
 
 
-def run_extraction(options: ExtractTextFromIndexOptions) -> int:
+def run_extraction(options: ExtractDocumentsFromIndexOptions) -> int:
     setup_logging(options.verbose)
     logger = get_logger()
-    logger.info("Starting text extraction pipeline at out=%s", options.out)
+    logger.info("Starting document extraction pipeline at out=%s", options.out)
 
     ensure_dir(options.out)
     index_path = options.index if os.path.isabs(options.index) else os.path.abspath(options.index)
@@ -112,6 +148,11 @@ def run_extraction(options: ExtractTextFromIndexOptions) -> int:
     existing_excluded = MapIndex.load_index(excluded_path, strict=False)
     included_map: dict[str, IndexFile] = dict(existing_included.files)
     excluded_map: dict[str, IndexFile] = dict(existing_excluded.files)
+    text_rows_by_file_id = {
+        file_id: row
+        for file_id, row in load_text_extraction_rows(options.out).items()
+        if file_id in included_map
+    }
 
     skip_included = options.skip_included and not options.reprocess_included
     skip_excluded = not options.reprocess_excluded
@@ -129,6 +170,7 @@ def run_extraction(options: ExtractTextFromIndexOptions) -> int:
         source.files,
         included_map,
         excluded_map,
+        existing_text_rows=text_rows_by_file_id,
         skip_included=skip_included,
         skip_excluded=skip_excluded,
         limit=options.limit,
@@ -156,9 +198,14 @@ def run_extraction(options: ExtractTextFromIndexOptions) -> int:
     stop_event = threading.Event()
 
     if docs:
-        logger.info("Loading credentials...")
-        creds = load_creds()
-        logger.info("Credentials loaded")
+        needs_drive = any(not bool(doc.get("local")) for doc in docs)
+        if needs_drive:
+            logger.info("Loading credentials...")
+            creds = load_creds()
+            logger.info("Credentials loaded")
+        else:
+            logger.info("No remote documents queued; skipping credential load")
+            creds = None
 
         extract_futures: dict = {}
         with ThreadPoolExecutor(max_workers=download_workers) as download_pool, ProcessPoolExecutor(
@@ -183,7 +230,14 @@ def run_extraction(options: ExtractTextFromIndexOptions) -> int:
                     if download_result["status"] != "success":
                         processed += 1
                         stats["processed"] = processed
-                        _apply_result(download_result, stats, items, included_map, excluded_map)
+                        _apply_result(
+                            download_result,
+                            stats,
+                            items,
+                            included_map,
+                            excluded_map,
+                            text_rows_by_file_id,
+                        )
                         _flush_progress(
                             processed=processed,
                             flush_every=flush_every,
@@ -213,7 +267,14 @@ def run_extraction(options: ExtractTextFromIndexOptions) -> int:
                             }
                         processed += 1
                         stats["processed"] = processed
-                        _apply_result(result, stats, items, included_map, excluded_map)
+                        _apply_result(
+                            result,
+                            stats,
+                            items,
+                            included_map,
+                            excluded_map,
+                            text_rows_by_file_id,
+                        )
                         _flush_progress(
                             processed=processed,
                             flush_every=flush_every,
@@ -252,7 +313,14 @@ def run_extraction(options: ExtractTextFromIndexOptions) -> int:
                         }
                     processed += 1
                     stats["processed"] = processed
-                    _apply_result(result, stats, items, included_map, excluded_map)
+                    _apply_result(
+                        result,
+                        stats,
+                        items,
+                        included_map,
+                        excluded_map,
+                        text_rows_by_file_id,
+                    )
                     _flush_progress(
                         processed=processed,
                         flush_every=flush_every,
@@ -276,12 +344,15 @@ def run_extraction(options: ExtractTextFromIndexOptions) -> int:
     update_index_meta(excluded_index)
     included_index.save_index(included_path)
     excluded_index.save_index(excluded_path)
+    employee_csv_files = write_text_extraction_rows(options.out, text_rows_by_file_id)
+    prune_stale_text_extraction_docs(options.out, text_rows_by_file_id)
 
     payload = {
         "source_index": index_path,
         "included_index": included_path,
         "excluded_index": excluded_path,
         "out_dir": options.out,
+        "employee_csv_files": employee_csv_files,
         "stats": stats,
         "items": items,
         "duration_s": round(time.time() - t0, 3),
@@ -291,3 +362,6 @@ def run_extraction(options: ExtractTextFromIndexOptions) -> int:
     logger.info("Report saved to %s", report_path)
     logger.info("Done in %.1fs", time.time() - t0)
     return 0
+
+
+__all__ = ["_apply_result", "_flush_progress", "run_extraction"]

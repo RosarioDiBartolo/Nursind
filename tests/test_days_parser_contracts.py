@@ -6,15 +6,19 @@ from pathlib import Path
 import pytest
 
 from src.extract_events_from_text_raw.parsers import resolve_parser
-from src.extract_events_from_text_raw.service import _parse_rows_for_file
 
 FIXTURES_ROOT = Path(__file__).parent / "fixtures" / "days_parsers"
 
 
-def _assert_hour_sanity(value: float | None) -> None:
-    if value is None:
-        return
-    assert abs(float(value)) <= 24.0
+def _document(text: str) -> dict[str, object]:
+    return {
+        "document": {
+            "full_text": text,
+        },
+        "layout": {
+            "pages": [],
+        },
+    }
 
 
 @pytest.mark.parametrize(
@@ -27,12 +31,11 @@ def test_parser_contracts_from_fixtures(expected_path: Path) -> None:
         expected_path.name.replace(".expected.json", ".txt")
     )
     text = text_path.read_text(encoding="utf-8")
-    parser = resolve_parser(text)
+    parser = resolve_parser(_document(text))
     assert parser.parser_id == str(payload["parser_id"])
 
-    rows, stats = _parse_rows_for_file(text, parser=parser)
+    rows = parser.parse_document(_document(text))
     expected_rows = payload["rows"]
-    assert int(stats["rows_parsed"]) == len(expected_rows)
     assert len(rows) == len(expected_rows)
 
     for expected_row in expected_rows:
@@ -41,22 +44,12 @@ def test_parser_contracts_from_fixtures(expected_path: Path) -> None:
         row = next(
             item for item in rows if item.day == expected_day and item.dow == expected_dow
         )
-        assert row.mo_f == pytest.approx(float(expected_row["mo_f"]), abs=1e-4)
-        assert row.mo_t == pytest.approx(float(expected_row["mo_t"]), abs=1e-4)
-        assert row.mo_lav == pytest.approx(float(expected_row["mo_lav"]), abs=1e-4)
-        _assert_hour_sanity(row.mo_f)
-        _assert_hour_sanity(row.mo_t)
-        _assert_hour_sanity(row.mo_lav)
-
-        expected_hints = expected_row.get("event_hints")
-        if expected_hints is None:
+        expected_events = expected_row.get("event_hints")
+        if expected_events is None:
             continue
-
-        assert len(row.event_hints) == len(expected_hints)
-        for index, expected_hint in enumerate(expected_hints):
-            hint = row.event_hints[index]
-            assert hint.kind == str(expected_hint["kind"])
-            assert hint.time_hhmm == str(expected_hint["time_hhmm"])
-            if "source" in expected_hint:
-                assert hint.source == str(expected_hint["source"])
-            assert 0.0 <= float(hint.confidence) <= 1.0
+        assert len(row.events) == len(expected_events)
+        for index, expected_event in enumerate(expected_events):
+            event = row.events[index]
+            assert event.event_kind == str(expected_event["kind"])
+            assert event.event_time_hhmm == str(expected_event["time_hhmm"])
+            assert isinstance(event.event_pattern, str) and event.event_pattern

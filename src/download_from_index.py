@@ -139,8 +139,8 @@ def main() -> int:
     if not docs:
         return 0
 
-    creds = load_creds()
-    drive = get_drive_service(creds)
+    creds = None
+    drive = None
 
     downloaded = 0
     skipped = 0
@@ -162,9 +162,15 @@ def main() -> int:
             continue
 
         try:
+            is_local = bool(getattr(item, "local", False)) or str(file_id).startswith("local::")
+            if not is_local and drive is None:
+                creds = load_creds()
+                drive = get_drive_service(creds)
             result = download_pdf_bytes_for_index_item(
                 drive,
                 file_id=file_id,
+                local=is_local,
+                drive_path=getattr(item, "drive_path", None),
                 source_kind=getattr(item, "type", None),
                 logger=logger,
                 zip_cache=zip_cache,

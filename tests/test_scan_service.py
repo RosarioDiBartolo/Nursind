@@ -67,6 +67,7 @@ def test_collect_files_recursive_expands_zip_pdf_members(monkeypatch):
     assert excluded_folders == []
     assert filtered_files == []
     assert len(files) == 3
+    assert all(f["local"] is False for f in files)
     assert any(f["file_id"] == "pdf-1" and f["file_name"] == "direct.pdf" for f in files)
     assert any(
         f["file_id"].startswith("zip::zip-1::")
@@ -102,6 +103,7 @@ def test_collect_files_recursive_marks_invalid_zip(monkeypatch):
     assert files == []
     assert excluded_folders == []
     assert len(filtered_files) == 1
+    assert filtered_files[0]["local"] is False
     assert filtered_files[0]["file_id"] == "zip-1"
     assert filtered_files[0]["reason"] == "invalid_zip_archive"
 

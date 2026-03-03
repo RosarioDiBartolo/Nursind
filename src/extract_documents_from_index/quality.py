@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from io import BytesIO
 
-from src.pdf_text_extraction import extract_text, extract_text_vertical
+from src.pdf_text_extraction import extract_text, extract_text_vertical, has_text_layer
 
 
 def score_text_quality(text: str) -> dict:
@@ -23,11 +23,7 @@ def score_text_quality(text: str) -> dict:
     alpha_chars = sum(1 for ch in non_ws_chars if ch.isalpha())
     replacement_chars = text.count("\ufffd")
     lines = [line.strip() for line in text.splitlines() if line.strip()]
-    avg_line_len = (
-        sum(len(line) for line in lines) / len(lines)
-        if lines
-        else 0.0
-    )
+    avg_line_len = sum(len(line) for line in lines) / len(lines) if lines else 0.0
 
     printable_ratio = printable_chars / total_chars
     alpha_ratio = (alpha_chars / non_ws_count) if non_ws_count else 0.0
@@ -56,6 +52,8 @@ def score_text_quality(text: str) -> dict:
 
 def extract_best_text(pdf_bytes: bytes, min_normal_score: float, min_score_delta: float) -> dict:
     stream = BytesIO(pdf_bytes)
+    if not has_text_layer(stream):
+        raise ValueError("PDF_HAS_NO_TEXT_LAYER")
     normal_text = extract_text(stream)
     normal_quality = score_text_quality(normal_text)
     normal_score = normal_quality["score"]

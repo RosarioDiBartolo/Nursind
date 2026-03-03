@@ -1,33 +1,9 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from typing import Any
 
-
-@dataclass(frozen=True, slots=True)
-class ParseContext:
-    normalized_raw: str
-
-
-@dataclass(frozen=True, slots=True)
-class ParseValues:
-    mo_f: float | None
-    mo_t: float | None
-    mo_lav: float | None
-
-
-@dataclass(frozen=True, slots=True)
-class EventHint:
-    kind: str
-    time_hhmm: str
-    source: str
-    confidence: float
-
-
-@dataclass(frozen=True, slots=True)
-class RowParseResult:
-    values: ParseValues
-    event_hints: tuple[EventHint, ...]
+from ..models import ParsedRow
 
 
 class BaseFormatParser(ABC):
@@ -36,16 +12,9 @@ class BaseFormatParser(ABC):
     priority: int = 100
 
     @abstractmethod
-    def score_document(self, text: str) -> int:
+    def score_document(self, document: dict[str, Any]) -> int:
         raise NotImplementedError
 
     @abstractmethod
-    def parse_row(
-        self,
-        raw: str,
-        *,
-        has_event: bool,
-        any_event: bool,
-        ctx: ParseContext,
-    ) -> RowParseResult:
+    def parse_document(self, document: dict[str, Any]) -> tuple[ParsedRow, ...]:
         raise NotImplementedError

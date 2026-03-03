@@ -153,3 +153,57 @@ def test_main_can_write_per_employee_subfolders(monkeypatch, tmp_path):
     assert len(written_files) == 1
     assert written_files[0].parent == out_dir / "Mario Rossi"
     assert written_files[0].read_bytes() == pdf_bytes
+
+
+def test_main_downloads_local_index_entry_without_drive_creds(monkeypatch, tmp_path):
+    local_pdf = tmp_path / "source.pdf"
+    local_pdf.write_bytes(b"%PDF-local")
+    source_index = MapIndex.generate_index(
+        root_id="root",
+        employee_count=1,
+        files={
+            "local::source.pdf": {
+                "employee": "Mario Rossi",
+                "employee_id": "emp-1",
+                "local": True,
+                "file_id": "local::source.pdf",
+                "file_name": "source.pdf",
+                "drive_path": str(local_pdf),
+                "type": "file",
+            }
+        },
+    )
+
+    index_path = tmp_path / "index.json"
+    index_path.write_text("{}", encoding="utf-8")
+    out_dir = tmp_path / "out"
+
+    monkeypatch.setattr(download_from_index.MapIndex, "load_index", lambda *_args, **_kwargs: source_index)
+    monkeypatch.setattr(
+        download_from_index,
+        "load_creds",
+        lambda: (_ for _ in ()).throw(AssertionError("local-only download should not load creds")),
+    )
+    monkeypatch.setattr(
+        download_from_index,
+        "get_drive_service",
+        lambda _creds: (_ for _ in ()).throw(AssertionError("local-only download should not create drive")),
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "download_from_index",
+            "--index",
+            str(index_path),
+            "--out",
+            str(out_dir),
+        ],
+    )
+
+    code = download_from_index.main()
+
+    assert code == 0
+    written_files = list(out_dir.rglob("*.pdf"))
+    assert len(written_files) == 1
+    assert written_files[0].read_bytes() == b"%PDF-local"

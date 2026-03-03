@@ -1,6 +1,6 @@
 # Preparation (Direct Events, Cleaning, Pairing)
 
-This stage transforms extracted text directly into cleaned event streams and employee-level pairs.
+This stage transforms canonical extracted document payloads directly into cleaned event streams and employee-level pairs.
 
 Step structure reference: `docs/step_contract_v1.md`
 
@@ -12,17 +12,21 @@ Step structure reference: `docs/step_contract_v1.md`
 
 ## Flow
 
-1. Parse text files once and emit per-document `events_from_text_raw.csv`.
+1. Parse per-employee document manifest CSV rows, load each canonical `docs/*.json` payload, and emit per-document `events_from_text_raw.csv`.
 2. Remove fake midnight events into `events_from_text_raw.cleaned.csv`.
 3. Pair cleaned events at employee scope into `output/employee_shifts_from_raw/*.pairs.csv`.
 
+The direct event step no longer scans legacy raw `.txt` files; canonical manifest rows with `doc_json` are required.
+
 ## Inputs
 
-- Root text folder: `output/text_extracted`
+- Root document manifests folder: `output/text_extracted`
 - Raw events root: `output/events`
 
 ## Outputs
 
+- `output/text_extracted/<employee>.csv`
+- `output/text_extracted/docs/*.json`
 - `output/events/**/events_from_text_raw.csv`
 - `output/events/**/events_from_text_raw.cleaned.csv`
 - `output/employee_shifts_from_raw/*.pairs.csv`
@@ -39,21 +43,33 @@ python -m "src.pair_employee_events_from_days_raw" --input-dir "output/events" -
 ## Function-level testing (`extract_events_from_text_raw`)
 
 ```python
-from src.extract_events_from_text_raw import process_one_text_file, process_many_text_files
+from src.extract_events_from_text_raw import process_one_text_row, process_many_text_rows
 
-single = process_one_text_file(
-    "output/text_extracted/ROSSI/documento.txt",
+single = process_one_text_row(
+    {
+        "source_text_ref": "ROSSI/documento.txt",
+        "doc_json": "docs/documento.json",
+        "file_name": "documento.pdf",
+    },
     output_dir="output/events",
-    input_base="output/text_extracted",
+    input_dir="output/text_extracted",
 )
 
-batch = process_many_text_files(
+batch = process_many_text_rows(
     [
-        "output/text_extracted/ROSSI/doc1.txt",
-        "output/text_extracted/ROSSI/doc2.txt",
+        {
+            "source_text_ref": "ROSSI/doc1.txt",
+            "doc_json": "docs/doc1.json",
+            "file_name": "doc1.pdf",
+        },
+        {
+            "source_text_ref": "ROSSI/doc2.txt",
+            "doc_json": "docs/doc2.json",
+            "file_name": "doc2.pdf",
+        },
     ],
     output_dir="output/events",
-    input_base="output/text_extracted",
+    input_dir="output/text_extracted",
 )
 ```
 

@@ -4,9 +4,9 @@ import argparse
 from dataclasses import dataclass
 from typing import Sequence
 
-from src.drive_service.output_paths import build_output_paths
+from src.drive_service.output_paths import build_pipelines_paths
 
-DEFAULT_OUTPUTS = build_output_paths()
+DEFAULT_OUTPUTS = build_pipelines_paths()
 DEFAULT_INPUT_DIR = str(DEFAULT_OUTPUTS.events_output)
 DEFAULT_INDEX = None
 DEFAULT_OUTPUT_DIR = str(DEFAULT_OUTPUTS.shifts_output)
