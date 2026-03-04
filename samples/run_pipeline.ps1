@@ -34,25 +34,25 @@ try {
     --out $documentsDir `
     --verbose
 
-  & $python -m "src.extract_events_from_text_raw" `
+  & $python -m "src.extract_events_from_documents" `
     --input-dir $documentsDir `
     --output-dir $eventsDir `
-    --report-json (Join-Path $eventsDir "extract_events_from_text_raw.report.json") `
+    --report-json (Join-Path $eventsDir "extract_events.report.json") `
     --verbose
 
-  & $python -m "src.filter_midnight_events_from_days_raw" `
+  & $python -m "src.filter_midnight_events" `
     --input-dir $eventsDir `
-    --events-name "*.events_from_text_raw.csv" `
-    --out-name "events_from_text_raw.cleaned.csv" `
-    --report-json (Join-Path $eventsDir "events_from_text_raw.clean_midnight.report.json") `
-    --removed-csv (Join-Path $eventsDir "events_from_text_raw.midnight_removed.csv") `
+    --events-name "events.csv" `
+    --out-name "events.cleaned.csv" `
+    --report-json (Join-Path $eventsDir "events.clean_midnight.report.json") `
+    --removed-csv (Join-Path $eventsDir "events.midnight_removed.csv") `
     --verbose
 
-  & $python -m "src.pair_employee_events_from_days_raw" `
+  & $python -m "src.pair_employee_events" `
     --input-dir $eventsDir `
     --output-dir $employeeShiftsDir `
-    --events-name "*.events_from_text_raw.cleaned.csv" `
-    --report-json (Join-Path $employeeShiftsDir "pair_employee_events_from_days_raw.report.json") `
+    --events-name "events.cleaned.csv" `
+    --report-json (Join-Path $employeeShiftsDir "pair_employee_events.report.json") `
     --max-gap-hours 16 `
     --verbose
 

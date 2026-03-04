@@ -21,9 +21,9 @@ Purpose: this file is a lightweight map to the canonical project docs. Do not du
 
 ## Code Entry Points
 - `src/scan_directory`
-- `src/extract_text_from_index`
-- `src/extract_events_from_text_raw.py`
-- `src/filter_midnight_events_from_days_raw.py`
-- `src/pair_employee_events_from_days_raw.py`
+- `src/extract_documents_from_index`
+- `src/extract_events_from_documents`
+- `src/filter_midnight_events`
+- `src/pair_employee_events`
 - `src/turni_enrichment.py`
 - `src/turni_employee_summary.py`

@@ -96,19 +96,18 @@ def _build_cleaned_output_path(
     if in_place:
         return event_path
 
-    if event_path.name == "events_from_text_raw.csv":
-        if input_base is None:
-            rel_dir = Path(event_path.parent.name)
-        else:
-            try:
-                rel_dir = event_path.parent.relative_to(input_base)
-            except ValueError:
-                rel_dir = Path(event_path.parent.name)
-        return output_base / rel_dir / out_name
+    if event_path.name == "events.csv":
+        return output_base / out_name
 
-    marker = ".events_from_text_raw.csv"
+    if event_path.parent == output_base:
+        return output_base / out_name
+
+    marker = ".events.csv"
+    legacy_cleaned_marker = ".events.cleaned.csv"
     if event_path.name.endswith(marker):
         prefix = event_path.name[: -len(marker)]
+    elif event_path.name.endswith(legacy_cleaned_marker):
+        prefix = event_path.name[: -len(legacy_cleaned_marker)]
     else:
         prefix = event_path.stem
     if input_base is None:
@@ -118,7 +117,9 @@ def _build_cleaned_output_path(
             rel_parent = event_path.parent.relative_to(input_base)
         except ValueError:
             rel_parent = Path(event_path.parent.name)
-    return output_base / rel_parent / f"{prefix}.{out_name}"
+    if prefix:
+        return output_base / rel_parent / f"{prefix}.{out_name}"
+    return output_base / rel_parent / out_name
 
 
 def _removed_export_records(removed: pd.DataFrame, *, source_path: Path) -> list[dict[str, Any]]:

@@ -16,6 +16,7 @@ from .options import (
     DEFAULT_MAX_PATTERN_EXAMPLES,
     DEFAULT_MAX_UNMATCHED_EXAMPLES_PER_FILE,
     DEFAULT_OUT_NAME,
+    DEFAULT_PAGES_NAME,
     DEFAULT_OUTPUT_DIR,
     DEFAULT_REPORT_JSON,
     ExtractEventsFromTextOptions,
@@ -23,11 +24,12 @@ from .options import (
 from .service import process_many_text_rows
 
 
-def extract_events_from_text_dir(
+def extract_events_from_documents_dir(
     *,
     input_dir: str = DEFAULT_INPUT_DIR,
     output_dir: str = DEFAULT_OUTPUT_DIR,
     out_name: str = DEFAULT_OUT_NAME,
+    pages_name: str = DEFAULT_PAGES_NAME,
     report_json: str = DEFAULT_REPORT_JSON,
     manifest_glob: str = DEFAULT_MANIFEST_GLOB,
     max_pattern_examples: int = DEFAULT_MAX_PATTERN_EXAMPLES,
@@ -45,6 +47,7 @@ def extract_events_from_text_dir(
         read_text_extraction_rows(employee_csv_files, hydrate_text=False),
         output_dir=output_dir,
         out_name=out_name,
+        pages_name=pages_name,
         input_dir=input_dir,
         manifest_glob=manifest_glob,
         max_pattern_examples=max_pattern_examples,
@@ -57,10 +60,11 @@ def extract_events_from_text_dir(
 
 
 def run_from_options(options: ExtractEventsFromTextOptions) -> dict[str, Any]:
-    return extract_events_from_text_dir(
+    return extract_events_from_documents_dir(
         input_dir=options.input_dir,
         output_dir=options.output_dir,
         out_name=options.out_name,
+        pages_name=options.pages_name,
         report_json=options.report_json,
         manifest_glob=options.manifest_glob,
         max_pattern_examples=options.max_pattern_examples,

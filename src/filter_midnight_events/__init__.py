@@ -12,7 +12,7 @@ from .options import (
     parse_options,
 )
 from .runtime import (
-    build_filter_midnight_events_from_days_raw_from_dir,
+    build_filter_midnight_events_from_dir,
     filter_midnight_events_dir,
     run_from_options,
 )
@@ -31,7 +31,7 @@ __all__ = [
     "parse_options",
     "process_one_events_file",
     "process_many_events_files",
-    "build_filter_midnight_events_from_days_raw_from_dir",
+    "build_filter_midnight_events_from_dir",
     "filter_midnight_events_dir",
     "run_from_options",
     "main",

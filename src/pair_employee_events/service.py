@@ -61,21 +61,28 @@ def _normalize_events_file(
     source_events_csv: str,
     file_id: str | None,
     file_name: str | None,
+    source_employee: str | None,
 ) -> tuple[pd.DataFrame, dict[str, int]]:
+    scoped_df = df
+    if source_employee and "source_employee" in df.columns:
+        employee_key = normalize_employee(source_employee)
+        employee_series = df["source_employee"].fillna("").astype(str).map(normalize_employee)
+        scoped_df = df.loc[employee_series == employee_key].copy()
+
     stats = {
-        "events_rows_in": int(len(df)),
+        "events_rows_in": int(len(scoped_df)),
         "events_valid": 0,
         "events_invalid_kind": 0,
         "events_invalid_ts": 0,
     }
-    if df.empty:
+    if scoped_df.empty:
         return pd.DataFrame(), stats
-    if "event_kind" not in df.columns or "event_ts" not in df.columns:
-        stats["events_invalid_kind"] = int(len(df))
+    if "event_kind" not in scoped_df.columns or "event_ts" not in scoped_df.columns:
+        stats["events_invalid_kind"] = int(len(scoped_df))
         return pd.DataFrame(), stats
 
-    kind = df["event_kind"].fillna("").astype(str).str.strip().str.upper()
-    ts = to_datetime_series(df["event_ts"])
+    kind = scoped_df["event_kind"].fillna("").astype(str).str.strip().str.upper()
+    ts = to_datetime_series(scoped_df["event_ts"])
 
     valid_kind = kind.isin(["E", "U"])
     valid_ts = ts.notna()
@@ -88,20 +95,29 @@ def _normalize_events_file(
     if not valid_mask.any():
         return pd.DataFrame(), stats
 
-    working = df.loc[valid_mask].copy()
+    working = scoped_df.loc[valid_mask].copy()
     working["event_kind"] = kind.loc[valid_mask].astype("object")
     working["event_ts"] = ts.loc[valid_mask]
+
     if "event_raw" not in working.columns:
         working["event_raw"] = None
     if "source_row_index" not in working.columns:
         if "source_line_no" in working.columns:
-            working["source_row_index"] = df.loc[valid_mask, "source_line_no"]
+            working["source_row_index"] = scoped_df.loc[valid_mask, "source_line_no"]
         else:
             working["source_row_index"] = pd.NA
     if "event_index" not in working.columns:
         working["event_index"] = pd.NA
-    working["file_id"] = file_id
-    working["file_name"] = file_name
+    if file_id is not None:
+        working["file_id"] = file_id
+    elif "file_id" not in working.columns:
+        working["file_id"] = None
+
+    if file_name is not None:
+        working["file_name"] = file_name
+    elif "file_name" not in working.columns:
+        working["file_name"] = None
+
     working["source_events_csv"] = source_events_csv
     return _event_sort_key(working), stats
 
@@ -368,6 +384,7 @@ def process_one_employee_events(
                     source_events_csv=source_events_csv,
                     file_id=file_id,
                     file_name=file_name,
+                    source_employee=employee_name,
                 )
             except Exception as exc:
                 result["files_error"] += 1

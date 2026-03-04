@@ -5,13 +5,14 @@ from .options import (
     DEFAULT_MAX_PATTERN_EXAMPLES,
     DEFAULT_MAX_UNMATCHED_EXAMPLES_PER_FILE,
     DEFAULT_OUT_NAME,
+    DEFAULT_PAGES_NAME,
     DEFAULT_OUTPUT_DIR,
     DEFAULT_REPORT_JSON,
     ExtractEventsFromTextOptions,
     build_parser,
     parse_options,
 )
-from .runtime import extract_events_from_text_dir, run_from_options
+from .runtime import extract_events_from_documents_dir, run_from_options
 from .service import (
     process_many_text_rows,
     process_one_text_row,
@@ -21,6 +22,7 @@ __all__ = [
     "DEFAULT_INPUT_DIR",
     "DEFAULT_OUTPUT_DIR",
     "DEFAULT_OUT_NAME",
+    "DEFAULT_PAGES_NAME",
     "DEFAULT_REPORT_JSON",
     "DEFAULT_MANIFEST_GLOB",
     "DEFAULT_MAX_PATTERN_EXAMPLES",
@@ -30,7 +32,7 @@ __all__ = [
     "parse_options",
     "process_one_text_row",
     "process_many_text_rows",
-    "extract_events_from_text_dir",
+    "extract_events_from_documents_dir",
     "run_from_options",
     "main",
 ]

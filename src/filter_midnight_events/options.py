@@ -8,13 +8,13 @@ from src.drive_service.output_paths import build_pipelines_paths
 
 DEFAULT_OUTPUTS = build_pipelines_paths()
 DEFAULT_INPUT_DIR = str(DEFAULT_OUTPUTS.events_output)
-DEFAULT_EVENTS_NAME = "*.events_from_text_raw.csv"
-DEFAULT_OUT_NAME = "events_from_text_raw.cleaned.csv"
+DEFAULT_EVENTS_NAME = "events.csv"
+DEFAULT_OUT_NAME = "events.cleaned.csv"
 DEFAULT_REPORT_JSON = str(
-    DEFAULT_OUTPUTS.events_output / "events_from_text_raw.clean_midnight.report.json"
+    DEFAULT_OUTPUTS.events_output / "events.clean_midnight.report.json"
 )
 DEFAULT_REMOVED_CSV = str(
-    DEFAULT_OUTPUTS.events_output / "events_from_text_raw.midnight_removed.csv"
+    DEFAULT_OUTPUTS.events_output / "events.midnight_removed.csv"
 )
 DEFAULT_MAX_REMOVED_EXAMPLES_PER_FILE = 10
 
@@ -33,24 +33,24 @@ class FilterMidnightEventsOptions:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Filter midnight events from per-file raw events CSVs."
+        description="Filter midnight events from run-level raw events CSV files."
     )
     parser.add_argument(
         "--input-dir",
         default=DEFAULT_INPUT_DIR,
-        help=f"Root directory containing per-file raw events CSVs (default: {DEFAULT_INPUT_DIR})",
+        help=f"Root directory containing raw events CSV files (default: {DEFAULT_INPUT_DIR})",
     )
     parser.add_argument(
         "--events-name",
         default=DEFAULT_EVENTS_NAME,
-        help="Recursive glob for raw events files (default: *.events_from_text_raw.csv)",
+        help=f"Recursive glob for raw events files (default: {DEFAULT_EVENTS_NAME})",
     )
     parser.add_argument(
         "--out-name",
         default=DEFAULT_OUT_NAME,
         help=(
             "Cleaned output filename written next to each raw events file "
-            "(default: events_from_text_raw.cleaned.csv)"
+            f"(default: {DEFAULT_OUT_NAME})"
         ),
     )
     parser.add_argument(

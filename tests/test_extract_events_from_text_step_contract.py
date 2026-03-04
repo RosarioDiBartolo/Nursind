@@ -1,6 +1,6 @@
-from pathlib import Path
+﻿from pathlib import Path
 
-from src.extract_events_from_text_raw import process_many_text_rows, process_one_text_row
+from src.extract_events_from_documents import process_many_text_rows, process_one_text_row
 from tests.extract_events_manifest_fixtures import build_manifest_row
 from tests.step_contract import assert_process_many_contract, assert_process_one_contract
 
@@ -28,6 +28,7 @@ def test_extract_events_from_text_process_one_contract(tmp_path: Path) -> None:
     )
     assert_process_one_contract(result, source_key="source_doc_json")
     assert Path(str(result["output_events_csv"])).exists()
+    assert Path(str(result["output_pages_csv"])).exists()
 
 
 def test_extract_events_from_text_process_many_contract(tmp_path: Path) -> None:
@@ -64,3 +65,4 @@ def test_extract_events_from_text_process_many_contract(tmp_path: Path) -> None:
     )
 
     assert_process_many_contract(report)
+

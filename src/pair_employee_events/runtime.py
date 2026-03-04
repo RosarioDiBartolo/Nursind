@@ -6,6 +6,8 @@ import os
 from pathlib import Path
 from typing import Any
 
+import pandas as pd
+
 from src.drive_service.fs_utils import ensure_dir, ensure_parent_dir
 from src.drive_service.index import MapIndex
 from src.drive_service.index_runtime import doc_attr
@@ -27,13 +29,58 @@ logger = logging.getLogger(__name__)
 
 def _source_name_from_events_csv(event_path: Path) -> str:
     name = event_path.name
+    if name in {"events.cleaned.csv", "events.csv"}:
+        return "events"
     for marker in (
-        ".events_from_text_raw.cleaned.csv",
-        ".events_from_text_raw.csv",
+        ".events.cleaned.csv",
+        ".events.csv",
     ):
         if name.endswith(marker):
             return name[: -len(marker)] or "unknown"
     return event_path.stem or "unknown"
+
+
+def _register_grouped_file(
+    *,
+    grouped: dict[str, dict[str, Any]],
+    employee_name: str,
+    event_path: Path,
+) -> None:
+    key = normalize_employee(employee_name)
+    if key not in grouped:
+        grouped[key] = {
+            "employee": employee_name,
+            "employee_id": None,
+            "files": [],
+            "key": f"name:{key}",
+        }
+    grouped[key]["files"].append(
+        {
+            "events_csv": str(event_path.resolve()),
+            "file_id": None,
+            "file_name": _source_name_from_events_csv(event_path),
+        }
+    )
+
+
+def _discover_employees_from_aggregated_file(event_path: Path) -> list[str]:
+    try:
+        frame = pd.read_csv(event_path, usecols=["source_employee"])
+    except Exception:
+        return []
+    if "source_employee" not in frame.columns:
+        return []
+
+    employees: list[str] = []
+    seen: set[str] = set()
+    for raw in frame["source_employee"].fillna("").astype(str).tolist():
+        employee_name = " ".join(raw.strip().split()) or "unknown"
+        key = normalize_employee(employee_name)
+        if key in seen:
+            continue
+        seen.add(key)
+        employees.append(employee_name)
+    return employees
 
 
 def _discover_employees_from_events_dir(
@@ -47,24 +94,25 @@ def _discover_employees_from_events_dir(
 
     for event_path in event_files:
         rel = event_path.relative_to(base)
+        if len(rel.parts) == 1 and event_path.name in {"events.cleaned.csv", "events.csv"}:
+            aggregated_employees = _discover_employees_from_aggregated_file(event_path)
+            if aggregated_employees:
+                for employee_name in aggregated_employees:
+                    _register_grouped_file(
+                        grouped=grouped,
+                        employee_name=employee_name,
+                        event_path=event_path,
+                    )
+                continue
+
         if len(rel.parts) >= 2:
             employee_name = rel.parts[0]
         else:
             employee_name = "unknown"
-        key = normalize_employee(employee_name)
-        if key not in grouped:
-            grouped[key] = {
-                "employee": employee_name,
-                "employee_id": None,
-                "files": [],
-                "key": f"name:{key}",
-            }
-        grouped[key]["files"].append(
-            {
-                "events_csv": str(event_path.resolve()),
-                "file_id": None,
-                "file_name": _source_name_from_events_csv(event_path),
-            }
+        _register_grouped_file(
+            grouped=grouped,
+            employee_name=employee_name,
+            event_path=event_path,
         )
 
     return list(grouped.values()), len(event_files)
@@ -92,16 +140,13 @@ def _resolve_cleaned_events_path(
     )
     source_name = os.path.basename(expected_pairs)
     if source_name.endswith(".pairs.csv"):
-        source_name = source_name[: -len(".pairs.csv")] + ".events_from_text_raw.cleaned.csv"
+        source_name = source_name[: -len(".pairs.csv")] + ".events.cleaned.csv"
     else:
-        source_name = "events_from_text_raw.cleaned.csv"
+        source_name = "events.cleaned.csv"
     if "*" in events_name:
         suffix = events_name.replace("*", "").lstrip(".")
-        if source_name.endswith(".events_from_text_raw.cleaned.csv"):
-            prefix = source_name[: -len(".events_from_text_raw.cleaned.csv")]
-            event_name = f"{prefix}.{suffix}" if prefix else suffix
-        elif source_name.endswith(".events_from_text_raw.csv"):
-            prefix = source_name[: -len(".events_from_text_raw.csv")]
+        if source_name.endswith(".events.cleaned.csv"):
+            prefix = source_name[: -len(".events.cleaned.csv")]
             event_name = f"{prefix}.{suffix}" if prefix else suffix
         else:
             event_name = suffix
@@ -152,7 +197,7 @@ def _discover_employees_from_index(
     return employees, index_abs
 
 
-def build_pair_employee_events_from_days_raw_from_dir(
+def build_pair_employee_events_from_dir(
     *,
     input_dir: str | None = DEFAULT_INPUT_DIR,
     index_path: str | None = DEFAULT_INDEX,
@@ -225,7 +270,7 @@ def pair_employee_events(
     employee_filter: str | None = None,
     keep_inferred_column: bool = False,
 ) -> dict[str, Any]:
-    return build_pair_employee_events_from_days_raw_from_dir(
+    return build_pair_employee_events_from_dir(
         input_dir=input_dir,
         index_path=index_path,
         output_dir=output_dir,
@@ -238,7 +283,7 @@ def pair_employee_events(
 
 
 def run_from_options(options: PairEmployeeEventsOptions) -> dict[str, Any]:
-    return build_pair_employee_events_from_days_raw_from_dir(
+    return build_pair_employee_events_from_dir(
         input_dir=options.input_dir,
         index_path=options.index_path,
         output_dir=options.output_dir,

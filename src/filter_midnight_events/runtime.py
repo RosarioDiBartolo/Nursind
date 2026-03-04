@@ -33,7 +33,7 @@ def _build_removed_rows_df(removed_rows_records: list[dict[str, Any]]) -> pd.Dat
     )
 
 
-def build_filter_midnight_events_from_days_raw_from_dir(
+def build_filter_midnight_events_from_dir(
     *,
     input_dir: str = DEFAULT_INPUT_DIR,
     events_name: str = DEFAULT_EVENTS_NAME,
@@ -80,7 +80,7 @@ def filter_midnight_events_dir(
     max_removed_examples_per_file: int = DEFAULT_MAX_REMOVED_EXAMPLES_PER_FILE,
     in_place: bool = False,
 ) -> dict[str, Any]:
-    return build_filter_midnight_events_from_days_raw_from_dir(
+    return build_filter_midnight_events_from_dir(
         input_dir=input_dir,
         events_name=events_name,
         out_name=out_name,
@@ -92,7 +92,7 @@ def filter_midnight_events_dir(
 
 
 def run_from_options(options: FilterMidnightEventsOptions) -> dict[str, Any]:
-    return build_filter_midnight_events_from_days_raw_from_dir(
+    return build_filter_midnight_events_from_dir(
         input_dir=options.input_dir,
         events_name=options.events_name,
         out_name=options.out_name,

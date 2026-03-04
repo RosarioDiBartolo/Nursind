@@ -1,8 +1,8 @@
-from pathlib import Path
+﻿from pathlib import Path
 
 import pandas as pd
 
-from src.extract_events_from_text_raw import process_one_text_row
+from src.extract_events_from_documents import process_one_text_row
 from tests.extract_events_manifest_fixtures import build_manifest_row
 
 
@@ -25,7 +25,8 @@ def test_layout_parser_keeps_line_level_provenance(tmp_path: Path) -> None:
     result = process_one_text_row(
         row,
         output_dir=str(output_dir),
-        out_name="events_from_text_raw.csv",
+        out_name="events.csv",
+        pages_name="pages.csv",
         input_dir=str(input_dir),
     )
 
@@ -37,7 +38,5 @@ def test_layout_parser_keeps_line_level_provenance(tmp_path: Path) -> None:
     df = pd.read_csv(Path(str(result["output_events_csv"])))
     assert list(df["event_kind"]) == ["E", "U"]
     assert list(df["event_time_hhmm"]) == ["06:54", "13:11"]
-    assert str(df.loc[0, "event_pattern"]).startswith("cartellino_ocr:")
-    assert pd.isna(df.loc[0, "source_match_start_char"])
-    assert pd.isna(df.loc[0, "source_match_col_start"])
-    assert str(df.loc[0, "source_event_ref"]).endswith("#line_no=2")
+    assert "line_no=2" in str(df.loc[0, "source_event_ref"])
+

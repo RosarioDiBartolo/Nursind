@@ -1,6 +1,6 @@
 {
-  "root_id": "1T6w6Np9WaXUoFWnjoFadiMv_I4xe7K4t",
-  "root_prefix": "GASPERINI",
+  "root_id": "1guqKp2FFRjl4OAgRN5y-7wkBeWQWDl1S",
+  "root_prefix": "PAGLIAI",
   "base_output_dir": "src\\notebooks\\output",
   "scan": {
     "workers": 8,
@@ -14,18 +14,19 @@
     "report_name": "extract_documents_from_index.report.json"
   },
   "extract_events": {
-    "out_name": "events_from_text_raw.csv",
-    "report_name": "extract_events_from_text_raw.report.json"
+    "out_name": "events.csv",
+    "pages_name": "pages.csv",
+    "report_name": "extract_events.report.json"
   },
   "filter_midnight": {
-    "events_name": "*.events_from_text_raw.csv",
-    "out_name": "events_from_text_raw.cleaned.csv",
-    "report_name": "events_from_text_raw.clean_midnight.report.json",
-    "removed_csv_name": "events_from_text_raw.midnight_removed.csv"
+    "events_name": "events.csv",
+    "out_name": "events.cleaned.csv",
+    "report_name": "events.clean_midnight.report.json",
+    "removed_csv_name": "events.midnight_removed.csv"
   },
   "pair_employee": {
-    "events_name": "*.events_from_text_raw.cleaned.csv",
-    "report_name": "pair_employee_events_from_days_raw.report.json",
+    "events_name": "events.cleaned.csv",
+    "report_name": "pair_employee_events.report.json",
     "max_gap_hours": 16.0
   },
   "turni_enrichment": {

@@ -1,4 +1,4 @@
-# Healthcare Shift Processing Pipeline
+﻿# Healthcare Shift Processing Pipeline
 
 A resilient data pipeline for extracting, pairing, enriching, and aggregating employee shift data from heterogeneous healthcare PDF time logs stored in Google Drive.
 
@@ -141,12 +141,12 @@ Behavior:
 - PDFs without a text layer are excluded at this step and recorded in the excluded text index with reason `missing_text_layer`.
 - Main pipeline stores one structured JSON per document (`docs/*.json`) as the canonical artifact, plus one thin manifest CSV per employee pointing to those JSON files.
 
-### 3) Direct Text-To-Events Extraction
+### 3) Document-To-Events Extraction
 
-Entry point: `python -m "src.extract_events_from_text_raw"`
+Entry point: `python -m "src.extract_events_from_documents"`
 
 Input: per-employee extracted text manifest CSVs + canonical `docs/*.json` payloads  
-Output: `output/events/**/events_from_text_raw.csv`
+Output: `output/events/events.csv` and `output/events/pages.csv`
 
 Behavior:
 
@@ -158,12 +158,12 @@ Behavior:
 
 ### 4) Midnight Event Cleaning
 
-Entry point: `python -m "src.filter_midnight_events_from_days_raw"`
+Entry point: `python -m "src.filter_midnight_events"`
 
-Input: `events_from_text_raw.csv`  
+Input: `events.csv`  
 Outputs:
 
-- `events_from_text_raw.cleaned.csv`
+- `events.cleaned.csv`
 - aggregate removed rows CSV
 
 Behavior:
@@ -173,7 +173,7 @@ Behavior:
 
 ### 5) Employee-Level Pairing
 
-Entry point: `python -m "src.pair_employee_events_from_days_raw"`
+Entry point: `python -m "src.pair_employee_events"`
 
 Input: cleaned events across all files for each employee  
 Output: `output/employee_shifts_from_raw/*.pairs.csv`
@@ -237,9 +237,9 @@ Behavior:
 python -m pip install -e .[dev]
 python -m "src.scan_directory" --root "<DRIVE_ROOT_FOLDER_ID>" --out "scan" --included "included.index.json" --filtered "filtered.index.json" --report "scan_directory.report.json" --verbose
 python -m "src.extract_documents_from_index" --index "scan/included.index.json" --out "output/text_extracted" --verbose
-python -m "src.extract_events_from_text_raw" --input-dir "output/text_extracted" --output-dir "output/events" --verbose
-python -m "src.filter_midnight_events_from_days_raw" --input-dir "output/events" --verbose
-python -m "src.pair_employee_events_from_days_raw" --input-dir "output/events" --output-dir "output/employee_shifts_from_raw" --verbose
+python -m "src.extract_events_from_documents" --input-dir "output/text_extracted" --output-dir "output/events" --verbose
+python -m "src.filter_midnight_events" --input-dir "output/events" --verbose
+python -m "src.pair_employee_events" --input-dir "output/events" --output-dir "output/employee_shifts_from_raw" --verbose
 python -m "src.turni_enrichment" --input-dir "output/employee_shifts_from_raw" --out-dir "output/enriched/employee_pairs" --verbose
 python -m "src.turni_employee_summary" --enriched-dir "output/enriched/employee_pairs" --out "output/aggregates/turni_employee_summary.csv" --format "csv" --verbose
 ```
@@ -277,7 +277,7 @@ Use step notebooks in `src/notebooks` to demonstrate each pipeline stage with re
 - `src/notebooks/run_pipeline.ipynb`: runs the full pipeline end-to-end using the same shared notebook config.
 - `src/notebooks/scan.ipynb`: runs the current Drive scan runtime using the shared notebook config.
 - `src/notebooks/extract_documents.ipynb`: runs document extraction against the shared scan output.
-- `src/notebooks/extract_events_from_text_raw.ipynb`: runs direct text-to-events parsing against the shared extraction output.
+- `src/notebooks/extract_events_from_documents.ipynb`: runs direct text-to-events parsing against the shared extraction output.
 
 Expected scan artifacts from the scan notebook:
 
@@ -309,3 +309,4 @@ python -m "src.extract_documents_from_index" --index "<shared_output_root>/scan/
 - [ ] Refactor large CLI modules into thinner orchestration + service layers.
 - [ ] Remove deprecated compatibility paths after a migration window.
 - [ ] Add CI checks for smoke runs of canonical `python -m "src.*"` entry points.
+

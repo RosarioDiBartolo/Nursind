@@ -1,8 +1,8 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from pathlib import Path
 
-from src.extract_events_from_text_raw.parsers import load_parsers
+from src.extract_events_from_documents.parsers import load_parsers
 
 FIXTURES_ROOT = Path(__file__).parent / "fixtures" / "days_parsers"
 
@@ -26,3 +26,4 @@ def test_discovered_parser_contract_shape() -> None:
         assert isinstance(parser.priority, int)
         assert callable(parser.score_document)
         assert callable(parser.parse_document)
+

@@ -1,4 +1,0 @@
-events step:
-events report should have a list of teh files without events.
-teh name of teh reprot ocntains "text" in it
-in teh rpeort each fiel shoudl have teh parser informations, not only per event.

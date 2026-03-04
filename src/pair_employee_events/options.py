@@ -10,9 +10,9 @@ DEFAULT_OUTPUTS = build_pipelines_paths()
 DEFAULT_INPUT_DIR = str(DEFAULT_OUTPUTS.events_output)
 DEFAULT_INDEX = None
 DEFAULT_OUTPUT_DIR = str(DEFAULT_OUTPUTS.shifts_output)
-DEFAULT_EVENTS_NAME = "*.events_from_text_raw.cleaned.csv"
+DEFAULT_EVENTS_NAME = "events.cleaned.csv"
 DEFAULT_REPORT_JSON = str(
-    DEFAULT_OUTPUTS.shifts_output / "pair_employee_events_from_days_raw.report.json"
+    DEFAULT_OUTPUTS.shifts_output / "pair_employee_events.report.json"
 )
 DEFAULT_MAX_GAP_HOURS = 16.0
 
@@ -41,8 +41,8 @@ def build_parser() -> argparse.ArgumentParser:
         "--input-dir",
         default=DEFAULT_INPUT_DIR,
         help=(
-            "Root directory with per-file cleaned events in structure "
-            "<employee>/<document>/events_from_text_raw.cleaned.csv "
+            "Root directory with cleaned events files. Supports run-level "
+            "`events.cleaned.csv` or legacy per-file layouts. "
             f"(default: {DEFAULT_INPUT_DIR})"
         ),
     )

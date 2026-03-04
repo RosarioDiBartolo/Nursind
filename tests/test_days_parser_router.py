@@ -1,9 +1,9 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 from pathlib import Path
 
-from src.extract_events_from_text_raw.parsers import load_parsers, resolve_parser
+from src.extract_events_from_documents.parsers import load_parsers, resolve_parser
 
 FIXTURES_ROOT = Path(__file__).parent / "fixtures" / "days_parsers"
 
@@ -44,3 +44,4 @@ def test_resolve_parser_matches_fixture_expectations() -> None:
         text = text_path.read_text(encoding="utf-8")
         parser = resolve_parser(_document(text))
         assert parser.parser_id == str(payload["parser_id"])
+

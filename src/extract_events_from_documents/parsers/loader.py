@@ -29,5 +29,5 @@ def load_parsers() -> tuple[BaseFormatParser, ...]:
             discovered.append(parser)
 
     if not discovered:
-        raise RuntimeError("No format parsers discovered in extract_events_from_text_raw.parsers")
+        raise RuntimeError("No format parsers discovered in extract_events_from_documents.parsers")
     return tuple(sorted(discovered, key=lambda parser: parser.parser_id))

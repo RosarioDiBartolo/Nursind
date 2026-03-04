@@ -12,7 +12,7 @@ from .options import (
     parse_options,
 )
 from .runtime import (
-    build_pair_employee_events_from_days_raw_from_dir,
+    build_pair_employee_events_from_dir,
     pair_employee_events,
     run_from_options,
 )
@@ -36,7 +36,7 @@ __all__ = [
     "normalize_employee",
     "process_one_employee_events",
     "process_many_employee_events",
-    "build_pair_employee_events_from_days_raw_from_dir",
+    "build_pair_employee_events_from_dir",
     "pair_employee_events",
     "run_from_options",
     "main",

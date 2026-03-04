@@ -1,9 +1,9 @@
-import csv
+﻿import csv
 from pathlib import Path
 
 import pandas as pd
 
-from src.pair_employee_events_from_days_raw import (
+from src.pair_employee_events import (
     process_many_employee_events,
     process_one_employee_events,
 )
@@ -13,11 +13,15 @@ from tests.step_contract import assert_process_many_contract, assert_process_one
 def _write_events_csv(path: Path, rows: list[dict[str, str]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     columns = [
+        "event_id",
         "event_kind",
         "event_ts",
         "event_raw",
         "source_line_no",
         "event_index",
+        "source_employee",
+        "source_file_id",
+        "source_file_name",
     ]
     with path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=columns)
@@ -29,23 +33,31 @@ def _write_events_csv(path: Path, rows: list[dict[str, str]]) -> None:
 def test_pair_employee_process_one_contract(tmp_path: Path) -> None:
     input_base = tmp_path / "events"
     output_dir = tmp_path / "pairs"
-    events_csv = input_base / "Mario Rossi" / "sample.events_from_text_raw.cleaned.csv"
+    events_csv = input_base / "events.cleaned.csv"
     _write_events_csv(
         events_csv,
         [
             {
+                "event_id": "doc#p1:l1:i0",
                 "event_kind": "E",
                 "event_ts": "2023-01-01 08:00:00",
                 "event_raw": "E 08:00",
                 "source_line_no": "1",
                 "event_index": "0",
+                "source_employee": "Mario Rossi",
+                "source_file_id": "file-1",
+                "source_file_name": "sample",
             },
             {
+                "event_id": "doc#p1:l1:i1",
                 "event_kind": "U",
                 "event_ts": "2023-01-01 14:00:00",
                 "event_raw": "U 14:00",
                 "source_line_no": "1",
                 "event_index": "1",
+                "source_employee": "Mario Rossi",
+                "source_file_id": "file-1",
+                "source_file_name": "sample",
             },
         ],
     )
@@ -56,8 +68,8 @@ def test_pair_employee_process_one_contract(tmp_path: Path) -> None:
         "files": [
             {
                 "events_csv": str(events_csv),
-                "file_id": "file-1",
-                "file_name": "sample",
+                "file_id": None,
+                "file_name": None,
             }
         ],
     }
@@ -79,23 +91,31 @@ def test_pair_employee_process_one_contract(tmp_path: Path) -> None:
 def test_pair_employee_process_many_contract(tmp_path: Path) -> None:
     input_base = tmp_path / "events"
     output_dir = tmp_path / "pairs"
-    good_csv = input_base / "Mario Rossi" / "good.events_from_text_raw.cleaned.csv"
+    good_csv = input_base / "events.cleaned.csv"
     _write_events_csv(
         good_csv,
         [
             {
+                "event_id": "doc#p1:l1:i0",
                 "event_kind": "E",
                 "event_ts": "2023-01-02 08:00:00",
                 "event_raw": "E 08:00",
                 "source_line_no": "1",
                 "event_index": "0",
+                "source_employee": "Mario Rossi",
+                "source_file_id": "file-1",
+                "source_file_name": "good",
             },
             {
+                "event_id": "doc#p1:l1:i1",
                 "event_kind": "U",
                 "event_ts": "2023-01-02 14:00:00",
                 "event_raw": "U 14:00",
                 "source_line_no": "1",
                 "event_index": "1",
+                "source_employee": "Mario Rossi",
+                "source_file_id": "file-1",
+                "source_file_name": "good",
             },
         ],
     )
@@ -107,8 +127,8 @@ def test_pair_employee_process_many_contract(tmp_path: Path) -> None:
             "files": [
                 {
                     "events_csv": str(good_csv),
-                    "file_id": "file-1",
-                    "file_name": "good",
+                    "file_id": None,
+                    "file_name": None,
                 }
             ],
         },
@@ -117,13 +137,9 @@ def test_pair_employee_process_many_contract(tmp_path: Path) -> None:
             "employee_id": "emp-2",
             "files": [
                 {
-                    "events_csv": str(
-                        input_base
-                        / "Giulia Bianchi"
-                        / "missing.events_from_text_raw.cleaned.csv"
-                    ),
-                    "file_id": "file-2",
-                    "file_name": "missing",
+                    "events_csv": str(good_csv),
+                    "file_id": None,
+                    "file_name": None,
                 }
             ],
         },
@@ -135,10 +151,12 @@ def test_pair_employee_process_many_contract(tmp_path: Path) -> None:
         max_gap_hours=16.0,
         input_mode="folder",
         input_dir=str(input_base),
-        events_name="*.events_from_text_raw.cleaned.csv",
+        events_name="events.cleaned.csv",
     )
 
     assert_process_many_contract(report)
     assert int(report["stats"]["files_total"]) == 2
-    assert int(report["stats"]["files_processed"]) == 1
-    assert int(report["stats"]["files_error"]) == 1
+    assert int(report["stats"]["files_processed"]) == 2
+    assert int(report["stats"]["files_error"]) == 0
+    assert int(report["stats"]["employees_with_pairs"]) == 1
+

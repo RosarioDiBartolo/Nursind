@@ -1,4 +1,4 @@
-# Schemas (CSV)
+﻿# Schemas (CSV)
 
 ## text layout document JSON (`docs/<file-id>.json`)
 
@@ -23,31 +23,36 @@ Columns:
 
 Produced by: `src.extract_documents_from_index`
 
-## events_from_text_raw.csv
+## events.csv
 
 Columns:
-- `year`, `month`, `day`, `dow`
-- `event_index`, `event_kind`, `event_time_hhmm`, `event_ts`
-- `event_raw`, `event_pattern`
-- `parser_id`, `doc_format`, `source_origin`
-- `source_doc_json`, `source_file_id`, `source_file_name`
-- `source_employee`, `source_drive_path`, `source_file_link`
-- `source_page_no`, `source_line_id`, `source_line_no`, `source_line_text`
-- `source_slot`, `source_word_start`, `source_word_end`
-- `source_bbox_x0`, `source_bbox_y0`, `source_bbox_x1`, `source_bbox_y1`
-- `source_line_start_char`, `source_line_end_char`
-- `source_match_start_char`, `source_match_end_char`
-- `source_match_col_start`, `source_match_col_end`
-- `normalized_from`, `normalization_kind`
+- `event_id`, `event_ts`
+- `event_kind`, `event_time_hhmm`, `event_raw`
+- `parser_id`, `source_origin`
+- `source_doc_json`, `source_file_id`, `source_file_name`, `source_employee`
+- `source_page_no`, `source_line_id`, `source_line_no`, `source_slot`
 - `source_event_ref`
 
-Produced by: `src.extract_events_from_text_raw`
+Produced by: `src.extract_events_from_documents`
 
-## events_from_text_raw.cleaned.csv
+## pages.csv
 
-Same schema as `events_from_text_raw.csv`, but with fake-midnight events removed.
+Columns:
+- `page_ref`, `source_doc_json`, `source_file_id`, `source_file_name`, `source_employee`
+- `page_no`, `page_kind`, `decision`, `decision_reason`, `parser_id`
+- `page_year`, `page_month`, `year_month_source`
+- `relevant_for_coverage`
+- `rows_considered`, `rows_with_events`, `rows_without_events`
+- `events_extracted`, `events_dropped_missing_year_month`
+- `coverage_ratio_page`, `header_preview`, `parse_error`
 
-Produced by: `src.filter_midnight_events_from_days_raw`
+Produced by: `src.extract_events_from_documents`
+
+## events.cleaned.csv
+
+Same schema as `events.csv`, but with fake-midnight events removed.
+
+Produced by: `src.filter_midnight_events`
 
 ## employee pairs (`*.pairs.csv`)
 
@@ -58,7 +63,7 @@ Columns:
 - `file_id`, `file_name`, `source_csv`
 - Optional: `closed_inferred` (only when pairing is run with `--keep-inferred-column`)
 
-Produced by: `src.pair_employee_events_from_days_raw`
+Produced by: `src.pair_employee_events`
 
 ## enriched employee pairs (`*.enriched.csv`)
 
@@ -77,3 +82,4 @@ Columns:
 - One column per year in the selected range (`--year-start`..`--year-end`)
 
 Produced by: `src.turni_employee_summary`
+
