@@ -12,8 +12,7 @@ from src.drive_service.fs_utils import ensure_dir
 class PipelinePaths:
     root_output: Path
     scan_output: Path
-    documents_output: Path
-    parsing_output: Path
+    documents_output: Path 
     events_output: Path
     shifts_output: Path
     enrichment_output: Path
@@ -25,8 +24,7 @@ class PipelinePaths:
         for path in (
             self.root_output,
             self.scan_output,
-            self.documents_output,
-            self.parsing_output,
+            self.documents_output, 
             self.events_output,
             self.shifts_output,
             self.enrichment_output,
@@ -68,8 +66,7 @@ def build_pipelines_paths(
     outputs = PipelinePaths(
         root_output=root_output,
         scan_output=root_output / "scan",
-        documents_output=root_output / "documents",
-        parsing_output=root_output / "days",
+        documents_output=root_output / "documents", 
         events_output=root_output / "events",
         shifts_output=root_output / "shifts",
         enrichment_output=root_output / "enrichment",
