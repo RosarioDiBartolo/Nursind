@@ -1,15 +1,15 @@
 # LLM Context Index
-Last updated: 2026-03-02
+Last updated: 2026-03-13
 
 Purpose: this file is a lightweight map to the canonical project docs. Do not duplicate detailed behavior here.
 
 ## Start Here
-- `README.md`: architecture flow, quickstart, canonical module entry points.
+- `README.md`: architecture flow, quickstart, canonical module entry points, canonical pipeline layout.
 - `PIPELINE_COMMANDS.md`: canonical command list for the active pipeline.
 
 ## Stage Docs
-- `docs/ingestion.md`: scan + text extraction.
-- `docs/preparation.md`: direct text-to-events extraction, midnight cleanup, pairing.
+- `docs/ingestion.md`: scan + document extraction.
+- `docs/preparation.md`: document-to-events extraction, midnight cleanup, pairing, and audit.
 - `docs/enrichment.md`: enrichment step and fields.
 - `docs/aggregation.md`: yearly employee summary.
 - `docs/schemas.md`: CSV schemas and field reference.
@@ -25,5 +25,6 @@ Purpose: this file is a lightweight map to the canonical project docs. Do not du
 - `src/extract_events_from_documents`
 - `src/filter_midnight_events`
 - `src/pair_employee_events`
-- `src/turni_enrichment.py`
-- `src/turni_employee_summary.py`
+- `src/turni_enrichment`
+- `src/turni_employee_summary`
+- `src/timbrature_missing_report`

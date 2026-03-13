@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from .names import normalize_term
 
 try:
-    from .output_paths import build_pipelines_paths
+    from src.pipeline_paths import build_pipelines_paths
 except Exception:  # pragma: no cover - defensive fallback for unrelated path module failures
     build_pipelines_paths = None
 
@@ -25,8 +25,8 @@ else:
     _DEFAULT_OUTPUTS = None
     _DEFAULT_SCAN_OUT = str(Path("output") / "scan")
 SCAN_OUT_DIR = os.getenv("SCAN_OUT_DIR", _DEFAULT_SCAN_OUT)
-SCAN_INCLUDED_NAME = os.getenv("SCAN_INCLUDED_NAME", "included_index.json")
-SCAN_FILTERED_NAME = os.getenv("SCAN_FILTERED_NAME", "filtered_index.json")
+SCAN_INCLUDED_NAME = os.getenv("SCAN_INCLUDED_NAME", "included.index.json")
+SCAN_FILTERED_NAME = os.getenv("SCAN_FILTERED_NAME", "filtered.index.json")
 
 def validate_env():
     if not CLIENT_ID or not CLIENT_SECRET:

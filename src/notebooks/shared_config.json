@@ -1,6 +1,6 @@
 {
-  "root_id": "1hxSSsFQNMo63L_dDEbyNtVTa1I7IUjQC",
-  "root_prefix": "ACETO",
+  "root_id": "1T6w6Np9WaXUoFWnjoFadiMv_I4xe7K4t",
+  "root_prefix": "GASPERINI",
   "base_output_dir": "src\\notebooks\\output",
   "scan": {
     "workers": 8,
@@ -41,5 +41,10 @@
     "year_start": 2016,
     "year_end": 2025,
     "min_hours": null
+  },
+  "timbrature_missing_report": {
+    "report_name": "missing_timbrature.report.json",
+    "employee_summary_name": "missing_timbrature.employees.csv",
+    "issues_name": "missing_timbrature.issues.csv"
   }
 }

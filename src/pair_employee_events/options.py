@@ -4,11 +4,10 @@ import argparse
 from dataclasses import dataclass
 from typing import Sequence
 
-from src.drive_service.output_paths import build_pipelines_paths
+from src.pipeline_paths import build_pipelines_paths
 
 DEFAULT_OUTPUTS = build_pipelines_paths()
 DEFAULT_INPUT_DIR = str(DEFAULT_OUTPUTS.events_output)
-DEFAULT_INDEX = None
 DEFAULT_OUTPUT_DIR = str(DEFAULT_OUTPUTS.shifts_output)
 DEFAULT_EVENTS_NAME = "events.cleaned.csv"
 DEFAULT_REPORT_JSON = str(
@@ -20,7 +19,6 @@ DEFAULT_MAX_GAP_HOURS = 16.0
 @dataclass(slots=True)
 class PairEmployeeEventsOptions:
     input_dir: str | None = DEFAULT_INPUT_DIR
-    index_path: str | None = DEFAULT_INDEX
     output_dir: str = DEFAULT_OUTPUT_DIR
     events_name: str = DEFAULT_EVENTS_NAME
     report_json: str = DEFAULT_REPORT_JSON
@@ -42,16 +40,8 @@ def build_parser() -> argparse.ArgumentParser:
         default=DEFAULT_INPUT_DIR,
         help=(
             "Root directory with cleaned events files. Supports run-level "
-            "`events.cleaned.csv` or legacy per-file layouts. "
+            "`events.cleaned.csv` or canonical per-employee layouts. "
             f"(default: {DEFAULT_INPUT_DIR})"
-        ),
-    )
-    parser.add_argument(
-        "--index",
-        default=DEFAULT_INDEX,
-        help=(
-            "Deprecated: path to included.index.json for legacy index mode. "
-            "Used only when --input-dir is empty (default: disabled)."
         ),
     )
     parser.add_argument(
@@ -97,13 +87,8 @@ def parse_options(argv: Sequence[str] | None = None) -> PairEmployeeEventsOption
     if input_dir == "":
         input_dir = None
 
-    index_path = str(args.index).strip() if args.index is not None else None
-    if index_path == "":
-        index_path = None
-
     return PairEmployeeEventsOptions(
         input_dir=input_dir,
-        index_path=index_path,
         output_dir=args.output_dir,
         events_name=args.events_name,
         report_json=args.report_json,

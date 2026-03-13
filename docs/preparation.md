@@ -1,4 +1,4 @@
-﻿# Preparation (Direct Events, Cleaning, Pairing)
+# Preparation (Direct Events, Cleaning, Pairing)
 
 This stage transforms canonical extracted document payloads directly into cleaned event streams and employee-level pairs.
 
@@ -9,61 +9,63 @@ Step structure reference: `docs/step_contract_v1.md`
 - `python -m "src.extract_events_from_documents"`
 - `python -m "src.filter_midnight_events"`
 - `python -m "src.pair_employee_events"`
+- `python -m "src.timbrature_missing_report"`
+
+Canonical pipeline root example:
+`output/default`
 
 ## Flow
 
 1. Parse employee document manifest CSV rows, load each canonical `docs/*.json` payload, and emit run-level `events.csv` plus page diagnostics `pages.csv`.
 2. Remove fake midnight events into `events.cleaned.csv`.
-3. Pair cleaned events at employee scope into `output/employee_shifts_from_raw/*.pairs.csv`.
+3. Pair cleaned events at employee scope into `output/default/shifts/*.pairs.csv`.
+4. Run the missing-timbrature audit against the canonical pipeline root when you need an employee-centered exception report.
 
-The direct event step no longer scans legacy raw `.txt` files; canonical manifest rows with `doc_json` are required.
+The direct event step no longer scans raw `.txt` files. Pairing no longer supports legacy index mode. The audit expects the canonical `documents/events/shifts` layout.
 
 ## Inputs
 
-- Root document manifests folder: `output/text_extracted`
-- Raw events root: `output/events`
+- Root document manifests folder: `output/default/documents`
+- Raw events root: `output/default/events`
 
 ## Outputs
 
-- `output/text_extracted/<employee>.csv`
-- `output/text_extracted/docs/*.json`
-- `output/events/events.csv`
-- `output/events/pages.csv`
-- `output/events/events.cleaned.csv`
-- `output/employee_shifts_from_raw/*.pairs.csv`
-- Stage reports in `output/events/*.report.json` and `output/employee_shifts_from_raw/*.report.json`
-- Optional audit outputs from `src.timbrature_missing_report`:
-  - `missing_timbrature.report.json`
-  - `missing_timbrature.employees.csv`
-  - `missing_timbrature.issues.csv`
-  - `missing_timbrature.non_ocr_files/*.csv`
-  - `missing_timbrature.missing_months/*.csv`
+- `output/default/documents/<employee>.csv`
+- `output/default/documents/docs/*.json`
+- `output/default/events/events.csv`
+- `output/default/events/pages.csv`
+- `output/default/events/events.cleaned.csv`
+- `output/default/shifts/*.pairs.csv`
+- Stage reports in `output/default/events/*.report.json` and `output/default/shifts/*.report.json`
+- Optional audit outputs:
+  - `output/default/missing_timbrature.report.json`
+  - `output/default/missing_timbrature.employees.csv`
+  - `output/default/missing_timbrature.issues.csv`
+  - `output/default/missing_timbrature.non_ocr_files/*.csv`
+  - `output/default/missing_timbrature.missing_months/*.csv`
 
 ## Typical commands
 
 ```powershell
-python -m "src.extract_events_from_documents" --input-dir "output/text_extracted" --output-dir "output/events" --out-name "events.csv" --pages-name "pages.csv" --report-json "output/events/extract_events.report.json" --verbose
-python -m "src.filter_midnight_events" --input-dir "output/events" --events-name "events.csv" --out-name "events.cleaned.csv" --report-json "output/events/events.clean_midnight.report.json" --removed-csv "output/events/events.midnight_removed.csv" --verbose
-python -m "src.pair_employee_events" --input-dir "output/events" --output-dir "output/employee_shifts_from_raw" --events-name "events.cleaned.csv" --report-json "output/employee_shifts_from_raw/pair_employee_events.report.json" --max-gap-hours 16 --verbose
+python -m "src.extract_events_from_documents" --input-dir "output/default/documents" --output-dir "output/default/events" --out-name "events.csv" --pages-name "pages.csv" --report-json "output/default/events/extract_events.report.json" --verbose
+python -m "src.filter_midnight_events" --input-dir "output/default/events" --events-name "events.csv" --out-name "events.cleaned.csv" --report-json "output/default/events/events.clean_midnight.report.json" --removed-csv "output/default/events/events.midnight_removed.csv" --verbose
+python -m "src.pair_employee_events" --input-dir "output/default/events" --output-dir "output/default/shifts" --events-name "events.cleaned.csv" --report-json "output/default/shifts/pair_employee_events.report.json" --max-gap-hours 16 --verbose
 python -m "src.timbrature_missing_report" --pipeline-dir "output/default" --verbose
+python -m pytest -q
 ```
 
 ## Missing timbrature audit
 
-Use `src.timbrature_missing_report` after pairing when you need an employee-centered exception report instead of another transformation step.
-
 The audit merges:
 
 - the full scan-report `employees_found` inventory so every scanned employee appears in the employee CSV
-- fixed-range month coverage from pipeline events by comparing required months `2014-01..2026-12` against the months found in `events.cleaned.csv` (fallback: `events.csv`)
+- fixed-range month coverage from pipeline events by comparing required months `2014-01..2026-12` against the months found in `events.cleaned.csv` with fallback to `events.csv`
 - per-employee non-OCR file exports under `missing_timbrature.non_ocr_files/`, one row per `missing_text_layer` file
 - per-employee missing-month exports under `missing_timbrature.missing_months/`, one row per missing required month (`year`, `month`, `month_name`)
 - scan-report employees whose direct root folder produced `0` included files
 - document exclusions with reason `missing_text_layer`
 - event pages with `decision_reason=missing_page_year_month`
-- per-employee pair outputs to spot missing month/year coverage after pairing
-
-The report is read-only against pipeline artifacts and supports both current and legacy folder layouts.
+- per-employee pair outputs to spot missing month and year coverage after pairing
 
 ## Function-level testing (`extract_events_from_documents`)
 
@@ -76,10 +78,10 @@ single = process_one_text_row(
         "doc_json": "docs/documento.json",
         "file_name": "documento.pdf",
     },
-    output_dir="output/events",
+    output_dir="output/default/events",
     out_name="events.csv",
     pages_name="pages.csv",
-    input_dir="output/text_extracted",
+    input_dir="output/default/documents",
 )
 
 batch = process_many_text_rows(
@@ -95,10 +97,10 @@ batch = process_many_text_rows(
             "file_name": "doc2.pdf",
         },
     ],
-    output_dir="output/events",
+    output_dir="output/default/events",
     out_name="events.csv",
     pages_name="pages.csv",
-    input_dir="output/text_extracted",
+    input_dir="output/default/documents",
 )
 ```
 
@@ -111,19 +113,19 @@ from src.filter_midnight_events import (
 )
 
 single = process_one_events_file(
-    "output/events/events.csv",
-    output_dir="output/events",
-    input_base="output/events",
+    "output/default/events/events.csv",
+    output_dir="output/default/events",
+    input_base="output/default/events",
 )
 
 batch = process_many_events_files(
     [
-        "output/events/events.csv",
-        "output/events/missing.csv",
+        "output/default/events/events.csv",
+        "output/default/events/missing.csv",
     ],
-    output_dir="output/events",
+    output_dir="output/default/events",
     out_name="events.cleaned.csv",
-    input_base="output/events",
+    input_base="output/default/events",
 )
 ```
 
@@ -140,7 +142,7 @@ one_employee = {
     "employee_id": "emp-rossi",
     "files": [
         {
-            "events_csv": "output/events/events.cleaned.csv",
+            "events_csv": "output/default/events/events.cleaned.csv",
             "file_id": "doc1",
             "file_name": "doc1",
         }
@@ -149,14 +151,13 @@ one_employee = {
 
 single = process_one_employee_events(
     one_employee,
-    output_dir="output/employee_shifts_from_raw",
+    output_dir="output/default/shifts",
     max_gap_hours=16.0,
 )
 
 batch = process_many_employee_events(
     [one_employee],
-    output_dir="output/employee_shifts_from_raw",
+    output_dir="output/default/shifts",
     max_gap_hours=16.0,
 )
 ```
-

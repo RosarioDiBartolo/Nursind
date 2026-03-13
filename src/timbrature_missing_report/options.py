@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Sequence
 
 try:
-    from src.drive_service.output_paths import build_pipelines_paths
+    from src.pipeline_paths import build_pipelines_paths
 except Exception:  # pragma: no cover - defensive fallback
     build_pipelines_paths = None
 
@@ -42,7 +42,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--pipeline-dir",
         default=DEFAULT_PIPELINE_DIR,
-        help="Root pipeline folder. Supports current and legacy layouts.",
+        help="Root pipeline folder using the canonical layout.",
     )
     parser.add_argument(
         "--report-json",

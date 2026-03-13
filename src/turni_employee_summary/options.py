@@ -4,7 +4,7 @@ import argparse
 from dataclasses import dataclass
 from typing import Literal, Sequence
 
-from src.drive_service.output_paths import build_pipelines_paths
+from src.pipeline_paths import build_pipelines_paths
 
 DEFAULT_YEAR_START = 2016
 DEFAULT_YEAR_END = 2025

@@ -8,7 +8,7 @@ from typing import Sequence
 from src.drive_service.text_extraction_csv import TEXT_EXTRACTION_CSV_GLOB
 
 try:
-    from src.drive_service.output_paths import build_pipelines_paths
+    from src.pipeline_paths import build_pipelines_paths
 except Exception:  # pragma: no cover - defensive fallback for unrelated path module failures
     build_pipelines_paths = None
 

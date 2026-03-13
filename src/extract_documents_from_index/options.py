@@ -7,18 +7,18 @@ from pathlib import Path
 from typing import Sequence
 
 try:
-    from src.drive_service.output_paths import build_pipelines_paths
+    from src.pipeline_paths import build_pipelines_paths
 except Exception:  # pragma: no cover - defensive fallback for unrelated path module failures
     build_pipelines_paths = None
 
 if build_pipelines_paths is not None:
     DEFAULT_OUTPUTS = build_pipelines_paths()
     DEFAULT_OUT = str(DEFAULT_OUTPUTS.documents_output)
-    DEFAULT_INDEX = str(DEFAULT_OUTPUTS.scan_output / "included_index.json")
+    DEFAULT_INDEX = str(DEFAULT_OUTPUTS.scan_output / "included.index.json")
 else:
     DEFAULT_OUTPUTS = None
     DEFAULT_OUT = str(Path("output") / "documents")
-    DEFAULT_INDEX = str(Path("output") / "scan" / "included_index.json")
+    DEFAULT_INDEX = str(Path("output") / "scan" / "included.index.json")
 
 
 @dataclass(slots=True)

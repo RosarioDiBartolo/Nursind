@@ -4,7 +4,7 @@ import argparse
 from dataclasses import dataclass
 from typing import Sequence
 
-from src.drive_service.output_paths import build_pipelines_paths
+from src.pipeline_paths import build_pipelines_paths
 
 DEFAULT_MIN_HOURS = 6.0
 DEFAULT_OUTPUTS = build_pipelines_paths()

@@ -1,4 +1,4 @@
-# Enrichment pipeline
+# Enrichment Pipeline
 
 This stage enriches employee pair CSVs with classification fields used by aggregation.
 
@@ -6,14 +6,17 @@ This stage enriches employee pair CSVs with classification fields used by aggreg
 
 - `python -m "src.turni_enrichment"`
 
+Canonical pipeline root example:
+`output/default`
+
 ## Input
 
-- Canonical pipeline input: `output/employee_shifts_from_raw/*.pairs.csv`
-- CLI default if `--input-dir` is omitted: `output/employee_shifts_from_raw/*.pairs.csv`
+- Canonical pipeline input: `output/default/shifts/*.pairs.csv`
+- CLI default if `--input-dir` is omitted: `output/default/shifts`
 
 ## Output
 
-- Per-employee enriched files under `output/enriched/employee_pairs/*.enriched.csv`
+- Per-employee enriched files under `output/default/enrichment/*.enriched.csv`
 
 ## Output columns (ordered)
 
@@ -32,11 +35,12 @@ This stage enriches employee pair CSVs with classification fields used by aggreg
 ## Run
 
 ```powershell
-python -m "src.turni_enrichment" --input-dir "output/employee_shifts_from_raw" --out-dir "output/enriched/employee_pairs" --min-hours 6 --verbose
+python -m "src.turni_enrichment" --input-dir "output/default/shifts" --out-dir "output/default/enrichment" --min-hours 6 --verbose
+python -m pytest -q
 ```
 
 Optional flags:
-- `--no-holidays`: classify `F` using Sundays only (skip Italian holidays)
+- `--no-holidays`: classify `F` using Sundays only
 - `--stats-json "<PATH>"`: write enrichment run stats as JSON
 
 ## Function-level testing (`turni_enrichment`)
@@ -45,18 +49,18 @@ Optional flags:
 from src.turni_enrichment import process_many_pairs_files, process_one_pairs_file
 
 single = process_one_pairs_file(
-    "output/employee_shifts_from_raw/ROSSI.pairs.csv",
-    output_dir="output/enriched/employee_pairs",
+    "output/default/shifts/ROSSI.pairs.csv",
+    output_dir="output/default/enrichment",
     min_hours=6.0,
 )
 
 batch = process_many_pairs_files(
     [
-        "output/employee_shifts_from_raw/ROSSI.pairs.csv",
-        "output/employee_shifts_from_raw/BIANCHI.pairs.csv",
+        "output/default/shifts/ROSSI.pairs.csv",
+        "output/default/shifts/BIANCHI.pairs.csv",
     ],
-    output_dir="output/enriched/employee_pairs",
-    input_dir="output/employee_shifts_from_raw",
+    output_dir="output/default/enrichment",
+    input_dir="output/default/shifts",
     min_hours=6.0,
 )
 ```

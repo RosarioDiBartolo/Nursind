@@ -160,3 +160,16 @@ def test_build_missing_timbrature_report_writes_required_month_columns(tmp_path:
     assert report_json_payload["outputs"]["missing_months_dir"] == str(
         missing_months_dir.resolve()
     )
+
+
+def test_audit_missing_timbrature_rejects_legacy_layout(tmp_path: Path) -> None:
+    legacy_pipeline_dir = tmp_path / "legacy-pipeline"
+    (legacy_pipeline_dir / "text_extracted").mkdir(parents=True)
+    (legacy_pipeline_dir / "employee_shifts_from_raw").mkdir(parents=True)
+
+    try:
+        audit_missing_timbrature_pipeline(legacy_pipeline_dir)
+    except ValueError as exc:
+        assert "Legacy pipeline layout is no longer supported" in str(exc)
+    else:  # pragma: no cover - defensive assertion
+        raise AssertionError("Expected legacy-only pipeline layouts to be rejected")
