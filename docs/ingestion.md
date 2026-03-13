@@ -36,7 +36,8 @@ This stage discovers source files in Drive and extracts structured document payl
 - ZIP members are emitted with synthetic `file_id` values and virtual paths like `.../archive.zip/<member>.pdf`.
 - ZIP scan failures are added to filtered index with reasons (`invalid_zip_archive`, `zip_scan_error:*`, `zip_no_pdf_members`).
 - Scan continues when a single employee folder fails; failures are captured in `scan/scan_directory.report.json`.
-- Scan report fields include `employee_total`, `employee_succeeded`, `employee_failed`, `included_total`, `filtered_total`, `employees_without_included_files_count`, `employees_without_included_files`, and `scan_errors`.
+- Scan report fields include `employee_total`, `employee_succeeded`, `employee_failed`, `employees_found`, `included_total`, `filtered_total`, `employees_without_included_files_count`, `employees_without_included_files`, and `scan_errors`.
+- `employees_found` contains one row per direct employee folder with `employee`, `employee_id`, `included_files`, `excluded_files`, `excluded_folders`, `excluded_total`, `status`, and optional `error`.
 - `employees_without_included_files` is computed from the direct subfolders of the scan root that completed successfully but produced `0` included files.
 - Extraction recognizes ZIP-member `file_id` values and downloads the parent archive, then extracts the member PDF bytes before text extraction.
 - ZIP archive downloads are cached per worker thread to avoid re-downloading the same archive for multiple members.

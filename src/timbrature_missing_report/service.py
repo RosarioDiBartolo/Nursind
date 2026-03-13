@@ -28,6 +28,11 @@ EMPLOYEE_SUMMARY_COLUMNS = [
     "scan_without_included_files",
     "missing_text_layer_files",
     "pages_missing_year_month",
+    "required_month_range",
+    "found_event_months",
+    "found_event_months_count",
+    "missing_required_months",
+    "missing_required_months_count",
     "expected_months",
     "paired_months",
     "missing_months_after_pairing",
@@ -59,6 +64,16 @@ ISSUE_COLUMNS = [
     "pair_output_csv",
 ]
 
+REQUIRED_YEAR_START = 2014
+REQUIRED_YEAR_END = 2026
+REQUIRED_MONTH_RANGE_LABEL = f"{REQUIRED_YEAR_START:04d}-01..{REQUIRED_YEAR_END:04d}-12"
+REQUIRED_MONTHS: tuple[YearMonth, ...] = tuple(
+    (year, month)
+    for year in range(REQUIRED_YEAR_START, REQUIRED_YEAR_END + 1)
+    for month in range(1, 13)
+)
+REQUIRED_MONTHS_SET = set(REQUIRED_MONTHS)
+
 
 @dataclass(slots=True)
 class ResolvedAuditInputs:
@@ -69,6 +84,7 @@ class ResolvedAuditInputs:
     shifts_dir: Path
     scan_report_path: Path
     excluded_index_path: Path
+    found_events_csv_path: Path
     pages_csv_path: Path
     pair_report_path: Path
 
@@ -86,6 +102,7 @@ class EmployeeAccumulator:
     pair_error_code: str | None = None
     pair_error: str | None = None
     pair_output_csv: str | None = None
+    found_event_months: set[YearMonth] = field(default_factory=set)
     expected_months: set[YearMonth] = field(default_factory=set)
     paired_months: set[YearMonth] = field(default_factory=set)
     expected_sources: dict[YearMonth, list[dict[str, str | None]]] = field(default_factory=dict)
@@ -142,6 +159,14 @@ def _pick_existing_dir(base: Path, candidates: list[str]) -> Path:
     return base / candidates[0]
 
 
+def _pick_existing_file(base: Path, candidates: list[str]) -> Path:
+    for candidate in candidates:
+        path = base / candidate
+        if path.exists():
+            return path
+    return base / candidates[0]
+
+
 def resolve_audit_inputs(pipeline_dir: str | Path) -> ResolvedAuditInputs:
     base = Path(pipeline_dir).resolve()
     scan_dir = _pick_existing_dir(base, ["scan"])
@@ -156,6 +181,7 @@ def resolve_audit_inputs(pipeline_dir: str | Path) -> ResolvedAuditInputs:
         shifts_dir=shifts_dir,
         scan_report_path=scan_dir / "scan_directory.report.json",
         excluded_index_path=documents_dir / "excluded_documents.index.json",
+        found_events_csv_path=_pick_existing_file(events_dir, ["events.cleaned.csv", "events.csv"]),
         pages_csv_path=events_dir / "pages.csv",
         pair_report_path=shifts_dir / "pair_employee_events.report.json",
     )
@@ -166,6 +192,13 @@ def _read_csv_rows(path: Path) -> list[dict[str, str]]:
         return []
     with path.open("r", encoding="utf-8", newline="") as handle:
         return list(csv.DictReader(handle))
+
+
+def _iter_csv_rows(path: Path):
+    if not path.exists():
+        return
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        yield from csv.DictReader(handle)
 
 
 def _source_path_hint(
@@ -242,6 +275,22 @@ def _read_pair_months(path: Path) -> tuple[set[YearMonth], int]:
         if ym is not None
     }
     return months, len(rows)
+
+
+def _parse_event_year_month(row: dict[str, str]) -> YearMonth | None:
+    event_ts = _clean_str(row.get("event_ts"))
+    if event_ts is None:
+        return None
+    event_day = event_ts.split(" ", 1)[0]
+    parts = event_day.split("-")
+    if len(parts) < 2:
+        return None
+    try:
+        year = int(parts[0])
+        month = int(parts[1])
+    except ValueError:
+        return None
+    return _parse_year_month(year, month)
 
 
 def _register_source_file(record: EmployeeAccumulator, token: str) -> None:
@@ -434,6 +483,19 @@ def audit_missing_timbrature_pipeline(
             pages_by_doc_json.setdefault(doc_json, []).append(row)
 
     if scan_report_payload is not None:
+        raw_employees_found = scan_report_payload.get("employees_found")
+        if isinstance(raw_employees_found, list):
+            for row in raw_employees_found:
+                if not isinstance(row, dict):
+                    continue
+                _ensure_employee(
+                    employees,
+                    employees_by_id,
+                    employees_by_name,
+                    employee_name=_clean_str(row.get("employee")) or "unknown",
+                    employee_id=_clean_str(row.get("employee_id")),
+                )
+
         raw_zero_included = scan_report_payload.get("employees_without_included_files")
         if isinstance(raw_zero_included, list):
             scan_report_has_zero_included_data = True
@@ -650,6 +712,31 @@ def audit_missing_timbrature_pipeline(
             events_dropped=dropped,
         )
 
+    if resolved.found_events_csv_path.exists():
+        try:
+            for row in _iter_csv_rows(resolved.found_events_csv_path):
+                employee_name = _clean_str(row.get("source_employee"))
+                if employee_name is None or normalize_name(employee_name) == "unknown":
+                    continue
+                year_month = _parse_event_year_month(row)
+                if year_month is None or year_month not in REQUIRED_MONTHS_SET:
+                    continue
+                record = _ensure_employee(
+                    employees,
+                    employees_by_id,
+                    employees_by_name,
+                    employee_name=employee_name,
+                    employee_id=None,
+                )
+                record.found_event_months.add(year_month)
+        except Exception as exc:
+            artifact_errors.append(
+                {"artifact": "found_events_csv", "error": f"{type(exc).__name__}: {exc}"}
+            )
+            logger.exception(
+                "Failed reading found events CSV from %s", resolved.found_events_csv_path
+            )
+
     pair_report_payload: dict[str, Any] | None = None
     if resolved.pair_report_path.exists():
         try:
@@ -727,14 +814,21 @@ def audit_missing_timbrature_pipeline(
     employee_summary_rows: list[dict[str, Any]] = []
     employees_nested: list[dict[str, Any]] = []
     employees_with_issues = 0
+    employees_missing_required_months = 0
     employees_missing_months_after_pairing = 0
     employees_complete_pairing_absence = 0
+    missing_required_months_total = 0
     months_missing_after_pairing_total = 0
 
     for record in sorted(
         employees,
         key=lambda item: (normalize_name(item.employee), item.employee_id or ""),
     ):
+        missing_required_months = REQUIRED_MONTHS_SET - record.found_event_months
+        if missing_required_months:
+            employees_missing_required_months += 1
+            missing_required_months_total += len(missing_required_months)
+
         missing_months = record.expected_months - record.paired_months
         if missing_months:
             employees_missing_months_after_pairing += 1
@@ -763,6 +857,8 @@ def audit_missing_timbrature_pipeline(
         if record.issues:
             employees_with_issues += 1
 
+        found_event_labels = _sorted_month_labels(record.found_event_months)
+        missing_required_labels = _sorted_month_labels(missing_required_months)
         expected_labels = _sorted_month_labels(record.expected_months)
         paired_labels = _sorted_month_labels(record.paired_months)
         missing_labels = _sorted_month_labels(missing_months)
@@ -773,6 +869,11 @@ def audit_missing_timbrature_pipeline(
             "scan_without_included_files": record.scan_without_included_files,
             "missing_text_layer_files": record.missing_text_layer_files,
             "pages_missing_year_month": record.pages_missing_year_month,
+            "required_month_range": REQUIRED_MONTH_RANGE_LABEL,
+            "found_event_months": ";".join(found_event_labels),
+            "found_event_months_count": len(found_event_labels),
+            "missing_required_months": ";".join(missing_required_labels),
+            "missing_required_months_count": len(missing_required_labels),
             "expected_months": ";".join(expected_labels),
             "paired_months": ";".join(paired_labels),
             "missing_months_after_pairing": ";".join(missing_labels),
@@ -787,6 +888,8 @@ def audit_missing_timbrature_pipeline(
         employees_nested.append(
             {
                 **summary_row,
+                "found_event_months": found_event_labels,
+                "missing_required_months": missing_required_labels,
                 "expected_months": expected_labels,
                 "paired_months": paired_labels,
                 "missing_months_after_pairing": missing_labels,
@@ -799,6 +902,10 @@ def audit_missing_timbrature_pipeline(
         "employees_total": len(employee_summary_rows),
         "employees_with_issues": employees_with_issues,
         "issues_total": len(issues),
+        "required_month_range": REQUIRED_MONTH_RANGE_LABEL,
+        "required_months_total": len(REQUIRED_MONTHS),
+        "employees_missing_required_months": employees_missing_required_months,
+        "missing_required_months_total": missing_required_months_total,
         "scan_without_included_files": sum(
             1 for row in employee_summary_rows if bool(row["scan_without_included_files"])
         ),
@@ -823,6 +930,8 @@ def audit_missing_timbrature_pipeline(
         "shifts_dir": str(resolved.shifts_dir),
         "scan_report_found": resolved.scan_report_path.exists(),
         "scan_report_has_zero_included_data": scan_report_has_zero_included_data,
+        "found_events_csv": str(resolved.found_events_csv_path),
+        "found_events_csv_found": resolved.found_events_csv_path.exists(),
         "manifest_csv_count": len(manifest_csvs),
         "excluded_index_found": resolved.excluded_index_path.exists(),
         "pages_csv_found": resolved.pages_csv_path.exists(),

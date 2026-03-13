@@ -118,6 +118,7 @@ Notes:
 - ZIP failures are explicitly tracked (for example: invalid archive, no PDF members, scan errors).
 - Employee identity is anchored to the Drive folder scope (`employee_id`).
 - Direct subfolders of the scan root are treated as the employee inventory.
+- The scan report includes an `employees_found` array with one row per direct employee folder, including `employee`, `employee_id`, included-file count, excluded-file count, excluded-folder count, and scan status/error.
 - The scan report now records which employee folders completed with `0` included files in `employees_without_included_files`.
 - Scan continues on per-employee failures and records them in `scan/scan_directory.report.json`.
 
@@ -232,15 +233,21 @@ Behavior:
 
 Entry point: `python -m "src.timbrature_missing_report"`
 
-Input: a pipeline root folder containing document, event, and pairing outputs  
+Input: a pipeline root folder containing document, event, and pairing outputs
 Typical output files:
 
 - `missing_timbrature.report.json`
 - `missing_timbrature.employees.csv`
 - `missing_timbrature.issues.csv`
+- `missing_timbrature.non_ocr_files/*.csv`
+- `missing_timbrature.missing_months/*.csv`
 
 Behavior:
 
+- Seeds the employee inventory from the full scan-report `employees_found` list.
+- Adds fixed-range coverage columns to `missing_timbrature.employees.csv` by comparing required months `2014-01..2026-12` against months found in `events.cleaned.csv` (falling back to `events.csv`).
+- Writes one per-employee CSV under `missing_timbrature.non_ocr_files/` with the files excluded as `missing_text_layer`, including the Drive link and `month_name` when a month is known.
+- Writes one per-employee CSV under `missing_timbrature.missing_months/` with one row per missing required month (`year`, `month`, `month_name`).
 - Includes direct employee folders from the scan report when they produced `0` included files.
 - Consolidates document-extraction exclusions with reason `missing_text_layer`.
 - Surfaces pages where event extraction dropped rows because month/year could not be resolved.

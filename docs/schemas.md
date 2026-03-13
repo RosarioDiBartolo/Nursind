@@ -83,6 +83,38 @@ Columns:
 
 Produced by: `src.turni_employee_summary`
 
+## missing_timbrature.employees.csv
+
+Columns:
+- `employee`, `employee_id`
+- `source_files_total`, `scan_without_included_files`
+- `missing_text_layer_files`, `pages_missing_year_month`
+- `required_month_range`, `found_event_months`, `found_event_months_count`
+- `missing_required_months`, `missing_required_months_count`
+- `expected_months`, `paired_months`, `missing_months_after_pairing`
+- `complete_pairing_absence`, `pair_rows`
+- `pair_status`, `pair_error_code`, `pair_output_csv`, `issues_total`
+
+Produced by: `src.timbrature_missing_report`
+
+## missing_timbrature.non_ocr_files/\*.csv
+
+Columns:
+- `employee`, `employee_id`
+- `file_id`, `file_link`, `file_name`
+- `year`, `month`, `month_name`
+- `detail`
+
+Produced by: `src.timbrature_missing_report`
+
+## missing_timbrature.missing_months/\*.csv
+
+Columns:
+- `employee`, `employee_id`
+- `year`, `month`, `month_name`
+
+Produced by: `src.timbrature_missing_report`
+
 ## missing_timbrature.issues.csv
 
 Columns:

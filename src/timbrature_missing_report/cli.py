@@ -31,10 +31,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     if outputs:
         logger.info(
-            "Outputs: report=%s employees=%s issues=%s",
+            "Outputs: report=%s employees=%s issues=%s non_ocr_dir=%s missing_months_dir=%s",
             outputs.get("report_json"),
             outputs.get("employee_summary_csv"),
             outputs.get("issues_csv"),
+            outputs.get("non_ocr_files_dir"),
+            outputs.get("missing_months_dir"),
         )
     return 0
 

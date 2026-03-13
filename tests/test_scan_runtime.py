@@ -134,12 +134,35 @@ def test_run_scan_happy_path(monkeypatch, tmp_path):
     assert report["employee_total"] == 2
     assert report["employee_succeeded"] == 2
     assert report["employee_failed"] == 0
+    assert report["employees_found"] == [
+        {
+            "employee": "Alice",
+            "employee_id": "e1",
+            "status": "ok",
+            "included_files": 1,
+            "excluded_files": 0,
+            "excluded_folders": 0,
+            "excluded_total": 0,
+            "error": None,
+        },
+        {
+            "employee": "Bob",
+            "employee_id": "e2",
+            "status": "ok",
+            "included_files": 1,
+            "excluded_files": 0,
+            "excluded_folders": 0,
+            "excluded_total": 0,
+            "error": None,
+        },
+    ]
     assert report["included_total"] == 2
     assert report["filtered_total"] == 0
     assert report["employees_without_included_files_count"] == 0
     assert report["employees_without_included_files"] == []
     saved_report = load_json(str(report_path))
     assert saved_report["employee_total"] == 2
+    assert saved_report["employees_found"] == report["employees_found"]
     assert saved_report["included_path"] == str(included_path)
     assert saved_report["filtered_path"] == str(filtered_path)
     assert isinstance(saved_report["duration_seconds"], float)
@@ -192,6 +215,28 @@ def test_run_scan_partial_failure_continues(monkeypatch, tmp_path):
     assert report["employee_total"] == 2
     assert report["employee_succeeded"] == 1
     assert report["employee_failed"] == 1
+    assert report["employees_found"] == [
+        {
+            "employee": "Alice",
+            "employee_id": "e1",
+            "status": "ok",
+            "included_files": 1,
+            "excluded_files": 0,
+            "excluded_folders": 0,
+            "excluded_total": 0,
+            "error": None,
+        },
+        {
+            "employee": "Bob",
+            "employee_id": "e2",
+            "status": "error",
+            "included_files": None,
+            "excluded_files": None,
+            "excluded_folders": None,
+            "excluded_total": None,
+            "error": "RuntimeError: boom",
+        },
+    ]
     assert report["included_total"] == 1
     assert report["employees_without_included_files_count"] == 0
     assert len(report["scan_errors"]) == 1
@@ -281,6 +326,28 @@ def test_run_scan_reports_employees_without_included_files(monkeypatch, tmp_path
     )
 
     assert report["employees_without_included_files_count"] == 1
+    assert report["employees_found"] == [
+        {
+            "employee": "Alice",
+            "employee_id": "e1",
+            "status": "ok",
+            "included_files": 1,
+            "excluded_files": 0,
+            "excluded_folders": 0,
+            "excluded_total": 0,
+            "error": None,
+        },
+        {
+            "employee": "Bob",
+            "employee_id": "e2",
+            "status": "ok",
+            "included_files": 0,
+            "excluded_files": 2,
+            "excluded_folders": 1,
+            "excluded_total": 3,
+            "error": None,
+        },
+    ]
     assert report["employees_without_included_files"] == [
         {
             "employee": "Bob",
