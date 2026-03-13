@@ -59,7 +59,7 @@ python -m pytest -q
 The audit merges:
 
 - the full scan-report `employees_found` inventory so every scanned employee appears in the employee CSV
-- fixed-range month coverage from pipeline events by comparing required months `2014-01..2026-12` against the months found in `events.cleaned.csv` with fallback to `events.csv`
+- fixed-range month coverage from pipeline events by comparing required months `2014-01..2025-12` against the months found in `events.cleaned.csv` with fallback to `events.csv`
 - per-employee non-OCR file exports under `missing_timbrature.non_ocr_files/`, one row per `missing_text_layer` file
 - per-employee missing-month exports under `missing_timbrature.missing_months/`, one row per missing required month (`year`, `month`, `month_name`)
 - scan-report employees whose direct root folder produced `0` included files

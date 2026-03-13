@@ -95,9 +95,9 @@ def test_audit_missing_timbrature_includes_scan_employees_and_required_months(
     assert sorted(rows) == ["Giulia Bianchi", "Mario Rossi"]
 
     mario = rows["Mario Rossi"]
-    assert mario["required_month_range"] == "2014-01..2026-12"
+    assert mario["required_month_range"] == "2014-01..2025-12"
     assert int(mario["found_event_months_count"]) == 2
-    assert int(mario["missing_required_months_count"]) == 154
+    assert int(mario["missing_required_months_count"]) == 142
     assert "2014-01" in mario["found_event_months"]
     assert "2014-03" in mario["found_event_months"]
     assert "2027-01" not in mario["found_event_months"]
@@ -107,12 +107,12 @@ def test_audit_missing_timbrature_includes_scan_employees_and_required_months(
     giulia = rows["Giulia Bianchi"]
     assert giulia["scan_without_included_files"] is True
     assert int(giulia["found_event_months_count"]) == 0
-    assert int(giulia["missing_required_months_count"]) == 156
+    assert int(giulia["missing_required_months_count"]) == 144
 
     assert int(report["stats"]["employees_total"]) == 2
-    assert int(report["stats"]["required_months_total"]) == 156
+    assert int(report["stats"]["required_months_total"]) == 144
     assert int(report["stats"]["employees_missing_required_months"]) == 2
-    assert int(report["stats"]["missing_required_months_total"]) == 310
+    assert int(report["stats"]["missing_required_months_total"]) == 286
 
 
 def test_build_missing_timbrature_report_writes_required_month_columns(tmp_path: Path) -> None:
@@ -149,13 +149,13 @@ def test_build_missing_timbrature_report_writes_required_month_columns(tmp_path:
     assert mario_non_ocr_rows[0]["month_name"] == "gennaio"
     assert "year_month" not in mario_non_ocr_rows[0]
     assert giulia_non_ocr_rows == []
-    assert len(mario_missing_month_rows) == 154
+    assert len(mario_missing_month_rows) == 142
     assert mario_missing_month_rows[0]["year"] == "2014"
     assert mario_missing_month_rows[0]["month"] == "2"
     assert mario_missing_month_rows[0]["month_name"] == "febbraio"
     assert "year_month" not in mario_missing_month_rows[0]
     assert "required_month_range" not in mario_missing_month_rows[0]
-    assert len(giulia_missing_month_rows) == 156
+    assert len(giulia_missing_month_rows) == 144
     assert report_json_payload["outputs"]["non_ocr_files_dir"] == str(non_ocr_dir.resolve())
     assert report_json_payload["outputs"]["missing_months_dir"] == str(
         missing_months_dir.resolve()

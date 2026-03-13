@@ -39,7 +39,7 @@ from .issues import EMPLOYEE_SUMMARY_COLUMNS, ISSUE_COLUMNS, append_issue
 logger = logging.getLogger(__name__)
 
 REQUIRED_YEAR_START = 2014
-REQUIRED_YEAR_END = 2026
+REQUIRED_YEAR_END = 2025
 REQUIRED_MONTH_RANGE_LABEL = f"{REQUIRED_YEAR_START:04d}-01..{REQUIRED_YEAR_END:04d}-12"
 REQUIRED_MONTHS: tuple[YearMonth, ...] = tuple(
     (year, month)
