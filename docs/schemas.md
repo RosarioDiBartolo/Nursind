@@ -83,3 +83,14 @@ Columns:
 
 Produced by: `src.turni_employee_summary`
 
+## missing_timbrature.issues.csv
+
+Columns:
+- `employee`, `employee_id`, `issue_type`, `stage`
+- `file_id`, `file_link`, `file_name`, `source_doc_json`
+- `page_no`, `year`, `month`, `year_month`
+- `detail`, `events_dropped`
+- `pair_status`, `pair_error_code`, `pair_output_csv`
+
+Produced by: `src.timbrature_missing_report`
+

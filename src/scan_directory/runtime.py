@@ -79,6 +79,7 @@ def run_scan(
     t0 = time.time()
     reports: list[dict] = []
     scan_errors: list[dict[str, str | None]] = []
+    employees_without_included_files: list[dict[str, Any]] = []
     total_included = 0
 
     with ThreadPoolExecutor(max_workers=workers) as pool:
@@ -108,6 +109,16 @@ def run_scan(
 
             reports.append(report)
             total_included += report["counts"]["included"]
+            if int(report["counts"].get("included", 0)) <= 0:
+                employees_without_included_files.append(
+                    {
+                        "employee": report.get("employee"),
+                        "employee_id": report.get("employee_id"),
+                        "included": int(report["counts"].get("included", 0)),
+                        "filtered_files": int(report["counts"].get("filtered_files", 0)),
+                        "filtered_folders": int(report["counts"].get("filtered_folders", 0)),
+                    }
+                )
             log.info(
                 "Progress %s/%s employees, %s files",
                 i,
@@ -129,6 +140,14 @@ def run_scan(
         "employee_failed": len(scan_errors),
         "included_total": included_index.total_files,
         "filtered_total": filtered_index.total_files,
+        "employees_without_included_files_count": len(employees_without_included_files),
+        "employees_without_included_files": sorted(
+            employees_without_included_files,
+            key=lambda item: (
+                str(item.get("employee") or ""),
+                str(item.get("employee_id") or ""),
+            ),
+        ),
         "duration_seconds": round(duration_seconds, 3),
         "scan_errors": scan_errors,
         "included_path": included_path,

@@ -28,6 +28,7 @@ Core outputs:
 5. Employee-level pairing
 6. Shift enrichment
 7. Yearly aggregation
+8. Missing timbrature audit (report-only)
 
 ## Technical Implementation Details
 
@@ -116,6 +117,8 @@ Notes:
 - ZIP files are expanded as virtual folders and PDF members are indexed with synthetic IDs.
 - ZIP failures are explicitly tracked (for example: invalid archive, no PDF members, scan errors).
 - Employee identity is anchored to the Drive folder scope (`employee_id`).
+- Direct subfolders of the scan root are treated as the employee inventory.
+- The scan report now records which employee folders completed with `0` included files in `employees_without_included_files`.
 - Scan continues on per-employee failures and records them in `scan/scan_directory.report.json`.
 
 ### 2) Document Extraction
@@ -225,6 +228,26 @@ Behavior:
 - Default year window: `2016..2025` (configurable).
 - Writes to target path specified by `--out` (overwrite semantics, no built-in versioning).
 
+### 8) Missing Timbrature Audit
+
+Entry point: `python -m "src.timbrature_missing_report"`
+
+Input: a pipeline root folder containing document, event, and pairing outputs  
+Typical output files:
+
+- `missing_timbrature.report.json`
+- `missing_timbrature.employees.csv`
+- `missing_timbrature.issues.csv`
+
+Behavior:
+
+- Includes direct employee folders from the scan report when they produced `0` included files.
+- Consolidates document-extraction exclusions with reason `missing_text_layer`.
+- Surfaces pages where event extraction dropped rows because month/year could not be resolved.
+- Compares expected employee months against paired months to highlight gaps after pairing.
+- Flags complete pairing absence for employees that still have source documents.
+- Auto-detects both the current folder layout (`documents`, `events`, `shifts`) and the legacy layout (`text_extracted`, `events`, `employee_shifts_from_raw`).
+
 ## Idempotency and Determinism
 
 - Core transformations are deterministic on identical inputs and parameters.
@@ -242,6 +265,7 @@ python -m "src.filter_midnight_events" --input-dir "output/events" --verbose
 python -m "src.pair_employee_events" --input-dir "output/events" --output-dir "output/employee_shifts_from_raw" --verbose
 python -m "src.turni_enrichment" --input-dir "output/employee_shifts_from_raw" --out-dir "output/enriched/employee_pairs" --verbose
 python -m "src.turni_employee_summary" --enriched-dir "output/enriched/employee_pairs" --out "output/aggregates/turni_employee_summary.csv" --format "csv" --verbose
+python -m "src.timbrature_missing_report" --pipeline-dir "output/default" --verbose
 ```
 
 ## Optional: Download PDFs From an Index

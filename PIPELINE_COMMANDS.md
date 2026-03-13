@@ -45,3 +45,14 @@ python -m "src.turni_enrichment" --input-dir "output/employee_shifts_from_raw" -
 python -m "src.turni_employee_summary" --enriched-dir "output/enriched/employee_pairs" --out "output/aggregates/turni_employee_summary.csv" --year-start 2016 --year-end 2025 --format "csv" --verbose
 ```
 
+## 7) Audit missing timbrature from a pipeline folder
+```powershell
+python -m "src.timbrature_missing_report" --pipeline-dir "output/default" --verbose
+```
+Outputs:
+- `missing_timbrature.report.json`
+- `missing_timbrature.employees.csv`
+- `missing_timbrature.issues.csv`
+
+The command auto-detects both the current layout (`documents`, `events`, `shifts`) and the legacy one (`text_extracted`, `events`, `employee_shifts_from_raw`).
+

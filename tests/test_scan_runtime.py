@@ -136,6 +136,8 @@ def test_run_scan_happy_path(monkeypatch, tmp_path):
     assert report["employee_failed"] == 0
     assert report["included_total"] == 2
     assert report["filtered_total"] == 0
+    assert report["employees_without_included_files_count"] == 0
+    assert report["employees_without_included_files"] == []
     saved_report = load_json(str(report_path))
     assert saved_report["employee_total"] == 2
     assert saved_report["included_path"] == str(included_path)
@@ -191,6 +193,7 @@ def test_run_scan_partial_failure_continues(monkeypatch, tmp_path):
     assert report["employee_succeeded"] == 1
     assert report["employee_failed"] == 1
     assert report["included_total"] == 1
+    assert report["employees_without_included_files_count"] == 0
     assert len(report["scan_errors"]) == 1
     assert report["scan_errors"][0]["employee"] == "Bob"
 
@@ -229,6 +232,64 @@ def test_run_scan_ignores_non_folder_children(monkeypatch, tmp_path):
 
     assert seen_employee_ids == ["e1"]
     assert report["employee_total"] == 1
+
+
+def test_run_scan_reports_employees_without_included_files(monkeypatch, tmp_path):
+    employees = [
+        {"id": "e1", "name": "Alice", "mimeType": runtime.FOLDER_MIME},
+        {"id": "e2", "name": "Bob", "mimeType": runtime.FOLDER_MIME},
+    ]
+    monkeypatch.setattr(runtime, "list_children", lambda _drive, _root: employees)
+
+    def fake_build_folder_report(_creds, emp, _terms, *, root_prefix=None):
+        if emp["id"] == "e1":
+            return {
+                "employee": emp["name"],
+                "employee_id": emp["id"],
+                "counts": {"included": 1, "filtered_files": 0, "filtered_folders": 0},
+                "included": [
+                    {
+                        "employee": emp["name"],
+                        "employee_id": emp["id"],
+                        "file_id": "e1-f1",
+                        "file_name": "doc.pdf",
+                        "drive_path": f"/{root_prefix or 'Root'}/{emp['name']}/doc.pdf",
+                        "type": "file",
+                    }
+                ],
+                "filtered": [],
+            }
+        return {
+            "employee": emp["name"],
+            "employee_id": emp["id"],
+            "counts": {"included": 0, "filtered_files": 2, "filtered_folders": 1},
+            "included": [],
+            "filtered": [],
+        }
+
+    monkeypatch.setattr(runtime, "build_folder_report", fake_build_folder_report)
+
+    report = runtime.run_scan(
+        creds=object(),
+        drive=_FakeDrive(),
+        root_id="root-1",
+        workers=2,
+        included_path=str(tmp_path / "included.index.json"),
+        filtered_path=str(tmp_path / "filtered.index.json"),
+        report_path=str(tmp_path / "scan_directory.report.json"),
+        exclude_terms=[],
+    )
+
+    assert report["employees_without_included_files_count"] == 1
+    assert report["employees_without_included_files"] == [
+        {
+            "employee": "Bob",
+            "employee_id": "e2",
+            "included": 0,
+            "filtered_files": 2,
+            "filtered_folders": 1,
+        }
+    ]
 
 
 def test_run_scan_uses_default_exclude_terms_when_none(monkeypatch, tmp_path):

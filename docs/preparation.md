@@ -32,6 +32,10 @@ The direct event step no longer scans legacy raw `.txt` files; canonical manifes
 - `output/events/events.cleaned.csv`
 - `output/employee_shifts_from_raw/*.pairs.csv`
 - Stage reports in `output/events/*.report.json` and `output/employee_shifts_from_raw/*.report.json`
+- Optional audit outputs from `src.timbrature_missing_report`:
+  - `missing_timbrature.report.json`
+  - `missing_timbrature.employees.csv`
+  - `missing_timbrature.issues.csv`
 
 ## Typical commands
 
@@ -39,7 +43,21 @@ The direct event step no longer scans legacy raw `.txt` files; canonical manifes
 python -m "src.extract_events_from_documents" --input-dir "output/text_extracted" --output-dir "output/events" --out-name "events.csv" --pages-name "pages.csv" --report-json "output/events/extract_events.report.json" --verbose
 python -m "src.filter_midnight_events" --input-dir "output/events" --events-name "events.csv" --out-name "events.cleaned.csv" --report-json "output/events/events.clean_midnight.report.json" --removed-csv "output/events/events.midnight_removed.csv" --verbose
 python -m "src.pair_employee_events" --input-dir "output/events" --output-dir "output/employee_shifts_from_raw" --events-name "events.cleaned.csv" --report-json "output/employee_shifts_from_raw/pair_employee_events.report.json" --max-gap-hours 16 --verbose
+python -m "src.timbrature_missing_report" --pipeline-dir "output/default" --verbose
 ```
+
+## Missing timbrature audit
+
+Use `src.timbrature_missing_report` after pairing when you need an employee-centered exception report instead of another transformation step.
+
+The audit merges:
+
+- scan-report employees whose direct root folder produced `0` included files
+- document exclusions with reason `missing_text_layer`
+- event pages with `decision_reason=missing_page_year_month`
+- per-employee pair outputs to spot missing month/year coverage after pairing
+
+The report is read-only against pipeline artifacts and supports both current and legacy folder layouts.
 
 ## Function-level testing (`extract_events_from_documents`)
 
