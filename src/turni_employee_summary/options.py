@@ -6,7 +6,7 @@ from typing import Literal, Sequence
 
 from src.pipeline_paths import build_pipelines_paths
 
-DEFAULT_YEAR_START = 2016
+DEFAULT_YEAR_START = 2014
 DEFAULT_YEAR_END = 2025
 DEFAULT_OUTPUTS = build_pipelines_paths()
 DEFAULT_ENRICHED_DIR = str(DEFAULT_OUTPUTS.enrichment_output)
@@ -52,7 +52,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--year-start",
         type=int,
         default=DEFAULT_YEAR_START,
-        help="Anno iniziale (default: 2016)",
+        help="Anno iniziale (default: 2014)",
     )
     parser.add_argument(
         "--year-end",

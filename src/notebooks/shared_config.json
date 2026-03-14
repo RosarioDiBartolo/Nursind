@@ -1,6 +1,14 @@
 {
-  "root_id": "1guqKp2FFRjl4OAgRN5y-7wkBeWQWDl1S",
-  "root_prefix": "PAGLIAI",
+
+  "known_prefixes": {
+    "PAGLIAI": "1guqKp2FFRjl4OAgRN5y-7wkBeWQWDl1S",
+    "GASPERINI": "1T6w6Np9WaXUoFWnjoFadiMv_I4xe7K4t",
+    "ACETO": "1hxSSsFQNMo63L_dDEbyNtVTa1I7IUjQC",
+    "AMATUCCI": "1FUosjKncLt18JzojmX8tKQm1nbgPI133"
+  },
+
+  "root_prefix": "AMATUCCI",
+ 
   "base_output_dir": "output",
   "scan": {
     "workers": 8,
@@ -38,7 +46,7 @@
     "out_name": "turni_employee_summary.csv",
     "report_name": "turni_employee_summary.report.json",
     "output_format": "csv",
-    "year_start": 2016,
+    "year_start": 2014,
     "year_end": 2025,
     "min_hours": null
   },

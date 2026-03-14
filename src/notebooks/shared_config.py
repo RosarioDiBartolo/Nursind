@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from src.pipeline_paths import PipelinePaths, build_pipelines_paths
+from src.pipeline_paths import PipelinePaths, _resolve_root_prefix_from_drive, build_pipelines_paths
 
 ROOT_ID_PLACEHOLDER = "<drive_root_id>"
 DEFAULT_CONFIG_NAME = "shared_config.json"
@@ -44,8 +44,8 @@ def load_notebook_context(config_path: str | Path | None = None) -> NotebookCont
         config = json.load(handle)
     if not isinstance(config, dict):
         raise ValueError(f"Notebook config must be a JSON object: {resolved_config_path}")
-
-    root_id = str(config.get("root_id") or "").strip()
+    root_prefix = config.get("root_prefix")
+    root_id = str(config.get("root_id") or config.get("known_prefixes", {}).get(root_prefix) if root_prefix else "").strip()
     if not root_id or root_id == ROOT_ID_PLACEHOLDER:
         raise ValueError(
             f"Set 'root_id' in {resolved_config_path} before running the notebooks."
@@ -59,7 +59,7 @@ def load_notebook_context(config_path: str | Path | None = None) -> NotebookCont
     if not base_output_dir.is_absolute():
         base_output_dir = repo_root / base_output_dir
 
-    root_prefix = str(config.get("root_prefix") or "").strip() or root_id
+    root_prefix = root_prefix or _resolve_root_prefix_from_drive(root_id)
     paths = build_pipelines_paths(
         root_id=root_id,
         root_prefix=root_prefix,

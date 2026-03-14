@@ -1,0 +1,8 @@
+Ente:034 Azienda USL Toscana Sud Est Elaborazione del 22/02/2025
+RR II LL EE VV AA ZZ II OO NN EE PP RR EE SS EE NN ZZ EE ddeell mmeessee ddii GGeennnnaaiioo 22001144 Pag. 1
+D_a_t_a_ _T_u_r_n_o_ _ _ _ _E_n_t_-_1_ _ _U_s_c_-_1_ _ _E_n_t_-_2_ _ _U_s_c_-_2_ _ _ _V_a_l_i_d_e_ _D_o_v_u_t_e_
+02 Gi " REC 19,42 ! 6,00! 6,00- !
+03 Ve " T09 8,04 ! 12,10 6,00! 6,10 !
+04 Sa " REC ! 6,00! 6,00- !
+0055 DDoo " N08 13,53 20,11 ! 6,10 ! 6,10 !
+1122 DDoo " RRR 19,45 ! ! !

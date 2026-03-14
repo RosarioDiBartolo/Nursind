@@ -39,7 +39,9 @@ class CartellinoOcrParser(BaseFormatParser):
             score += 160
         if "r r i i l l e e v v a a z z i i o o n n e e" in norm:
             score += 160
-        if "rr ii ll ee vv aa zz ii oo nn ee" in norm:
+        if "rr ii ll ee vv aa zz ii oo nn ee pp rr ee ss ee nn zz ee" in norm:
+            score += 120
+        elif "rr ii ll ee vv aa zz ii oo nn ee" in norm:
             score += 80
         if norm.count(" ! ") >= 8:
             score += 20

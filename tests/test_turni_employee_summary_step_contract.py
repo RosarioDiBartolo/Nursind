@@ -1,7 +1,12 @@
 import csv
 from pathlib import Path
 
-from src.turni_employee_summary import process_many_enriched_files, process_one_enriched_file
+from src.turni_employee_summary import (
+    DEFAULT_YEAR_START,
+    parse_options,
+    process_many_enriched_files,
+    process_one_enriched_file,
+)
 from tests.step_contract import assert_process_many_contract, assert_process_one_contract
 
 
@@ -13,6 +18,13 @@ def _write_enriched_csv(path: Path, rows: list[dict[str, str]]) -> None:
         writer.writeheader()
         for row in rows:
             writer.writerow(row)
+
+
+def test_turni_summary_cli_default_year_start() -> None:
+    options = parse_options([])
+
+    assert options.year_start == 2014
+    assert DEFAULT_YEAR_START == 2014
 
 
 def test_turni_summary_process_one_contract(tmp_path: Path) -> None:

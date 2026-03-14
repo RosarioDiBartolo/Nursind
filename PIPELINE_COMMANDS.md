@@ -45,7 +45,7 @@ python -m "src.turni_enrichment" --input-dir "output/default/shifts" --out-dir "
 
 ## 6) Build per-employee turno summary
 ```powershell
-python -m "src.turni_employee_summary" --enriched-dir "output/default/enrichment" --out "output/default/aggregation/turni_employee_summary.csv" --year-start 2016 --year-end 2025 --format "csv" --verbose
+python -m "src.turni_employee_summary" --enriched-dir "output/default/enrichment" --out "output/default/aggregation/turni_employee_summary.csv" --year-start 2014 --year-end 2025 --format "csv" --verbose
 ```
 
 ## 7) Audit missing timbrature from a pipeline folder
