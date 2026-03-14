@@ -18,16 +18,18 @@ else:
     DEFAULT_PIPELINE_DIR = str(Path("output") / "default")
 
 DEFAULT_REPORT_JSON = "missing_timbrature.report.json"
-DEFAULT_EMPLOYEE_SUMMARY_CSV = "missing_timbrature.employees.csv"
-DEFAULT_ISSUES_CSV = "missing_timbrature.issues.csv"
+DEFAULT_SUMMARY_CSV = "missing_timbrature.summary.csv"
+DEFAULT_FINDINGS_CSV = "missing_timbrature.findings.csv"
+DEFAULT_COVERAGE_CSV = "missing_timbrature.coverage.csv"
 
 
 @dataclass(slots=True)
 class TimbratureMissingReportOptions:
     pipeline_dir: str = DEFAULT_PIPELINE_DIR
     report_json: str = DEFAULT_REPORT_JSON
-    employee_summary_csv: str = DEFAULT_EMPLOYEE_SUMMARY_CSV
-    issues_csv: str = DEFAULT_ISSUES_CSV
+    summary_csv: str = DEFAULT_SUMMARY_CSV
+    findings_csv: str = DEFAULT_FINDINGS_CSV
+    coverage_csv: str = DEFAULT_COVERAGE_CSV
     verbose: bool = False
 
 
@@ -50,14 +52,19 @@ def build_parser() -> argparse.ArgumentParser:
         help="JSON report output path (relative paths are resolved from --pipeline-dir).",
     )
     parser.add_argument(
-        "--employee-summary-csv",
-        default=DEFAULT_EMPLOYEE_SUMMARY_CSV,
-        help="Employee summary CSV output path (relative paths are resolved from --pipeline-dir).",
+        "--summary-csv",
+        default=DEFAULT_SUMMARY_CSV,
+        help="Summary CSV output path (relative paths are resolved from --pipeline-dir).",
     )
     parser.add_argument(
-        "--issues-csv",
-        default=DEFAULT_ISSUES_CSV,
-        help="Issue detail CSV output path (relative paths are resolved from --pipeline-dir).",
+        "--findings-csv",
+        default=DEFAULT_FINDINGS_CSV,
+        help="Findings CSV output path (relative paths are resolved from --pipeline-dir).",
+    )
+    parser.add_argument(
+        "--coverage-csv",
+        default=DEFAULT_COVERAGE_CSV,
+        help="Coverage CSV output path (relative paths are resolved from --pipeline-dir).",
     )
     parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose logging")
     return parser
@@ -68,18 +75,20 @@ def parse_options(argv: Sequence[str] | None = None) -> TimbratureMissingReportO
     return TimbratureMissingReportOptions(
         pipeline_dir=args.pipeline_dir,
         report_json=args.report_json,
-        employee_summary_csv=args.employee_summary_csv,
-        issues_csv=args.issues_csv,
+        summary_csv=args.summary_csv,
+        findings_csv=args.findings_csv,
+        coverage_csv=args.coverage_csv,
         verbose=bool(args.verbose),
     )
 
 
 __all__ = [
-    "DEFAULT_EMPLOYEE_SUMMARY_CSV",
-    "DEFAULT_ISSUES_CSV",
+    "DEFAULT_COVERAGE_CSV",
+    "DEFAULT_FINDINGS_CSV",
     "DEFAULT_OUTPUTS",
     "DEFAULT_PIPELINE_DIR",
     "DEFAULT_REPORT_JSON",
+    "DEFAULT_SUMMARY_CSV",
     "TimbratureMissingReportOptions",
     "build_parser",
     "parse_options",

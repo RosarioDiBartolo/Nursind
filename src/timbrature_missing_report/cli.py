@@ -19,24 +19,23 @@ def main(argv: Sequence[str] | None = None) -> int:
     outputs = report.get("outputs") or {}
     logger.info(
         (
-            "Completed: employees=%s with_issues=%s missing_text_layer=%s "
-            "pages_missing_year_month=%s missing_months_after_pairing=%s issues=%s"
+            "Completed: employees=%s with_any_gaps=%s missing_text_layer=%s "
+            "pages_missing_year_month=%s coverage_gaps=%s findings=%s"
         ),
         stats["employees_total"],
-        stats["employees_with_issues"],
+        stats["employees_with_any_gaps"],
         stats["missing_text_layer_files"],
         stats["pages_missing_year_month"],
-        stats["months_missing_after_pairing_total"],
-        stats["issues_total"],
+        stats["coverage_gaps_total"],
+        stats["findings_total"],
     )
     if outputs:
         logger.info(
-            "Outputs: report=%s employees=%s issues=%s non_ocr_dir=%s missing_months_dir=%s",
+            "Outputs: report=%s summary=%s findings=%s coverage=%s",
             outputs.get("report_json"),
-            outputs.get("employee_summary_csv"),
-            outputs.get("issues_csv"),
-            outputs.get("non_ocr_files_dir"),
-            outputs.get("missing_months_dir"),
+            outputs.get("summary_csv"),
+            outputs.get("findings_csv"),
+            outputs.get("coverage_csv"),
         )
     return 0
 

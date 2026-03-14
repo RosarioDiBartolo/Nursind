@@ -221,10 +221,9 @@ Input:
 Typical outputs:
 
 - `output/default/missing_timbrature.report.json`
-- `output/default/missing_timbrature.employees.csv`
-- `output/default/missing_timbrature.issues.csv`
-- `output/default/missing_timbrature.non_ocr_files/*.csv`
-- `output/default/missing_timbrature.missing_months/*.csv`
+- `output/default/missing_timbrature.summary.csv`
+- `output/default/missing_timbrature.findings.csv`
+- `output/default/missing_timbrature.coverage.csv`
 
 Behavior:
 

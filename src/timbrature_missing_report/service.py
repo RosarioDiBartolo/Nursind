@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -19,13 +20,13 @@ from .accumulator import (
     mark_upstream_cause,
     register_expected_month,
     register_source_file,
-    sorted_month_labels,
 )
 from .inputs import (
     ResolvedAuditInputs,
     YearMonth,
     clean_str,
     derive_manifest_expected_months,
+    format_year_month,
     infer_expected_month_from_file,
     iter_csv_rows,
     parse_event_year_month,
@@ -34,19 +35,59 @@ from .inputs import (
     read_csv_rows,
     read_pair_months,
 )
-from .issues import EMPLOYEE_SUMMARY_COLUMNS, ISSUE_COLUMNS, append_issue
+from .issues import (
+    COVERAGE_COLUMNS,
+    FINDING_COLUMNS,
+    SUMMARY_COLUMNS,
+    append_coverage_gap,
+    append_finding,
+)
 
 logger = logging.getLogger(__name__)
 
-REQUIRED_YEAR_START = 2014
-REQUIRED_YEAR_END = 2025
-REQUIRED_MONTH_RANGE_LABEL = f"{REQUIRED_YEAR_START:04d}-01..{REQUIRED_YEAR_END:04d}-12"
-REQUIRED_MONTHS: tuple[YearMonth, ...] = tuple(
-    (year, month)
-    for year in range(REQUIRED_YEAR_START, REQUIRED_YEAR_END + 1)
-    for month in range(1, 13)
-)
-REQUIRED_MONTHS_SET = set(REQUIRED_MONTHS)
+EXPECTED_RANGE_END_YEAR = 2025
+EXPECTED_RANGE_END_LABEL = f"{EXPECTED_RANGE_END_YEAR:04d}-12"
+
+
+def _employee_counter_key(employee: str | None, employee_id: str | None) -> tuple[str, str]:
+    return normalize_name(employee or "unknown"), employee_id or ""
+
+
+def _build_expected_month_range(found_event_months: set[YearMonth]) -> tuple[set[YearMonth], str]:
+    eligible_months = [year_month for year_month in found_event_months if year_month[0] <= EXPECTED_RANGE_END_YEAR]
+    if not eligible_months:
+        return set(), ""
+
+    start_year = min(year for year, _month in eligible_months)
+    months = {
+        (year, month)
+        for year in range(start_year, EXPECTED_RANGE_END_YEAR + 1)
+        for month in range(1, 13)
+    }
+    return months, f"{start_year:04d}-01..{EXPECTED_RANGE_END_YEAR:04d}-12"
+
+
+def _build_missing_expected_month_detail(year_month: YearMonth) -> str:
+    return f"Expected month {format_year_month(year_month)} not present in found events"
+
+
+def _format_upstream_causes(record: EmployeeAccumulator, year_month: YearMonth) -> str | None:
+    upstream_causes = sorted(record.upstream_causes_by_month.get(year_month, set()))
+    if not upstream_causes:
+        return None
+    return ", ".join(upstream_causes)
+
+
+def _count_rows_by_employee(rows: list[dict[str, Any]]) -> Counter[tuple[str, str]]:
+    counts: Counter[tuple[str, str]] = Counter()
+    for row in rows:
+        counts[
+            _employee_counter_key(
+                clean_str(row.get("employee")) or "unknown",
+                clean_str(row.get("employee_id")),
+            )
+        ] += 1
+    return counts
 
 
 def audit_missing_timbrature_pipeline(
@@ -55,7 +96,8 @@ def audit_missing_timbrature_pipeline(
     resolved = resolve_audit_inputs(pipeline_dir)
 
     artifact_errors: list[dict[str, str]] = []
-    issues: list[dict[str, Any]] = []
+    finding_rows: list[dict[str, Any]] = []
+    coverage_rows: list[dict[str, Any]] = []
     employees: list[EmployeeAccumulator] = []
     employees_by_id: dict[str, EmployeeAccumulator] = {}
     employees_by_name: dict[str, EmployeeAccumulator] = {}
@@ -146,10 +188,10 @@ def audit_missing_timbrature_pipeline(
                     detail_parts.append(f"filtered_files={filtered_files}")
                 if filtered_folders is not None:
                     detail_parts.append(f"filtered_folders={filtered_folders}")
-                append_issue(
+                append_finding(
                     record,
-                    issues,
-                    issue_type="scan_without_included_files",
+                    finding_rows,
+                    finding_type="scan_without_included_files",
                     stage="scan",
                     detail="; ".join(detail_parts),
                 )
@@ -247,10 +289,10 @@ def audit_missing_timbrature_pipeline(
                         cause="missing_text_layer",
                     )
 
-                append_issue(
+                append_finding(
                     record,
-                    issues,
-                    issue_type="missing_text_layer",
+                    finding_rows,
+                    finding_type="missing_text_layer",
                     stage="documents",
                     file_id=file_id,
                     file_name=file_name,
@@ -320,10 +362,10 @@ def audit_missing_timbrature_pipeline(
             )
 
         issue_month = sorted(inferred_months)[0] if inferred_months else None
-        append_issue(
+        append_finding(
             record,
-            issues,
-            issue_type="missing_page_year_month",
+            finding_rows,
+            finding_type="missing_page_year_month",
             stage="events",
             file_id=file_id,
             file_name=(
@@ -345,7 +387,7 @@ def audit_missing_timbrature_pipeline(
                 if employee_name is None or normalize_name(employee_name) == "unknown":
                     continue
                 year_month = parse_event_year_month(row)
-                if year_month is None or year_month not in REQUIRED_MONTHS_SET:
+                if year_month is None or year_month[0] > EXPECTED_RANGE_END_YEAR:
                     continue
                 record = ensure_employee(
                     employees,
@@ -397,10 +439,10 @@ def audit_missing_timbrature_pipeline(
             record.pairs_rows = max(record.pairs_rows, parse_int(row.get("pairs_out")) or 0)
 
             if record.pair_status != "ok":
-                append_issue(
+                append_finding(
                     record,
-                    issues,
-                    issue_type="pairing_failed",
+                    finding_rows,
+                    finding_type="pairing_failed",
                     stage="shifts",
                     detail=record.pair_error or "Pairing step reported an error",
                 )
@@ -413,10 +455,10 @@ def audit_missing_timbrature_pipeline(
                     record.paired_months.update(months)
                     record.pairs_rows = max(record.pairs_rows, row_count)
                 else:
-                    append_issue(
+                    append_finding(
                         record,
-                        issues,
-                        issue_type="pair_output_missing",
+                        finding_rows,
+                        finding_type="pair_output_missing",
                         stage="shifts",
                         detail=f"Pair report points to a missing CSV: {output_csv}",
                     )
@@ -437,110 +479,133 @@ def audit_missing_timbrature_pipeline(
             if record.pair_status is None:
                 record.pair_status = "ok"
 
-    employee_summary_rows: list[dict[str, Any]] = []
-    employees_nested: list[dict[str, Any]] = []
-    employees_with_issues = 0
-    employees_missing_required_months = 0
+    summary_rows: list[dict[str, Any]] = []
+    employees_missing_expected_months = 0
     employees_missing_months_after_pairing = 0
     employees_complete_pairing_absence = 0
-    missing_required_months_total = 0
+    missing_expected_months_total = 0
     months_missing_after_pairing_total = 0
-
-    for record in sorted(
+    sorted_employees = sorted(
         employees,
         key=lambda item: (normalize_name(item.employee), item.employee_id or ""),
-    ):
-        missing_required_months = REQUIRED_MONTHS_SET - record.found_event_months
-        if missing_required_months:
-            employees_missing_required_months += 1
-            missing_required_months_total += len(missing_required_months)
+    )
+    employee_metrics: dict[int, dict[str, Any]] = {}
 
-        missing_months = record.expected_months - record.paired_months
-        if missing_months:
-            employees_missing_months_after_pairing += 1
-            months_missing_after_pairing_total += len(missing_months)
-            for year_month in sorted(missing_months):
-                append_issue(
+    for record in sorted_employees:
+        expected_months, expected_month_range = _build_expected_month_range(record.found_event_months)
+        missing_expected_months = expected_months - record.found_event_months
+        if missing_expected_months:
+            employees_missing_expected_months += 1
+            missing_expected_months_total += len(missing_expected_months)
+            for year_month in sorted(missing_expected_months):
+                append_coverage_gap(
                     record,
-                    issues,
-                    issue_type="missing_month_after_pairing",
+                    coverage_rows,
+                    gap_type="missing_expected_month",
+                    stage="events",
+                    year_month=year_month,
+                    upstream_causes=_format_upstream_causes(record, year_month),
+                    detail=_build_missing_expected_month_detail(year_month),
+                )
+
+        missing_months_after_pairing = record.expected_months - record.paired_months
+        if missing_months_after_pairing:
+            employees_missing_months_after_pairing += 1
+            months_missing_after_pairing_total += len(missing_months_after_pairing)
+            for year_month in sorted(missing_months_after_pairing):
+                append_coverage_gap(
+                    record,
+                    coverage_rows,
+                    gap_type="missing_month_after_pairing",
                     stage="shifts",
                     year_month=year_month,
+                    upstream_causes=_format_upstream_causes(record, year_month),
                     detail=build_expected_month_detail(record=record, year_month=year_month),
                 )
 
         complete_pairing_absence = bool(record.expected_months and not record.paired_months)
         if complete_pairing_absence:
             employees_complete_pairing_absence += 1
-            append_issue(
+            append_finding(
                 record,
-                issues,
-                issue_type="complete_pairing_absence",
+                finding_rows,
+                finding_type="complete_pairing_absence",
                 stage="shifts",
                 detail="No paired months found for employee despite having source documents",
             )
 
-        if record.issues:
-            employees_with_issues += 1
-
-        found_event_labels = sorted_month_labels(record.found_event_months)
-        missing_required_labels = sorted_month_labels(missing_required_months)
-        expected_labels = sorted_month_labels(record.expected_months)
-        paired_labels = sorted_month_labels(record.paired_months)
-        missing_labels = sorted_month_labels(missing_months)
-        summary_row = {
-            "employee": record.employee,
-            "employee_id": record.employee_id,
-            "source_files_total": record.source_files_total,
-            "scan_without_included_files": record.scan_without_included_files,
-            "missing_text_layer_files": record.missing_text_layer_files,
-            "pages_missing_year_month": record.pages_missing_year_month,
-            "required_month_range": REQUIRED_MONTH_RANGE_LABEL,
-            "found_event_months": ";".join(found_event_labels),
-            "found_event_months_count": len(found_event_labels),
-            "missing_required_months": ";".join(missing_required_labels),
-            "missing_required_months_count": len(missing_required_labels),
-            "expected_months": ";".join(expected_labels),
-            "paired_months": ";".join(paired_labels),
-            "missing_months_after_pairing": ";".join(missing_labels),
+        employee_metrics[id(record)] = {
+            "expected_month_range": expected_month_range,
+            "expected_months_count": len(expected_months),
+            "missing_expected_months_count": len(missing_expected_months),
+            "document_expected_months_count": len(record.expected_months),
+            "paired_months_count": len(record.paired_months),
+            "missing_months_after_pairing_count": len(missing_months_after_pairing),
             "complete_pairing_absence": complete_pairing_absence,
-            "pair_rows": record.pairs_rows,
-            "pair_status": record.pair_status,
-            "pair_error_code": record.pair_error_code,
-            "pair_output_csv": record.pair_output_csv,
-            "issues_total": len(record.issues),
         }
-        employee_summary_rows.append(summary_row)
-        employees_nested.append(
+
+    finding_counts_by_type = dict(
+        sorted(Counter(str(row.get("finding_type") or "") for row in finding_rows).items())
+    )
+    coverage_counts_by_type = dict(
+        sorted(Counter(str(row.get("gap_type") or "") for row in coverage_rows).items())
+    )
+    finding_counts_by_employee = _count_rows_by_employee(finding_rows)
+    coverage_counts_by_employee = _count_rows_by_employee(coverage_rows)
+
+    for record in sorted_employees:
+        key = _employee_counter_key(record.employee, record.employee_id)
+        metrics = employee_metrics[id(record)]
+        summary_rows.append(
             {
-                **summary_row,
-                "found_event_months": found_event_labels,
-                "missing_required_months": missing_required_labels,
-                "expected_months": expected_labels,
-                "paired_months": paired_labels,
-                "missing_months_after_pairing": missing_labels,
-                "pair_error": record.pair_error,
-                "issues": list(record.issues),
+                "employee": record.employee,
+                "employee_id": record.employee_id,
+                "source_files_total": record.source_files_total,
+                "expected_month_range": metrics["expected_month_range"],
+                "expected_months_count": metrics["expected_months_count"],
+                "found_event_months_count": len(record.found_event_months),
+                "missing_expected_months_count": metrics["missing_expected_months_count"],
+                "scan_without_included_files": record.scan_without_included_files,
+                "missing_text_layer_files": record.missing_text_layer_files,
+                "pages_missing_year_month": record.pages_missing_year_month,
+                "document_expected_months_count": metrics["document_expected_months_count"],
+                "paired_months_count": metrics["paired_months_count"],
+                "missing_months_after_pairing_count": metrics["missing_months_after_pairing_count"],
+                "complete_pairing_absence": metrics["complete_pairing_absence"],
+                "pair_rows": record.pairs_rows,
+                "pair_status": record.pair_status,
+                "pair_error_code": record.pair_error_code,
+                "pair_output_csv": record.pair_output_csv,
+                "finding_count": finding_counts_by_employee.get(key, 0),
+                "coverage_gap_count": coverage_counts_by_employee.get(key, 0),
             }
         )
 
     stats = {
-        "employees_total": len(employee_summary_rows),
-        "employees_with_issues": employees_with_issues,
-        "issues_total": len(issues),
-        "required_month_range": REQUIRED_MONTH_RANGE_LABEL,
-        "required_months_total": len(REQUIRED_MONTHS),
-        "employees_missing_required_months": employees_missing_required_months,
-        "missing_required_months_total": missing_required_months_total,
+        "employees_total": len(summary_rows),
+        "employees_with_findings": sum(1 for row in summary_rows if int(row["finding_count"]) > 0),
+        "employees_with_coverage_gaps": sum(
+            1 for row in summary_rows if int(row["coverage_gap_count"]) > 0
+        ),
+        "employees_with_any_gaps": sum(
+            1
+            for row in summary_rows
+            if int(row["finding_count"]) > 0 or int(row["coverage_gap_count"]) > 0
+        ),
+        "findings_total": len(finding_rows),
+        "coverage_gaps_total": len(coverage_rows),
+        "expected_range_end": EXPECTED_RANGE_END_LABEL,
+        "employees_missing_expected_months": employees_missing_expected_months,
+        "missing_expected_months_total": missing_expected_months_total,
         "scan_without_included_files": sum(
-            1 for row in employee_summary_rows if bool(row["scan_without_included_files"])
+            1 for row in summary_rows if bool(row["scan_without_included_files"])
         ),
         "source_manifest_files": len(manifest_rows),
         "missing_text_layer_files": sum(
-            int(row["missing_text_layer_files"]) for row in employee_summary_rows
+            int(row["missing_text_layer_files"]) for row in summary_rows
         ),
         "pages_missing_year_month": sum(
-            int(row["pages_missing_year_month"]) for row in employee_summary_rows
+            int(row["pages_missing_year_month"]) for row in summary_rows
         ),
         "employees_missing_months_after_pairing": employees_missing_months_after_pairing,
         "months_missing_after_pairing_total": months_missing_after_pairing_total,
@@ -569,16 +634,19 @@ def audit_missing_timbrature_pipeline(
     return {
         "stats": stats,
         "artifacts": artifacts,
-        "employee_summary_rows": employee_summary_rows,
-        "employees": employees_nested,
-        "issues": issues,
+        "summary_rows": summary_rows,
+        "finding_rows": finding_rows,
+        "coverage_rows": coverage_rows,
+        "finding_counts_by_type": finding_counts_by_type,
+        "coverage_counts_by_type": coverage_counts_by_type,
     }
 
 
 __all__ = [
-    "EMPLOYEE_SUMMARY_COLUMNS",
-    "ISSUE_COLUMNS",
+    "COVERAGE_COLUMNS",
+    "FINDING_COLUMNS",
     "ResolvedAuditInputs",
+    "SUMMARY_COLUMNS",
     "audit_missing_timbrature_pipeline",
     "resolve_audit_inputs",
 ]

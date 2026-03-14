@@ -39,10 +39,9 @@ The direct event step no longer scans raw `.txt` files. Pairing no longer suppor
 - Stage reports in `output/default/events/*.report.json` and `output/default/shifts/*.report.json`
 - Optional audit outputs:
   - `output/default/missing_timbrature.report.json`
-  - `output/default/missing_timbrature.employees.csv`
-  - `output/default/missing_timbrature.issues.csv`
-  - `output/default/missing_timbrature.non_ocr_files/*.csv`
-  - `output/default/missing_timbrature.missing_months/*.csv`
+  - `output/default/missing_timbrature.summary.csv`
+  - `output/default/missing_timbrature.findings.csv`
+  - `output/default/missing_timbrature.coverage.csv`
 
 ## Typical commands
 
@@ -58,10 +57,10 @@ python -m pytest -q
 
 The audit merges:
 
-- the full scan-report `employees_found` inventory so every scanned employee appears in the employee CSV
-- fixed-range month coverage from pipeline events by comparing required months `2014-01..2025-12` against the months found in `events.cleaned.csv` with fallback to `events.csv`
-- per-employee non-OCR file exports under `missing_timbrature.non_ocr_files/`, one row per `missing_text_layer` file
-- per-employee missing-month exports under `missing_timbrature.missing_months/`, one row per missing required month (`year`, `month`, `month_name`)
+- the full scan-report `employees_found` inventory so every scanned employee appears in the summary CSV
+- employee-specific expected-month coverage from pipeline events by comparing the months found in `events.cleaned.csv` with a range from the earliest found-event year through `2025-12`
+- findings rows in `missing_timbrature.findings.csv` for scan, document, page, and pairing exceptions
+- coverage rows in `missing_timbrature.coverage.csv` for missing expected months and months missing after pairing
 - scan-report employees whose direct root folder produced `0` included files
 - document exclusions with reason `missing_text_layer`
 - event pages with `decision_reason=missing_page_year_month`

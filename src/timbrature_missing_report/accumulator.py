@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
 
 from src.drive_service.names import normalize_name
 
@@ -26,12 +25,7 @@ class EmployeeAccumulator:
     paired_months: set[YearMonth] = field(default_factory=set)
     expected_sources: dict[YearMonth, list[dict[str, str | None]]] = field(default_factory=dict)
     upstream_causes_by_month: dict[YearMonth, set[str]] = field(default_factory=dict)
-    issues: list[dict[str, Any]] = field(default_factory=list)
     _source_tokens: set[str] = field(default_factory=set)
-
-
-def sorted_month_labels(values: set[YearMonth]) -> list[str]:
-    return [format_year_month(item) for item in sorted(values)]
 
 
 def register_source_file(record: EmployeeAccumulator, token: str) -> None:
@@ -74,10 +68,6 @@ def build_expected_month_detail(
             source_names.append(str(name))
     if source_names:
         labels.append(f"sources={', '.join(sorted(source_names))}")
-
-    upstream_causes = sorted(record.upstream_causes_by_month.get(year_month, set()))
-    if upstream_causes:
-        labels.append(f"upstream_causes={', '.join(upstream_causes)}")
 
     if not labels:
         return f"Expected month {format_year_month(year_month)} not present in pairs"
@@ -132,5 +122,4 @@ __all__ = [
     "mark_upstream_cause",
     "register_expected_month",
     "register_source_file",
-    "sorted_month_labels",
 ]

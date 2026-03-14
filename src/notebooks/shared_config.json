@@ -1,7 +1,7 @@
 {
-  "root_id": "1T6w6Np9WaXUoFWnjoFadiMv_I4xe7K4t",
-  "root_prefix": "GASPERINI",
-  "base_output_dir": "src\\notebooks\\output",
+  "root_id": "1guqKp2FFRjl4OAgRN5y-7wkBeWQWDl1S",
+  "root_prefix": "PAGLIAI",
+  "base_output_dir": "output",
   "scan": {
     "workers": 8,
     "included_name": "included.index.json",
@@ -44,7 +44,8 @@
   },
   "timbrature_missing_report": {
     "report_name": "missing_timbrature.report.json",
-    "employee_summary_name": "missing_timbrature.employees.csv",
-    "issues_name": "missing_timbrature.issues.csv"
+    "summary_name": "missing_timbrature.summary.csv",
+    "findings_name": "missing_timbrature.findings.csv",
+    "coverage_name": "missing_timbrature.coverage.csv"
   }
 }

@@ -54,8 +54,9 @@ python -m "src.timbrature_missing_report" --pipeline-dir "output/default" --verb
 ```
 Outputs:
 - `missing_timbrature.report.json`
-- `missing_timbrature.employees.csv`
-- `missing_timbrature.issues.csv`
+- `missing_timbrature.summary.csv`
+- `missing_timbrature.findings.csv`
+- `missing_timbrature.coverage.csv`
 
 The audit expects the canonical pipeline layout under the selected root:
 `scan`, `documents`, `events`, `shifts`, `enrichment`, `aggregation`.
