@@ -7,6 +7,7 @@ Step structure reference: `docs/step_contract_v1.md`
 ## Entry points
 
 - `python -m "src.extract_events_from_documents"`
+- `python -m "src.parser_recall_audit"`
 - `python -m "src.filter_midnight_events"`
 - `python -m "src.pair_employee_events"`
 - `python -m "src.timbrature_missing_report"`
@@ -38,6 +39,8 @@ The direct event step no longer scans raw `.txt` files. Pairing no longer suppor
 - `output/default/shifts/*.pairs.csv`
 - Stage reports in `output/default/events/*.report.json` and `output/default/shifts/*.report.json`
 - Optional audit outputs:
+  - `output/suspicious_pages.csv`
+  - `output/parser_recall_audit.report.json`
   - `output/default/missing_timbrature.report.json`
   - `output/default/missing_timbrature.summary.csv`
   - `output/default/missing_timbrature.findings.csv`
@@ -47,11 +50,25 @@ The direct event step no longer scans raw `.txt` files. Pairing no longer suppor
 
 ```powershell
 python -m "src.extract_events_from_documents" --input-dir "output/default/documents" --output-dir "output/default/events" --out-name "events.csv" --pages-name "pages.csv" --report-json "output/default/events/extract_events.report.json" --verbose
+python -m "src.parser_recall_audit" --root-dir "output" --suspicious-csv "suspicious_pages.csv" --report-json "parser_recall_audit.report.json" --verbose
 python -m "src.filter_midnight_events" --input-dir "output/default/events" --events-name "events.csv" --out-name "events.cleaned.csv" --report-json "output/default/events/events.clean_midnight.report.json" --removed-csv "output/default/events/events.midnight_removed.csv" --verbose
 python -m "src.pair_employee_events" --input-dir "output/default/events" --output-dir "output/default/shifts" --events-name "events.cleaned.csv" --report-json "output/default/shifts/pair_employee_events.report.json" --max-gap-hours 16 --verbose
 python -m "src.timbrature_missing_report" --pipeline-dir "output/default" --verbose
 python -m pytest -q
 ```
+
+## Parser recall audit
+
+This audit scans one or more pipeline folders under an output root, reads each `events/pages.csv`, and writes a ranked manual-review queue with direct `source_file_link` Drive references.
+
+It flags:
+
+- tiny relevant pages where very few rows were recognized
+- large relevant pages with `events_extracted=0`
+- low-coverage relevant pages
+- pages where candidate events were dropped because month/year was unresolved
+
+It does not auto-decide whether a zero-event page is a parser bug. Instead it adds review signals such as absence-keyword hits, neighboring page coverage, and a `likely_legitimate_no_events` hint.
 
 ## Missing timbrature audit
 

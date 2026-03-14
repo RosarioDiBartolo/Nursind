@@ -28,6 +28,14 @@ python -m "src.extract_documents_from_index" --index "output/default/scan/includ
 python -m "src.extract_events_from_documents" --input-dir "output/default/documents" --output-dir "output/default/events" --out-name "events.csv" --pages-name "pages.csv" --report-json "output/default/events/extract_events.report.json" --verbose
 ```
 
+## 2b) Build a ranked suspicious-pages review queue across output/*
+```powershell
+python -m "src.parser_recall_audit" --root-dir "output" --suspicious-csv "suspicious_pages.csv" --report-json "parser_recall_audit.report.json" --verbose
+```
+Outputs:
+- `output/suspicious_pages.csv`
+- `output/parser_recall_audit.report.json`
+
 ## 3) Remove fake midnight events
 ```powershell
 python -m "src.filter_midnight_events" --input-dir "output/default/events" --events-name "events.csv" --out-name "events.cleaned.csv" --report-json "output/default/events/events.clean_midnight.report.json" --removed-csv "output/default/events/events.midnight_removed.csv" --verbose

@@ -1,5 +1,6 @@
 import argparse
 
+from pipeline_paths import PipelinePaths, build_pipelines_paths
 from src.drive_service import config
 from src.drive_service.auth_service import load_creds
 from src.drive_service.drive_client import get_drive_service
@@ -13,31 +14,31 @@ logger = get_logger()
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Scan Drive folders and build MapIndex outputs.")
-    parser.add_argument("--root", default=config.DRIVE_ROOT_FOLDER_ID)
-    parser.add_argument("--out", default=config.SCAN_OUT_DIR, help="Output directory")
+    parser.add_argument("--root" )
     parser.add_argument(
         "--included",
-        default=config.SCAN_INCLUDED_NAME,
+        default= "included.index.json",
         help="Included index filename (default: included.index.json)",
     )
     parser.add_argument(
         "--filtered",
-        default=config.SCAN_FILTERED_NAME,
+        default="filtered.index.json",
         help="Filtered index filename (default: filtered.index.json)",
     )
     parser.add_argument(
         "--report",
-        default="scan_directory.report.json",
-        help="Report filename (default: scan_directory.report.json)",
+        default="scan.report.json",
+        help="Report filename (default: scan.report.json)",
     )
     parser.add_argument("--workers", type=int, default=6)
     parser.add_argument("--verbose", "-v", action="store_true")
     args = parser.parse_args()
-
+    
     setup_logging(args.verbose)
     config.validate_env()
 
-    ensure_dir(args.out)
+    paths = build_pipelines_paths(args.root, create_dirs=False)
+    paths.ensure("scan")
     included_path = resolve_output_path(args.out, args.included)
     filtered_path = resolve_output_path(args.out, args.filtered)
     report_path = resolve_output_path(args.out, args.report)

@@ -30,6 +30,7 @@ Columns:
 - `event_kind`, `event_time_hhmm`, `event_raw`
 - `parser_id`, `source_origin`
 - `source_doc_json`, `source_file_id`, `source_file_name`, `source_employee`
+- `source_drive_path`, `source_file_link`
 - `source_page_no`, `source_line_id`, `source_line_no`, `source_slot`
 - `source_event_ref`
 
@@ -39,6 +40,7 @@ Produced by: `src.extract_events_from_documents`
 
 Columns:
 - `page_ref`, `source_doc_json`, `source_file_id`, `source_file_name`, `source_employee`
+- `source_drive_path`, `source_file_link`
 - `page_no`, `page_kind`, `decision`, `decision_reason`, `parser_id`
 - `page_year`, `page_month`, `year_month_source`
 - `relevant_for_coverage`
@@ -113,4 +115,21 @@ Columns:
 - `detail`
 
 Produced by: `src.timbrature_missing_report`
+
+## suspicious_pages.csv
+
+Columns:
+- `pipeline`, `issue_bucket`, `suspicion_score`, `likely_legitimate_no_events`
+- `source_file_link`, `source_drive_path`, `source_file_name`, `source_file_id`
+- `source_doc_json`, `page_ref`, `page_no`, `page_year`, `page_month`
+- `parser_id`, `decision`, `decision_reason`
+- `rows_considered`, `rows_with_events`, `rows_without_events`
+- `events_extracted`, `events_dropped_missing_year_month`, `coverage_ratio_page`
+- `neighbor_avg_coverage`, `prev_coverage`, `next_coverage`, `zero_run_length`
+- `file_pages_total`, `file_avg_coverage`, `file_zero_event_pages`, `file_low_coverage_pages`
+- `absence_keyword_hits`, `absence_keywords_found`
+- `time_token_count`, `time_line_count`, `event_candidate_line_count`
+- `page_text_found`, `header_preview`, `detail`
+
+Produced by: `src.parser_recall_audit`
 

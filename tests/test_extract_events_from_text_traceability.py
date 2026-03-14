@@ -34,6 +34,8 @@ def test_traceability_columns_include_source_refs(tmp_path: Path) -> None:
     assert not Path(source_doc_json).is_absolute()
     assert "/docs/" in f"/{source_doc_json}"
     assert str(df.loc[0, "source_file_name"]) == "giugno23.pdf"
+    assert str(df.loc[0, "source_drive_path"]) == "/Root/Mario Rossi/giugno23.pdf"
+    assert str(df.loc[0, "source_file_link"]) == "https://drive.google.com/file/d/pdf-201/view"
     assert "line_no=2" in str(df.loc[0, "source_event_ref"])
 
 
@@ -78,4 +80,6 @@ def test_page_and_event_refs_are_root_relative_when_doc_json_is_absolute(
     assert "/docs/" in f"/{source_doc_json}"
     assert "/docs/" in f"/{source_event_ref_path}"
     assert "/docs/" in f"/{page_ref_path}"
+    assert str(events_df.loc[0, "source_file_link"]) == "https://drive.google.com/file/d/pdf-202/view"
+    assert str(pages_df.loc[0, "source_drive_path"]) == "/Root/Mario Rossi/luglio23.pdf"
 

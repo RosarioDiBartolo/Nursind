@@ -1,36 +1,56 @@
 from __future__ import annotations
 
 import os
-from functools import lru_cache
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from src.drive_service.fs_utils import ensure_dir
+
+PipelineStep = Literal[
+    "root",
+    "scan",
+    "documents",
+    "events",
+    "shifts",
+    "enrichment",
+    "aggregation",
+]
+
+_PIPELINE_STEP_OUTPUT_ATTRS: dict[str, str] = {
+    "root": "root_output",
+    "scan": "scan_output",
+    "documents": "documents_output",
+    "events": "events_output",
+    "shifts": "shifts_output",
+    "enrichment": "enrichment_output",
+    "aggregation": "aggregation_output",
+}
 
 
 @dataclass(slots=True)
 class PipelinePaths:
     root_output: Path
     scan_output: Path
-    documents_output: Path 
+    documents_output: Path
     events_output: Path
     shifts_output: Path
     enrichment_output: Path
     aggregation_output: Path
 
- 
- 
+    def ensure(self, step: PipelineStep) -> None:
+        path_attr = _PIPELINE_STEP_OUTPUT_ATTRS.get(step)
+        if path_attr is None:
+            supported_steps = ", ".join(_PIPELINE_STEP_OUTPUT_ATTRS)
+            raise ValueError(
+                f"Unknown pipeline step {step!r}. Expected one of: {supported_steps}."
+            )
+        ensure_dir(str(getattr(self, path_attr)))
+
     def ensure_dirs(self) -> None:
-        for path in (
-            self.root_output,
-            self.scan_output,
-            self.documents_output, 
-            self.events_output,
-            self.shifts_output,
-            self.enrichment_output,
-            self.aggregation_output,
-        ):
-            ensure_dir(str(path))
+        for path_attr in _PIPELINE_STEP_OUTPUT_ATTRS.values():
+            ensure_dir(str(getattr(self, path_attr)))
 
 
 def build_pipelines_paths(
@@ -66,7 +86,7 @@ def build_pipelines_paths(
     outputs = PipelinePaths(
         root_output=root_output,
         scan_output=root_output / "scan",
-        documents_output=root_output / "documents", 
+        documents_output=root_output / "documents",
         events_output=root_output / "events",
         shifts_output=root_output / "shifts",
         enrichment_output=root_output / "enrichment",
@@ -75,26 +95,7 @@ def build_pipelines_paths(
     if create_dirs:
         outputs.ensure_dirs()
     return outputs
-
-
-def build_output_paths(
-    root_id: str | None = None,
-    *,
-    root_prefix: str | None = None,
-    base_output: str | Path | None = None,
-    create_dirs: bool = True,
-) -> PipelinePaths:
-    return build_pipelines_paths(
-        root_id=root_id,
-        root_prefix=root_prefix,
-        base_output=base_output,
-        create_dirs=create_dirs,
-    )
-
-
-# Backward-compatible alias; prefer PipelinePaths.
-OutputPaths = PipelinePaths
-
+ 
 
 @lru_cache(maxsize=128)
 def _resolve_root_prefix_from_drive(root_id: str) -> str | None:

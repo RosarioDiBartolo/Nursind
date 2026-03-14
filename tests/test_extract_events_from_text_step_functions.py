@@ -50,11 +50,13 @@ def test_process_one_text_row_writes_run_level_outputs(tmp_path: Path) -> None:
     assert list(events_df["event_kind"]) == ["E", "U"]
     assert list(events_df["event_time_hhmm"]) == ["08:00", "14:00"]
     assert int(events_df.loc[0, "source_line_no"]) == 2
+    assert str(events_df.loc[0, "source_file_link"]) == "https://drive.google.com/file/d/pdf-001/view"
     assert "line_no=2" in str(events_df.loc[0, "source_event_ref"])
 
     pages_df = pd.read_csv(out_pages_csv)
     assert int(len(pages_df)) >= 1
     assert str(pages_df.loc[0, "decision"]) == "parsed"
+    assert str(pages_df.loc[0, "source_drive_path"]) == "/Root/Mario Rossi/gennaio23.pdf"
 
 
 def test_process_many_text_rows_tracks_missing_page_year_month(tmp_path: Path) -> None:
@@ -159,6 +161,7 @@ def test_extract_events_from_documents_dir_reads_employee_manifest_csv(tmp_path:
     assert not Path(source_doc_json).is_absolute()
     assert "/docs/" in f"/{source_doc_json}"
     assert str(events_df.loc[0, "source_file_name"]) == "aprile23.pdf"
+    assert str(events_df.loc[0, "source_file_link"]) == "https://drive.google.com/file/d/pdf-123/view"
 
 
 def test_process_one_text_row_requires_doc_json(tmp_path: Path) -> None:

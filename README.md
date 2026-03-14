@@ -7,6 +7,7 @@ The active workflow is intentionally narrow and explicit:
 - scan Drive folders into canonical index files
 - extract canonical document payloads
 - parse events from those documents
+- audit parser recall from page diagnostics
 - clean midnight artifacts
 - pair events into shifts
 - enrich shifts
@@ -33,11 +34,12 @@ The current pipeline supports only this layout. Legacy folders such as `text_ext
 1. Drive indexing via `python -m "src.scan_directory"`
 2. Document extraction via `python -m "src.extract_documents_from_index"`
 3. Direct document-to-events extraction via `python -m "src.extract_events_from_documents"`
-4. Midnight cleanup via `python -m "src.filter_midnight_events"`
-5. Employee-level pairing via `python -m "src.pair_employee_events"`
-6. Shift enrichment via `python -m "src.turni_enrichment"`
-7. Yearly aggregation via `python -m "src.turni_employee_summary"`
-8. Missing timbrature audit via `python -m "src.timbrature_missing_report"`
+4. Parser recall audit via `python -m "src.parser_recall_audit"`
+5. Midnight cleanup via `python -m "src.filter_midnight_events"`
+6. Employee-level pairing via `python -m "src.pair_employee_events"`
+7. Shift enrichment via `python -m "src.turni_enrichment"`
+8. Yearly aggregation via `python -m "src.turni_employee_summary"`
+9. Missing timbrature audit via `python -m "src.timbrature_missing_report"`
 
 ## Core Outputs
 
@@ -46,10 +48,12 @@ The current pipeline supports only this layout. Legacy folders such as `text_ext
 - `output/default/documents/docs/*.json`
 - `output/default/documents/<employee>.csv`
 - `output/default/events/events.csv`
+- `output/default/events/pages.csv`
 - `output/default/events/events.cleaned.csv`
 - `output/default/shifts/*.pairs.csv`
 - `output/default/enrichment/*.enriched.csv`
 - `output/default/aggregation/turni_employee_summary.csv`
+- `output/suspicious_pages.csv`
 - `output/default/missing_timbrature.*`
 
 ## Technical Notes
@@ -83,6 +87,7 @@ python -m pip install -e .[dev]
 python -m "src.scan_directory" --root "<DRIVE_ROOT_FOLDER_ID>" --out "output/default/scan" --included "included.index.json" --filtered "filtered.index.json" --report "scan_directory.report.json" --verbose
 python -m "src.extract_documents_from_index" --index "output/default/scan/included.index.json" --out "output/default/documents" --included "included_documents.index.json" --excluded "excluded_documents.index.json" --verbose
 python -m "src.extract_events_from_documents" --input-dir "output/default/documents" --output-dir "output/default/events" --verbose
+python -m "src.parser_recall_audit" --root-dir "output" --verbose
 python -m "src.filter_midnight_events" --input-dir "output/default/events" --verbose
 python -m "src.pair_employee_events" --input-dir "output/default/events" --output-dir "output/default/shifts" --verbose
 python -m "src.turni_enrichment" --input-dir "output/default/shifts" --out-dir "output/default/enrichment" --verbose
@@ -152,7 +157,27 @@ Behavior:
 - traceability fields carried onto event rows
 - no raw `.txt` fallback
 
-### 4) Midnight cleanup
+### 4) Parser recall audit
+
+Entry point: `python -m "src.parser_recall_audit"`
+
+Input:
+
+- output root containing one or more pipeline folders, typically `output`
+
+Outputs:
+
+- `output/suspicious_pages.csv`
+- `output/parser_recall_audit.report.json`
+
+Behavior:
+
+- reads each `output/*/events/pages.csv`
+- ranks tiny pages, zero-event pages, low-coverage pages, and missing-year-month pages
+- carries direct `source_file_link` references for opening the original Drive PDF
+- adds heuristics such as neighboring page coverage and absence-keyword hits for manual triage
+
+### 5) Midnight cleanup
 
 Entry point: `python -m "src.filter_midnight_events"`
 
@@ -165,7 +190,7 @@ Outputs:
 - `output/default/events/events.cleaned.csv`
 - `output/default/events/events.midnight_removed.csv`
 
-### 5) Employee-level pairing
+### 6) Employee-level pairing
 
 Entry point: `python -m "src.pair_employee_events"`
 
@@ -185,7 +210,7 @@ Behavior:
 - overnight support
 - no deprecated `--index` mode
 
-### 6) Shift enrichment
+### 7) Shift enrichment
 
 Entry point: `python -m "src.turni_enrichment"`
 
@@ -198,7 +223,7 @@ Outputs:
 - `output/default/enrichment/*.enriched.csv`
 - optional `output/default/enrichment/turni_enrichment.stats.json`
 
-### 7) Yearly aggregation
+### 8) Yearly aggregation
 
 Entry point: `python -m "src.turni_employee_summary"`
 
@@ -210,7 +235,7 @@ Outputs:
 
 - `output/default/aggregation/turni_employee_summary.csv`
 
-### 8) Missing timbrature audit
+### 9) Missing timbrature audit
 
 Entry point: `python -m "src.timbrature_missing_report"`
 

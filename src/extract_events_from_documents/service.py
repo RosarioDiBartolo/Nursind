@@ -187,6 +187,8 @@ def _process_many_documents(
                     "source_doc_json": str(result["source_doc_json"]),
                     "source_file_name": result.get("source_file_name"),
                     "source_file_id": result.get("source_file_id"),
+                    "source_drive_path": result.get("source_drive_path"),
+                    "source_file_link": result.get("source_file_link"),
                     "parser_id": result.get("parser_id"),
                     "doc_format": result.get("doc_format"),
                     "rows_considered": int(result["rows_considered"]),
