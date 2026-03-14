@@ -87,12 +87,9 @@ Produced by: `src.turni_employee_summary`
 
 Columns:
 - `employee`, `employee_id`
-- `source_files_total`, `expected_month_range`, `expected_months_count`
-- `found_event_months_count`, `missing_expected_months_count`
+- `source_files_total`, `coverage_month_range`, `coverage_months_count`
+- `missing_coverage_months_count`
 - `scan_without_included_files`, `missing_text_layer_files`, `pages_missing_year_month`
-- `document_expected_months_count`, `paired_months_count`, `missing_months_after_pairing_count`
-- `complete_pairing_absence`, `pair_rows`
-- `pair_status`, `pair_error_code`, `pair_output_csv`
 - `finding_count`, `coverage_gap_count`
 
 Produced by: `src.timbrature_missing_report`
@@ -113,7 +110,7 @@ Columns:
 - `employee`, `employee_id`
 - `gap_type`, `stage`
 - `year`, `month`, `year_month`
-- `upstream_causes`, `detail`
+- `detail`
 
 Produced by: `src.timbrature_missing_report`
 

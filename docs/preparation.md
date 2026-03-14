@@ -58,13 +58,15 @@ python -m pytest -q
 The audit merges:
 
 - the full scan-report `employees_found` inventory so every scanned employee appears in the summary CSV
-- employee-specific expected-month coverage from pipeline events by comparing the months found in `events.cleaned.csv` with a range from the earliest found-event year through `2025-12`
+- fixed employee coverage for every month from `2014-01` through `2025-12`
+- coverage months derived only from `pages.csv` rows where `relevant_for_coverage=true` and `page_year/page_month` are valid
+- valid coverage pages still count even when `events_extracted=0`
 - findings rows in `missing_timbrature.findings.csv` for scan, document, page, and pairing exceptions
-- coverage rows in `missing_timbrature.coverage.csv` for missing expected months and months missing after pairing
+- coverage rows in `missing_timbrature.coverage.csv` for missing coverage months only
 - scan-report employees whose direct root folder produced `0` included files
 - document exclusions with reason `missing_text_layer`
 - event pages with `decision_reason=missing_page_year_month`
-- per-employee pair outputs to spot missing month and year coverage after pairing
+- per-employee pair outputs only to surface pairing failures and output-file issues
 
 ## Function-level testing (`extract_events_from_documents`)
 

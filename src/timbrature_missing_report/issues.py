@@ -11,21 +11,12 @@ SUMMARY_COLUMNS = [
     "employee",
     "employee_id",
     "source_files_total",
-    "expected_month_range",
-    "expected_months_count",
-    "found_event_months_count",
-    "missing_expected_months_count",
+    "coverage_month_range",
+    "coverage_months_count",
+    "missing_coverage_months_count",
     "scan_without_included_files",
     "missing_text_layer_files",
     "pages_missing_year_month",
-    "document_expected_months_count",
-    "paired_months_count",
-    "missing_months_after_pairing_count",
-    "complete_pairing_absence",
-    "pair_rows",
-    "pair_status",
-    "pair_error_code",
-    "pair_output_csv",
     "finding_count",
     "coverage_gap_count",
 ]
@@ -55,7 +46,6 @@ COVERAGE_COLUMNS = [
     "year",
     "month",
     "year_month",
-    "upstream_causes",
     "detail",
 ]
 
@@ -101,7 +91,6 @@ def append_coverage_gap(
     stage: str,
     year_month: YearMonth,
     detail: str,
-    upstream_causes: str | None = None,
 ) -> None:
     coverage_rows.append(
         {
@@ -112,7 +101,6 @@ def append_coverage_gap(
             "year": year_month[0],
             "month": year_month[1],
             "year_month": format_year_month(year_month),
-            "upstream_causes": upstream_causes,
             "detail": detail,
         }
     )

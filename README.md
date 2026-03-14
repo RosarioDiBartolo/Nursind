@@ -229,7 +229,7 @@ Behavior:
 
 - reads the canonical `documents`, `events`, and `shifts` folders
 - uses the scan report `employees_found` inventory
-- flags non-OCR source files, missing employee months, unresolved page month/year, and pairing gaps
+- flags non-OCR source files, unresolved page month/year, pairing failures, and missing `2014-01..2025-12` coverage months from `pages.csv` rows marked `relevant_for_coverage=true`
 - rejects legacy-only layouts instead of auto-detecting them
 
 ## Optional: Download PDFs From an Index

@@ -37,8 +37,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
             "Audit a pipeline folder and report employees with missing timbrature, "
-            "missing text-layer documents, unresolved month/year pages, and months "
-            "missing after pairing."
+            "missing text-layer documents, unresolved month/year pages, and missing "
+            "coverage months from relevant pages."
         )
     )
     parser.add_argument(

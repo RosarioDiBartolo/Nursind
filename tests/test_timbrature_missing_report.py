@@ -98,7 +98,9 @@ def _build_pipeline_dir(tmp_path: Path) -> Path:
                 "page_no": "1",
                 "page_year": "2014",
                 "page_month": "1",
-                "decision_reason": "",
+                "relevant_for_coverage": "true",
+                "decision_reason": "parsed",
+                "events_extracted": "2",
                 "events_dropped_missing_year_month": "0",
             }
         ],
@@ -110,7 +112,9 @@ def _build_pipeline_dir(tmp_path: Path) -> Path:
             "page_no",
             "page_year",
             "page_month",
+            "relevant_for_coverage",
             "decision_reason",
+            "events_extracted",
             "events_dropped_missing_year_month",
         ],
     )
@@ -141,7 +145,9 @@ def _build_pipeline_dir(tmp_path: Path) -> Path:
     return pipeline_dir
 
 
-def test_audit_missing_timbrature_uses_employee_expected_ranges(tmp_path: Path) -> None:
+def test_audit_missing_timbrature_uses_relevant_pages_for_fixed_coverage_window(
+    tmp_path: Path,
+) -> None:
     pipeline_dir = _build_pipeline_dir(tmp_path)
 
     report = audit_missing_timbrature_pipeline(pipeline_dir)
@@ -150,51 +156,47 @@ def test_audit_missing_timbrature_uses_employee_expected_ranges(tmp_path: Path) 
     assert sorted(rows) == ["Giulia Bianchi", "Mario Rossi"]
 
     mario = rows["Mario Rossi"]
-    assert mario["expected_month_range"] == "2014-01..2025-12"
-    assert int(mario["expected_months_count"]) == 144
-    assert int(mario["found_event_months_count"]) == 2
-    assert int(mario["missing_expected_months_count"]) == 142
-    assert int(mario["document_expected_months_count"]) == 2
-    assert int(mario["paired_months_count"]) == 1
-    assert int(mario["missing_months_after_pairing_count"]) == 1
+    assert mario["coverage_month_range"] == "2014-01..2025-12"
+    assert int(mario["coverage_months_count"]) == 1
+    assert int(mario["missing_coverage_months_count"]) == 143
     assert int(mario["finding_count"]) == 1
     assert int(mario["coverage_gap_count"]) == 143
 
     giulia = rows["Giulia Bianchi"]
-    assert giulia["expected_month_range"] == ""
-    assert int(giulia["expected_months_count"]) == 0
-    assert int(giulia["missing_expected_months_count"]) == 0
+    assert giulia["coverage_month_range"] == "2014-01..2025-12"
+    assert int(giulia["coverage_months_count"]) == 0
+    assert int(giulia["missing_coverage_months_count"]) == 144
     assert giulia["scan_without_included_files"] is True
     assert int(giulia["finding_count"]) == 1
-    assert int(giulia["coverage_gap_count"]) == 0
+    assert int(giulia["coverage_gap_count"]) == 144
 
     coverage_rows = report["coverage_rows"]
-    missing_expected_rows = [row for row in coverage_rows if row["gap_type"] == "missing_expected_month"]
-    missing_pair_rows = [
-        row for row in coverage_rows if row["gap_type"] == "missing_month_after_pairing"
+    missing_coverage_rows = [
+        row for row in coverage_rows if row["gap_type"] == "missing_coverage_month"
     ]
-    assert len(missing_expected_rows) == 142
-    assert len(missing_pair_rows) == 1
+    assert len(missing_coverage_rows) == 287
     assert any(
         row["employee"] == "Mario Rossi" and row["year_month"] == "2014-02"
-        for row in missing_expected_rows
+        for row in missing_coverage_rows
     )
-    assert missing_pair_rows[0]["employee"] == "Mario Rossi"
-    assert missing_pair_rows[0]["year_month"] == "2014-02"
+    assert any(
+        row["employee"] == "Giulia Bianchi" and row["year_month"] == "2014-01"
+        for row in missing_coverage_rows
+    )
 
     finding_types = {row["finding_type"] for row in report["finding_rows"]}
     assert finding_types == {"missing_text_layer", "scan_without_included_files"}
 
     assert int(report["stats"]["employees_total"]) == 2
     assert int(report["stats"]["employees_with_findings"]) == 2
-    assert int(report["stats"]["employees_with_coverage_gaps"]) == 1
+    assert int(report["stats"]["employees_with_coverage_gaps"]) == 2
     assert int(report["stats"]["employees_with_any_gaps"]) == 2
     assert int(report["stats"]["findings_total"]) == 2
-    assert int(report["stats"]["coverage_gaps_total"]) == 143
-    assert int(report["stats"]["employees_missing_expected_months"]) == 1
-    assert int(report["stats"]["missing_expected_months_total"]) == 142
-    assert int(report["stats"]["employees_missing_months_after_pairing"]) == 1
-    assert int(report["stats"]["months_missing_after_pairing_total"]) == 1
+    assert int(report["stats"]["coverage_gaps_total"]) == 287
+    assert report["stats"]["coverage_month_range"] == "2014-01..2025-12"
+    assert int(report["stats"]["coverage_months_total"]) == 144
+    assert int(report["stats"]["employees_missing_coverage_months"]) == 2
+    assert int(report["stats"]["missing_coverage_months_total"]) == 287
 
 
 def test_build_missing_timbrature_report_writes_new_artifacts_and_cleans_legacy(
@@ -236,10 +238,12 @@ def test_build_missing_timbrature_report_writes_new_artifacts_and_cleans_legacy(
     assert not legacy_missing_months_dir.exists()
 
     assert summary_rows
-    assert "expected_month_range" in summary_rows[0]
-    assert "found_event_months_count" in summary_rows[0]
-    assert "found_event_months" not in summary_rows[0]
-    assert "required_month_range" not in summary_rows[0]
+    assert "coverage_month_range" in summary_rows[0]
+    assert "coverage_months_count" in summary_rows[0]
+    assert "missing_coverage_months_count" in summary_rows[0]
+    assert "expected_month_range" not in summary_rows[0]
+    assert "pair_rows" not in summary_rows[0]
+    assert "pair_status" not in summary_rows[0]
 
     assert finding_rows
     assert "finding_type" in finding_rows[0]
@@ -251,23 +255,115 @@ def test_build_missing_timbrature_report_writes_new_artifacts_and_cleans_legacy(
 
     assert coverage_rows
     assert "gap_type" in coverage_rows[0]
-    assert "upstream_causes" in coverage_rows[0]
-    assert {row["gap_type"] for row in coverage_rows} == {
-        "missing_expected_month",
-        "missing_month_after_pairing",
-    }
+    assert "upstream_causes" not in coverage_rows[0]
+    assert {row["gap_type"] for row in coverage_rows} == {"missing_coverage_month"}
 
     assert report_json_payload["outputs"]["summary_csv"] == str(summary_csv_path.resolve())
     assert report_json_payload["outputs"]["findings_csv"] == str(findings_csv_path.resolve())
     assert report_json_payload["outputs"]["coverage_csv"] == str(coverage_csv_path.resolve())
     assert report_json_payload["row_totals"]["summary_rows"] == 2
     assert report_json_payload["row_totals"]["finding_rows"] == 2
-    assert report_json_payload["row_totals"]["coverage_rows"] == 143
+    assert report_json_payload["row_totals"]["coverage_rows"] == 287
     assert report_json_payload["finding_counts_by_type"]["missing_text_layer"] == 1
-    assert report_json_payload["coverage_counts_by_type"]["missing_expected_month"] == 142
+    assert report_json_payload["coverage_counts_by_type"]["missing_coverage_month"] == 287
     assert "summary_rows" not in report_json_payload
     assert "finding_rows" not in report_json_payload
     assert "coverage_rows" not in report_json_payload
+
+
+def test_audit_missing_timbrature_counts_valid_month_pages_without_events_as_coverage(
+    tmp_path: Path,
+) -> None:
+    pipeline_dir = tmp_path / "pipeline"
+    _write_json(
+        pipeline_dir / "scan" / "scan_directory.report.json",
+        {
+            "employees_found": [
+                {
+                    "employee": "Mario Rossi",
+                    "employee_id": "emp-1",
+                    "status": "ok",
+                    "included_files": 1,
+                }
+            ],
+            "employees_without_included_files": [],
+        },
+    )
+    _write_csv(
+        pipeline_dir / "documents" / "Mario Rossi.csv",
+        [
+            {
+                "employee": "Mario Rossi",
+                "employee_id": "emp-1",
+                "file_id": "file-1",
+                "file_name": "bundle.pdf",
+                "drive_path": "Mario Rossi/bundle.pdf",
+                "doc_json": "",
+            }
+        ],
+        TEXT_EXTRACTION_COLUMNS,
+    )
+    _write_csv(
+        pipeline_dir / "events" / "pages.csv",
+        [
+            {
+                "source_file_id": "file-1",
+                "source_doc_json": "",
+                "source_file_name": "bundle.pdf",
+                "source_employee": "Mario Rossi",
+                "page_no": "1",
+                "page_year": "2016",
+                "page_month": "12",
+                "relevant_for_coverage": "true",
+                "decision_reason": "parsed",
+                "events_extracted": "0",
+                "events_dropped_missing_year_month": "0",
+            }
+        ],
+        [
+            "source_file_id",
+            "source_doc_json",
+            "source_file_name",
+            "source_employee",
+            "page_no",
+            "page_year",
+            "page_month",
+            "relevant_for_coverage",
+            "decision_reason",
+            "events_extracted",
+            "events_dropped_missing_year_month",
+        ],
+    )
+    _write_csv(
+        pipeline_dir / "events" / "events.cleaned.csv",
+        [{"event_ts": "2014-01-10 08:00:00", "source_employee": "Mario Rossi"}],
+        ["event_ts", "source_employee"],
+    )
+    _write_csv(
+        pipeline_dir / "shifts" / "Mario Rossi.pairs.csv",
+        [
+            {
+                "year": "2014",
+                "month": "1",
+                "day": "10",
+                "dow": "ven",
+                "pair_index": "1",
+                "entry_ts": "2014-01-10 08:00:00",
+                "exit_ts": "2014-01-10 14:00:00",
+            }
+        ],
+        ["year", "month", "day", "dow", "pair_index", "entry_ts", "exit_ts"],
+    )
+
+    report = audit_missing_timbrature_pipeline(pipeline_dir)
+    mario = report["summary_rows"][0]
+
+    assert mario["coverage_months_count"] == 1
+    assert mario["missing_coverage_months_count"] == 143
+    assert not any(
+        row["gap_type"] == "missing_coverage_month" and row["year_month"] == "2016-12"
+        for row in report["coverage_rows"]
+    )
 
 
 def test_audit_missing_timbrature_rejects_legacy_layout(tmp_path: Path) -> None:
