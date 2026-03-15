@@ -10,13 +10,13 @@ import pandas as pd
 from src.drive_service.fs_utils import ensure_parent_dir
 
 from .options import (
-    DEFAULT_ENRICHED_DIR,
     DEFAULT_OUTPUT_FORMAT,
-    DEFAULT_REPORT_JSON,
-    DEFAULT_SUMMARY_CSV,
     DEFAULT_YEAR_END,
     DEFAULT_YEAR_START,
     TurniEmployeeSummaryOptions,
+    default_enriched_dir,
+    default_report_json_path,
+    default_summary_csv_path,
 )
 from .service import process_many_enriched_files
 
@@ -36,14 +36,17 @@ def _write_json(out_path: str, rows: list[dict[str, Any]], stats: dict[str, Any]
 
 def build_turni_employee_summary_from_dir(
     *,
-    enriched_dir: str = DEFAULT_ENRICHED_DIR,
-    out: str = DEFAULT_SUMMARY_CSV,
-    report_json: str = DEFAULT_REPORT_JSON,
+    enriched_dir: str | None = None,
+    out: str | None = None,
+    report_json: str | None = None,
     output_format: Literal["csv", "json"] = DEFAULT_OUTPUT_FORMAT,
     min_hours: float | None = None,
     year_start: int | None = DEFAULT_YEAR_START,
     year_end: int | None = DEFAULT_YEAR_END,
 ) -> dict[str, Any]:
+    enriched_dir = enriched_dir or default_enriched_dir()
+    out = out or default_summary_csv_path()
+    report_json = report_json or default_report_json_path()
     enriched_path = Path(enriched_dir)
     enriched_files = sorted(enriched_path.glob("*.enriched.csv"))
     report = process_many_enriched_files(
@@ -69,11 +72,12 @@ def build_turni_employee_summary_from_dir(
 
 def build_employee_turni_summary(
     *,
-    enriched_dir: str = DEFAULT_ENRICHED_DIR,
+    enriched_dir: str | None = None,
     min_hours: float | None = None,
     year_start: int | None = DEFAULT_YEAR_START,
     year_end: int | None = DEFAULT_YEAR_END,
 ) -> tuple[list[dict[str, Any]], dict[str, int]]:
+    enriched_dir = enriched_dir or default_enriched_dir()
     enriched_path = Path(enriched_dir)
     enriched_files = sorted(enriched_path.glob("*.enriched.csv"))
     report = process_many_enriched_files(

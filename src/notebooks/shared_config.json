@@ -11,49 +11,24 @@
  
   "base_output_dir": "output",
   "scan": {
-    "workers": 8,
-    "included_name": "included.index.json",
-    "filtered_name": "filtered.index.json",
-    "report_name": "scan_directory.report.json"
+    "workers": 8
   },
-  "extract_documents": {
-    "included_name": "included_documents.index.json",
-    "excluded_name": "excluded_documents.index.json",
-    "report_name": "extract_documents_from_index.report.json"
-  },
-  "extract_events": {
-    "out_name": "events.csv",
-    "pages_name": "pages.csv",
-    "report_name": "extract_events.report.json"
-  },
+  "extract_documents": {},
+  "extract_events": {},
   "filter_midnight": {
-    "events_name": "events.csv",
-    "out_name": "events.cleaned.csv",
-    "report_name": "events.clean_midnight.report.json",
-    "removed_csv_name": "events.midnight_removed.csv"
   },
   "pair_employee": {
-    "events_name": "events.cleaned.csv",
-    "report_name": "pair_employee_events.report.json",
     "max_gap_hours": 16.0
   },
   "turni_enrichment": {
     "min_hours": 6.0,
-    "include_holidays": true,
-    "report_name": "turni_enrichment.stats.json"
+    "include_holidays": true
   },
   "turni_employee_summary": {
-    "out_name": "turni_employee_summary.csv",
-    "report_name": "turni_employee_summary.report.json",
     "output_format": "csv",
     "year_start": 2014,
     "year_end": 2025,
     "min_hours": null
   },
-  "timbrature_missing_report": {
-    "report_name": "missing_timbrature.report.json",
-    "summary_name": "missing_timbrature.summary.csv",
-    "findings_name": "missing_timbrature.findings.csv",
-    "coverage_name": "missing_timbrature.coverage.csv"
-  }
+  "timbrature_missing_report": {}
 }

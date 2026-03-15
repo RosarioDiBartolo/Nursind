@@ -11,30 +11,33 @@ from src.drive_service.text_extraction_csv import (
 )
 
 from .options import (
-    DEFAULT_INPUT_DIR,
     DEFAULT_MANIFEST_GLOB,
     DEFAULT_MAX_PATTERN_EXAMPLES,
     DEFAULT_MAX_UNMATCHED_EXAMPLES_PER_FILE,
     DEFAULT_OUT_NAME,
     DEFAULT_PAGES_NAME,
-    DEFAULT_OUTPUT_DIR,
-    DEFAULT_REPORT_JSON,
     ExtractEventsFromTextOptions,
+    default_input_dir,
+    default_output_dir,
+    default_report_json_path,
 )
 from .service import process_many_text_rows
 
 
 def extract_events_from_documents_dir(
     *,
-    input_dir: str = DEFAULT_INPUT_DIR,
-    output_dir: str = DEFAULT_OUTPUT_DIR,
+    input_dir: str | None = None,
+    output_dir: str | None = None,
     out_name: str = DEFAULT_OUT_NAME,
     pages_name: str = DEFAULT_PAGES_NAME,
-    report_json: str = DEFAULT_REPORT_JSON,
+    report_json: str | None = None,
     manifest_glob: str = DEFAULT_MANIFEST_GLOB,
     max_pattern_examples: int = DEFAULT_MAX_PATTERN_EXAMPLES,
     max_unmatched_examples_per_file: int = DEFAULT_MAX_UNMATCHED_EXAMPLES_PER_FILE,
 ) -> dict[str, Any]:
+    input_dir = input_dir or default_input_dir()
+    output_dir = output_dir or default_output_dir()
+    report_json = report_json or default_report_json_path()
     input_base = Path(input_dir)
     employee_csv_files = find_text_extraction_csvs(input_base)
     if not employee_csv_files:

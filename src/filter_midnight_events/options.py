@@ -1,44 +1,56 @@
 from __future__ import annotations
 
 import argparse
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Sequence
 
-from src.pipeline_paths import build_pipelines_paths
+from src.pipeline_paths import build_pipeline_paths, with_filter_midnight_overrides
 
-DEFAULT_OUTPUTS = build_pipelines_paths()
-DEFAULT_INPUT_DIR = str(DEFAULT_OUTPUTS.events_output)
-DEFAULT_EVENTS_NAME = "events.csv"
-DEFAULT_OUT_NAME = "events.cleaned.csv"
-DEFAULT_REPORT_JSON = str(
-    DEFAULT_OUTPUTS.events_output / "events.clean_midnight.report.json"
-)
-DEFAULT_REMOVED_CSV = str(
-    DEFAULT_OUTPUTS.events_output / "events.midnight_removed.csv"
-)
+from .artifacts import FILTER_MIDNIGHT_ARTIFACTS
+
+
+def _default_paths():
+    return build_pipeline_paths().filter_midnight
+
+
+def default_input_dir() -> str:
+    return str(_default_paths().input_dir)
+
+
+def default_report_json_path() -> str:
+    return str(_default_paths().report_json)
+
+
+def default_removed_csv_path() -> str:
+    return str(_default_paths().removed_csv)
+
+
+DEFAULT_EVENTS_NAME = FILTER_MIDNIGHT_ARTIFACTS.events_csv.artifact
+DEFAULT_OUT_NAME = FILTER_MIDNIGHT_ARTIFACTS.cleaned_events_csv
 DEFAULT_MAX_REMOVED_EXAMPLES_PER_FILE = 10
 
 
 @dataclass(slots=True)
 class FilterMidnightEventsOptions:
-    input_dir: str = DEFAULT_INPUT_DIR
+    input_dir: str = field(default_factory=default_input_dir)
     events_name: str = DEFAULT_EVENTS_NAME
     out_name: str = DEFAULT_OUT_NAME
-    report_json: str = DEFAULT_REPORT_JSON
-    removed_csv: str = DEFAULT_REMOVED_CSV
+    report_json: str = field(default_factory=default_report_json_path)
+    removed_csv: str = field(default_factory=default_removed_csv_path)
     max_removed_examples_per_file: int = DEFAULT_MAX_REMOVED_EXAMPLES_PER_FILE
     in_place: bool = False
     verbose: bool = False
 
 
 def build_parser() -> argparse.ArgumentParser:
+    defaults = _default_paths()
     parser = argparse.ArgumentParser(
         description="Filter midnight events from run-level raw events CSV files."
     )
     parser.add_argument(
         "--input-dir",
-        default=DEFAULT_INPUT_DIR,
-        help=f"Root directory containing raw events CSV files (default: {DEFAULT_INPUT_DIR})",
+        default=str(defaults.input_dir),
+        help=f"Root directory containing raw events CSV files (default: {defaults.input_dir})",
     )
     parser.add_argument(
         "--events-name",
@@ -55,18 +67,18 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--report-json",
-        default=DEFAULT_REPORT_JSON,
+        default=FILTER_MIDNIGHT_ARTIFACTS.report_json,
         help=(
-            "Path of the final JSON report "
-            f"(default: {DEFAULT_REPORT_JSON})"
+            "JSON report output path relative to --input-dir "
+            f"(default: {FILTER_MIDNIGHT_ARTIFACTS.report_json})"
         ),
     )
     parser.add_argument(
         "--removed-csv",
-        default=DEFAULT_REMOVED_CSV,
+        default=FILTER_MIDNIGHT_ARTIFACTS.removed_csv,
         help=(
-            "Path of the aggregate CSV containing all removed rows "
-            f"(default: {DEFAULT_REMOVED_CSV})"
+            "Removed-rows CSV output path relative to --input-dir "
+            f"(default: {FILTER_MIDNIGHT_ARTIFACTS.removed_csv})"
         ),
     )
     parser.add_argument(
@@ -86,12 +98,20 @@ def build_parser() -> argparse.ArgumentParser:
 
 def parse_options(argv: Sequence[str] | None = None) -> FilterMidnightEventsOptions:
     args = build_parser().parse_args(argv)
-    return FilterMidnightEventsOptions(
+    paths = with_filter_midnight_overrides(
+        build_pipeline_paths(),
+        dir=args.input_dir,
         input_dir=args.input_dir,
-        events_name=args.events_name,
-        out_name=args.out_name,
         report_json=args.report_json,
         removed_csv=args.removed_csv,
+    )
+    resolved = paths.filter_midnight
+    return FilterMidnightEventsOptions(
+        input_dir=str(resolved.input_dir),
+        events_name=args.events_name,
+        out_name=args.out_name,
+        report_json=str(resolved.report_json),
+        removed_csv=str(resolved.removed_csv),
         max_removed_examples_per_file=max(0, int(args.max_removed_examples_per_file)),
         in_place=args.in_place,
         verbose=args.verbose,

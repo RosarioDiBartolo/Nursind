@@ -11,11 +11,11 @@ from src.drive_service.fs_utils import ensure_dir, ensure_parent_dir
 
 from .options import (
     DEFAULT_EVENTS_NAME,
-    DEFAULT_INPUT_DIR,
     DEFAULT_MAX_GAP_HOURS,
-    DEFAULT_OUTPUT_DIR,
-    DEFAULT_REPORT_JSON,
     PairEmployeeEventsOptions,
+    default_input_dir,
+    default_output_dir,
+    default_report_json_path,
 )
 from .service import normalize_employee, process_many_employee_events
 
@@ -115,14 +115,17 @@ def _discover_employees_from_events_dir(
 
 def build_pair_employee_events_from_dir(
     *,
-    input_dir: str | None = DEFAULT_INPUT_DIR,
-    output_dir: str = DEFAULT_OUTPUT_DIR,
+    input_dir: str | None = None,
+    output_dir: str | None = None,
     events_name: str = DEFAULT_EVENTS_NAME,
-    report_json: str = DEFAULT_REPORT_JSON,
+    report_json: str | None = None,
     max_gap_hours: float = DEFAULT_MAX_GAP_HOURS,
     employee_filter: str | None = None,
     keep_inferred_column: bool = False,
 ) -> dict[str, Any]:
+    input_dir = input_dir or default_input_dir()
+    output_dir = output_dir or default_output_dir()
+    report_json = report_json or default_report_json_path()
     if not input_dir:
         raise ValueError("--input-dir is required")
     ensure_dir(output_dir)
@@ -157,10 +160,10 @@ def build_pair_employee_events_from_dir(
 
 def pair_employee_events(
     *,
-    input_dir: str | None = DEFAULT_INPUT_DIR,
-    output_dir: str = DEFAULT_OUTPUT_DIR,
+    input_dir: str | None = None,
+    output_dir: str | None = None,
     events_name: str = DEFAULT_EVENTS_NAME,
-    report_json: str = DEFAULT_REPORT_JSON,
+    report_json: str | None = None,
     max_gap_hours: float = DEFAULT_MAX_GAP_HOURS,
     employee_filter: str | None = None,
     keep_inferred_column: bool = False,

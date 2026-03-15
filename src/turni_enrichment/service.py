@@ -17,7 +17,7 @@ from src.shift_services import (
     to_datetime_series,
 )
 
-from .options import DEFAULT_INPUT_DIR, DEFAULT_MIN_HOURS, DEFAULT_OUTPUT_DIR
+from .options import DEFAULT_MIN_HOURS, default_input_dir, default_output_dir
 
 logger = logging.getLogger(__name__)
 
@@ -106,11 +106,12 @@ def _enrich_pairs(
 def process_one_pairs_file(
     pair_path: str | Path,
     *,
-    output_dir: str = DEFAULT_OUTPUT_DIR,
+    output_dir: str | None = None,
     min_hours: float = DEFAULT_MIN_HOURS,
     include_holidays: bool = True,
     classifier: ShiftClassifier | None = None,
 ) -> dict[str, Any]:
+    output_dir = output_dir or default_output_dir()
     source_path = Path(pair_path)
     employee_name = _employee_from_path(source_path)
     out_path = os.path.abspath(os.path.join(output_dir, f"{safe_name(employee_name)}.enriched.csv"))
@@ -181,11 +182,13 @@ def process_one_pairs_file(
 def process_many_pairs_files(
     pairs_files: Iterable[str | Path],
     *,
-    output_dir: str = DEFAULT_OUTPUT_DIR,
+    output_dir: str | None = None,
     min_hours: float = DEFAULT_MIN_HOURS,
     include_holidays: bool = True,
-    input_dir: str | None = DEFAULT_INPUT_DIR,
+    input_dir: str | None = None,
 ) -> dict[str, Any]:
+    output_dir = output_dir or default_output_dir()
+    input_dir = input_dir or default_input_dir()
     normalized_pairs = sorted(Path(path) for path in pairs_files)
     classifier = ShiftClassifier(
         calendar=ItalianHolidayCalendar(),

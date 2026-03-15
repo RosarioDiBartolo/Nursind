@@ -9,12 +9,12 @@ from typing import Any
 from src.drive_service.fs_utils import ensure_parent_dir
 
 from .options import (
-    DEFAULT_COVERAGE_CSV,
-    DEFAULT_FINDINGS_CSV,
-    DEFAULT_PIPELINE_DIR,
-    DEFAULT_REPORT_JSON,
-    DEFAULT_SUMMARY_CSV,
     TimbratureMissingReportOptions,
+    default_coverage_csv_path,
+    default_findings_csv_path,
+    default_pipeline_dir,
+    default_report_json_path,
+    default_summary_csv_path,
 )
 from .service import (
     COVERAGE_COLUMNS,
@@ -86,12 +86,17 @@ def _build_json_payload(report: dict[str, Any]) -> dict[str, Any]:
 
 def build_missing_timbrature_report(
     *,
-    pipeline_dir: str = DEFAULT_PIPELINE_DIR,
-    report_json: str = DEFAULT_REPORT_JSON,
-    summary_csv: str = DEFAULT_SUMMARY_CSV,
-    findings_csv: str = DEFAULT_FINDINGS_CSV,
-    coverage_csv: str = DEFAULT_COVERAGE_CSV,
+    pipeline_dir: str | None = None,
+    report_json: str | None = None,
+    summary_csv: str | None = None,
+    findings_csv: str | None = None,
+    coverage_csv: str | None = None,
 ) -> dict[str, Any]:
+    pipeline_dir = pipeline_dir or default_pipeline_dir()
+    report_json = report_json or default_report_json_path()
+    summary_csv = summary_csv or default_summary_csv_path()
+    findings_csv = findings_csv or default_findings_csv_path()
+    coverage_csv = coverage_csv or default_coverage_csv_path()
     report = audit_missing_timbrature_pipeline(pipeline_dir)
 
     report_path = _resolve_output_path(pipeline_dir, report_json)

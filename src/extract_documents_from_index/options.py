@@ -3,30 +3,48 @@ from __future__ import annotations
 import argparse
 import os
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Sequence
 
-try:
-    from src.pipeline_paths import build_pipelines_paths
-except Exception:  # pragma: no cover - defensive fallback for unrelated path module failures
-    build_pipelines_paths = None
+from src.pipeline_paths import build_pipeline_paths, with_extract_documents_overrides
 
-if build_pipelines_paths is not None:
-    DEFAULT_OUTPUTS = build_pipelines_paths()
-    DEFAULT_OUT = str(DEFAULT_OUTPUTS.documents_output)
-    DEFAULT_INDEX = str(DEFAULT_OUTPUTS.scan_output / "included.index.json")
-else:
-    DEFAULT_OUTPUTS = None
-    DEFAULT_OUT = str(Path("output") / "documents")
-    DEFAULT_INDEX = str(Path("output") / "scan" / "included.index.json")
+from .artifacts import EXTRACT_DOCUMENTS_ARTIFACTS
+
+
+def _default_paths():
+    return build_pipeline_paths().extract_documents
+
+
+def default_out_dir() -> str:
+    return str(_default_paths().dir)
+
+
+def default_index_path() -> str:
+    return str(_default_paths().input_index)
+
+
+def default_included_index_path() -> str:
+    return str(_default_paths().included_index)
+
+
+def default_excluded_index_path() -> str:
+    return str(_default_paths().excluded_index)
+
+
+def default_report_json_path() -> str:
+    return str(_default_paths().report_json)
+
+
+DEFAULT_INCLUDED = EXTRACT_DOCUMENTS_ARTIFACTS.included_index
+DEFAULT_EXCLUDED = EXTRACT_DOCUMENTS_ARTIFACTS.excluded_index
+DEFAULT_REPORT = EXTRACT_DOCUMENTS_ARTIFACTS.report_json
 
 
 @dataclass(slots=True)
 class ExtractDocumentsFromIndexOptions:
-    out: str = DEFAULT_OUT
-    index: str = DEFAULT_INDEX
-    excluded: str = "excluded_documents.index.json"
-    included: str = "included_documents.index.json"
+    out: str = field(default_factory=default_out_dir)
+    index: str = field(default_factory=default_index_path)
+    excluded: str = field(default_factory=default_excluded_index_path)
+    included: str = field(default_factory=default_included_index_path)
     skip_included: bool = True
     reprocess_included: bool = False
     reprocess_excluded: bool = False
@@ -39,29 +57,30 @@ class ExtractDocumentsFromIndexOptions:
     log_every: int = 50
     min_normal_score: float = 0.72
     min_score_delta: float = 0.08
-    report: str = "extract_documents_from_index.report.json"
+    report: str = field(default_factory=default_report_json_path)
     verbose: bool = False
 
 
 def build_parser() -> argparse.ArgumentParser:
+    defaults = _default_paths()
     parser = argparse.ArgumentParser(
         description="Download PDFs from a MapIndex and save per-employee document extraction outputs."
     )
-    parser.add_argument("--out", default=DEFAULT_OUT, help="Output directory")
+    parser.add_argument("--out", default=str(defaults.dir), help="Output directory")
     parser.add_argument(
         "--index",
-        default=DEFAULT_INDEX,
+        default=str(defaults.input_index),
         help="Input MapIndex file (must use current files-object schema)",
     )
     parser.add_argument(
         "--excluded",
-        default="excluded_documents.index.json",
-        help="Excluded index output filename",
+        default=DEFAULT_EXCLUDED,
+        help=f"Excluded index output path relative to --out (default: {DEFAULT_EXCLUDED})",
     )
     parser.add_argument(
         "--included",
-        default="included_documents.index.json",
-        help="Included index output filename",
+        default=DEFAULT_INCLUDED,
+        help=f"Included index output path relative to --out (default: {DEFAULT_INCLUDED})",
     )
     parser.add_argument(
         "--skip-included",
@@ -135,8 +154,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--report",
-        default="extract_documents_from_index.report.json",
-        help="Run report filename (relative to --out unless absolute)",
+        default=DEFAULT_REPORT,
+        help=f"Run report output path relative to --out (default: {DEFAULT_REPORT})",
     )
     parser.add_argument("--verbose", "-v", action="store_true")
     return parser
@@ -144,11 +163,20 @@ def build_parser() -> argparse.ArgumentParser:
 
 def parse_options(argv: Sequence[str] | None = None) -> ExtractDocumentsFromIndexOptions:
     args = build_parser().parse_args(argv)
+    paths = with_extract_documents_overrides(
+        build_pipeline_paths(),
+        dir=args.out,
+        input_index=args.index,
+        included_index=args.included,
+        excluded_index=args.excluded,
+        report_json=args.report,
+    )
+    resolved = paths.extract_documents
     return ExtractDocumentsFromIndexOptions(
-        out=args.out,
-        index=args.index,
-        excluded=args.excluded,
-        included=args.included,
+        out=str(resolved.dir),
+        index=str(resolved.input_index),
+        excluded=str(resolved.excluded_index),
+        included=str(resolved.included_index),
         skip_included=args.skip_included,
         reprocess_included=args.reprocess_included,
         reprocess_excluded=args.reprocess_excluded,
@@ -161,6 +189,6 @@ def parse_options(argv: Sequence[str] | None = None) -> ExtractDocumentsFromInde
         log_every=args.log_every,
         min_normal_score=args.min_normal_score,
         min_score_delta=args.min_score_delta,
-        report=args.report,
+        report=str(resolved.report_json),
         verbose=args.verbose,
     )

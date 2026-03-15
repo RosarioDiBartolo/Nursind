@@ -13,8 +13,8 @@ from .options import (
     DEFAULT_MAX_PATTERN_EXAMPLES,
     DEFAULT_MAX_UNMATCHED_EXAMPLES_PER_FILE,
     DEFAULT_OUT_NAME,
-    DEFAULT_OUTPUT_DIR,
     DEFAULT_PAGES_NAME,
+    default_output_dir,
 )
 from .page_analysis import base_process_result, parse_document_pages
 from .source_context import (
@@ -273,7 +273,7 @@ def _process_many_documents(
 def process_many_text_rows(
     text_rows: Iterable[dict[str, Any]],
     *,
-    output_dir: str = DEFAULT_OUTPUT_DIR,
+    output_dir: str | None = None,
     out_name: str = DEFAULT_OUT_NAME,
     pages_name: str = DEFAULT_PAGES_NAME,
     input_dir: str | None = None,
@@ -281,6 +281,7 @@ def process_many_text_rows(
     max_pattern_examples: int = DEFAULT_MAX_PATTERN_EXAMPLES,
     max_unmatched_examples_per_file: int = DEFAULT_MAX_UNMATCHED_EXAMPLES_PER_FILE,
 ) -> dict[str, Any]:
+    output_dir = output_dir or default_output_dir()
     normalized_rows = list(text_rows)
     return _process_many_documents(
         normalized_rows,
@@ -298,7 +299,7 @@ def process_many_text_rows(
 def process_one_text_row(
     row: dict[str, Any],
     *,
-    output_dir: str = DEFAULT_OUTPUT_DIR,
+    output_dir: str | None = None,
     out_name: str = DEFAULT_OUT_NAME,
     pages_name: str = DEFAULT_PAGES_NAME,
     input_dir: str | None = None,

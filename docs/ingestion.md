@@ -62,8 +62,8 @@ Notebook entrypoints:
 
 Notebook contract:
 
-- Set the shared Drive root id once in `src/notebooks/shared_config.json`.
-- Each notebook loads `src/notebooks/shared_config.py` and resolves the same canonical stage folders.
+- Set the shared notebook root settings once in `src/notebooks/shared_config.json` (`root_id`, optional `root_prefix`, and optional `base_output`).
+- Each notebook loads `src/notebooks/shared_config.py`, which resolves the same canonical stage folders and injects step artifact names from `src.pipeline_paths`.
 - The scan notebook writes the canonical scan artifacts under the shared output root.
 - The extract notebook consumes that shared scan output and writes the canonical document artifacts under the same shared output root.
 

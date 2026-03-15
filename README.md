@@ -274,8 +274,8 @@ Notes:
 
 Use the notebooks in `src/notebooks` to demonstrate the same canonical pipeline layout.
 
-- `src/notebooks/shared_config.json`: shared notebook root id, output root, and per-step filenames
-- `src/notebooks/shared_config.py`: resolves notebook context and canonical stage paths
+- `src/notebooks/shared_config.json`: shared notebook root settings (`root_id`, optional `root_prefix`, optional `base_output`) and notebook-specific non-path config
+- `src/notebooks/shared_config.py`: resolves notebook context, canonical stage paths, and per-step artifact names from `src.pipeline_paths`
 - `src/notebooks/run_pipeline.ipynb`: end-to-end notebook that runs scan, document extraction, event extraction, midnight cleanup, pairing, enrichment, summary, and missing-timbrature audit from the shared config
 - `src/notebooks/scan.ipynb`: scan stage
 - `src/notebooks/extract_documents.ipynb`: document extraction stage

@@ -1,27 +1,37 @@
 from __future__ import annotations
 
 import argparse
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Literal, Sequence
 
-from src.pipeline_paths import build_pipelines_paths
+from src.pipeline_paths import build_pipeline_paths, with_turni_employee_summary_overrides
 
 DEFAULT_YEAR_START = 2014
 DEFAULT_YEAR_END = 2025
-DEFAULT_OUTPUTS = build_pipelines_paths()
-DEFAULT_ENRICHED_DIR = str(DEFAULT_OUTPUTS.enrichment_output)
-DEFAULT_SUMMARY_CSV = str(DEFAULT_OUTPUTS.aggregation_output / "turni_employee_summary.csv")
-DEFAULT_REPORT_JSON = str(
-    DEFAULT_OUTPUTS.aggregation_output / "turni_employee_summary.report.json"
-)
 DEFAULT_OUTPUT_FORMAT: Literal["csv", "json"] = "csv"
+
+
+def _default_paths():
+    return build_pipeline_paths().turni_employee_summary
+
+
+def default_enriched_dir() -> str:
+    return str(_default_paths().input_dir)
+
+
+def default_summary_csv_path() -> str:
+    return str(_default_paths().summary_csv)
+
+
+def default_report_json_path() -> str:
+    return str(_default_paths().report_json)
 
 
 @dataclass(slots=True)
 class TurniEmployeeSummaryOptions:
-    enriched_dir: str = DEFAULT_ENRICHED_DIR
-    out: str = DEFAULT_SUMMARY_CSV
-    report_json: str = DEFAULT_REPORT_JSON
+    enriched_dir: str = field(default_factory=default_enriched_dir)
+    out: str = field(default_factory=default_summary_csv_path)
+    report_json: str = field(default_factory=default_report_json_path)
     year_start: int | None = DEFAULT_YEAR_START
     year_end: int | None = DEFAULT_YEAR_END
     output_format: Literal["csv", "json"] = DEFAULT_OUTPUT_FORMAT
@@ -30,23 +40,24 @@ class TurniEmployeeSummaryOptions:
 
 
 def build_parser() -> argparse.ArgumentParser:
+    defaults = _default_paths()
     parser = argparse.ArgumentParser(
         description="Aggrega i turni (N/P/F/M/S) per dipendente dai CSV arricchiti."
     )
     parser.add_argument(
         "--enriched-dir",
-        default=DEFAULT_ENRICHED_DIR,
-        help=f"Directory dei CSV arricchiti (default: {DEFAULT_ENRICHED_DIR})",
+        default=str(defaults.input_dir),
+        help=f"Directory dei CSV arricchiti (default: {defaults.input_dir})",
     )
     parser.add_argument(
         "--out",
-        default=DEFAULT_SUMMARY_CSV,
-        help=f"Path di output (default: {DEFAULT_SUMMARY_CSV})",
+        default=str(defaults.summary_csv),
+        help=f"Path di output (default: {defaults.summary_csv})",
     )
     parser.add_argument(
         "--report-json",
-        default=DEFAULT_REPORT_JSON,
-        help=f"Path report JSON finale (default: {DEFAULT_REPORT_JSON})",
+        default=str(defaults.report_json),
+        help=f"Path report JSON finale (default: {defaults.report_json})",
     )
     parser.add_argument(
         "--year-start",
@@ -77,10 +88,17 @@ def build_parser() -> argparse.ArgumentParser:
 
 def parse_options(argv: Sequence[str] | None = None) -> TurniEmployeeSummaryOptions:
     args = build_parser().parse_args(argv)
-    return TurniEmployeeSummaryOptions(
-        enriched_dir=args.enriched_dir,
-        out=args.out,
+    paths = with_turni_employee_summary_overrides(
+        build_pipeline_paths(),
+        input_dir=args.enriched_dir,
+        summary_csv=args.out,
         report_json=args.report_json,
+    )
+    resolved = paths.turni_employee_summary
+    return TurniEmployeeSummaryOptions(
+        enriched_dir=str(resolved.input_dir),
+        out=str(resolved.summary_csv),
+        report_json=str(resolved.report_json),
         year_start=args.year_start,
         year_end=args.year_end,
         output_format=args.format,

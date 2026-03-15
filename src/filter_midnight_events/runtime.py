@@ -11,12 +11,12 @@ from src.drive_service.fs_utils import ensure_parent_dir
 
 from .options import (
     DEFAULT_EVENTS_NAME,
-    DEFAULT_INPUT_DIR,
     DEFAULT_MAX_REMOVED_EXAMPLES_PER_FILE,
     DEFAULT_OUT_NAME,
-    DEFAULT_REMOVED_CSV,
-    DEFAULT_REPORT_JSON,
     FilterMidnightEventsOptions,
+    default_input_dir,
+    default_removed_csv_path,
+    default_report_json_path,
 )
 from .service import process_many_events_files
 
@@ -35,14 +35,17 @@ def _build_removed_rows_df(removed_rows_records: list[dict[str, Any]]) -> pd.Dat
 
 def build_filter_midnight_events_from_dir(
     *,
-    input_dir: str = DEFAULT_INPUT_DIR,
+    input_dir: str | None = None,
     events_name: str = DEFAULT_EVENTS_NAME,
     out_name: str = DEFAULT_OUT_NAME,
-    report_json: str = DEFAULT_REPORT_JSON,
-    removed_csv: str = DEFAULT_REMOVED_CSV,
+    report_json: str | None = None,
+    removed_csv: str | None = None,
     max_removed_examples_per_file: int = DEFAULT_MAX_REMOVED_EXAMPLES_PER_FILE,
     in_place: bool = False,
 ) -> dict[str, Any]:
+    input_dir = input_dir or default_input_dir()
+    report_json = report_json or default_report_json_path()
+    removed_csv = removed_csv or default_removed_csv_path()
     base = Path(input_dir)
     event_files = sorted(base.rglob(events_name))
     report = process_many_events_files(
@@ -72,11 +75,11 @@ def build_filter_midnight_events_from_dir(
 
 def filter_midnight_events_dir(
     *,
-    input_dir: str = DEFAULT_INPUT_DIR,
+    input_dir: str | None = None,
     events_name: str = DEFAULT_EVENTS_NAME,
     out_name: str = DEFAULT_OUT_NAME,
-    report_json: str = DEFAULT_REPORT_JSON,
-    removed_csv: str = DEFAULT_REMOVED_CSV,
+    report_json: str | None = None,
+    removed_csv: str | None = None,
     max_removed_examples_per_file: int = DEFAULT_MAX_REMOVED_EXAMPLES_PER_FILE,
     in_place: bool = False,
 ) -> dict[str, Any]:

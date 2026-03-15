@@ -11,9 +11,9 @@ from src.drive_service.fs_utils import ensure_parent_dir
 
 from .options import (
     DEFAULT_EVENTS_NAME,
-    DEFAULT_INPUT_DIR,
     DEFAULT_MAX_REMOVED_EXAMPLES_PER_FILE,
     DEFAULT_OUT_NAME,
+    default_input_dir,
 )
 
 logger = logging.getLogger(__name__)
@@ -134,7 +134,7 @@ def _removed_export_records(removed: pd.DataFrame, *, source_path: Path) -> list
 def process_one_events_file(
     event_path: str | Path,
     *,
-    output_dir: str = DEFAULT_INPUT_DIR,
+    output_dir: str | None = None,
     out_name: str = DEFAULT_OUT_NAME,
     input_base: str | Path | None = None,
     max_removed_examples_per_file: int = DEFAULT_MAX_REMOVED_EXAMPLES_PER_FILE,
@@ -142,6 +142,7 @@ def process_one_events_file(
     include_removed_rows_records: bool = False,
 ) -> dict[str, Any]:
     source_path = Path(event_path)
+    output_dir = output_dir or default_input_dir()
     output_base = Path(output_dir)
     input_base_path = Path(input_base) if input_base is not None else None
     result: dict[str, Any] = {
@@ -193,7 +194,7 @@ def process_one_events_file(
 def process_many_events_files(
     event_files: Iterable[str | Path],
     *,
-    output_dir: str = DEFAULT_INPUT_DIR,
+    output_dir: str | None = None,
     out_name: str = DEFAULT_OUT_NAME,
     input_base: str | Path | None = None,
     events_name: str = DEFAULT_EVENTS_NAME,
@@ -202,6 +203,7 @@ def process_many_events_files(
     in_place: bool = False,
     include_removed_rows_records: bool = False,
 ) -> dict[str, Any]:
+    output_dir = output_dir or default_input_dir()
     normalized_event_files = sorted(Path(path) for path in event_files)
     base_path = Path(input_base) if input_base is not None else None
 

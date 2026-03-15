@@ -8,10 +8,10 @@ from src.drive_service.fs_utils import ensure_parent_dir
 from src.extract_events_from_documents.writers import write_rows_csv
 
 from .options import (
-    DEFAULT_REPORT_JSON,
-    DEFAULT_ROOT_DIR,
-    DEFAULT_SUSPICIOUS_CSV,
     ParserRecallAuditOptions,
+    default_report_json_path,
+    default_root_dir,
+    default_suspicious_csv_path,
 )
 from .service import SUSPICIOUS_PAGE_COLUMNS, audit_parser_recall_root
 
@@ -39,13 +39,16 @@ def _build_json_payload(report: dict[str, Any]) -> dict[str, Any]:
 
 def build_parser_recall_report(
     *,
-    root_dir: str = DEFAULT_ROOT_DIR,
-    report_json: str = DEFAULT_REPORT_JSON,
-    suspicious_csv: str = DEFAULT_SUSPICIOUS_CSV,
+    root_dir: str | None = None,
+    report_json: str | None = None,
+    suspicious_csv: str | None = None,
     max_tiny_rows: int,
     min_large_rows: int,
     low_coverage_threshold: float,
 ) -> dict[str, Any]:
+    root_dir = root_dir or default_root_dir()
+    report_json = report_json or default_report_json_path()
+    suspicious_csv = suspicious_csv or default_suspicious_csv_path()
     report = audit_parser_recall_root(
         root_dir,
         max_tiny_rows=max_tiny_rows,

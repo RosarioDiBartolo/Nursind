@@ -10,9 +10,9 @@ import pandas as pd
 from src.shift_services import assign_turno_bucket, to_datetime_series
 
 from .options import (
-    DEFAULT_ENRICHED_DIR,
     DEFAULT_YEAR_END,
     DEFAULT_YEAR_START,
+    default_enriched_dir,
 )
 
 logger = logging.getLogger(__name__)
@@ -139,8 +139,9 @@ def process_many_enriched_files(
     min_hours: float | None = None,
     year_start: int | None = DEFAULT_YEAR_START,
     year_end: int | None = DEFAULT_YEAR_END,
-    enriched_dir: str | None = DEFAULT_ENRICHED_DIR,
+    enriched_dir: str | None = None,
 ) -> dict[str, Any]:
+    enriched_dir = enriched_dir or default_enriched_dir()
     normalized_files = sorted(Path(path) for path in enriched_files)
     years = _years_range(year_start, year_end)
 

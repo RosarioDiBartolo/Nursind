@@ -22,10 +22,15 @@ def test_load_notebook_context_resolves_canonical_pipeline_paths(tmp_path: Path)
 
     assert ctx.root_id == "drive-root-123"
     assert ctx.root_prefix == "drive-root-123"
-    assert ctx.paths.scan_output.name == "scan"
-    assert ctx.paths.documents_output.name == "documents"
-    assert ctx.paths.events_output.name == "events"
-    assert ctx.paths.shifts_output.name == "shifts"
-    assert ctx.paths.enrichment_output.name == "enrichment"
-    assert ctx.paths.aggregation_output.name == "aggregation"
+    assert ctx.paths.layout.scan_dir.name == "scan"
+    assert ctx.paths.layout.documents_dir.name == "documents"
+    assert ctx.paths.layout.events_dir.name == "events"
+    assert ctx.paths.layout.shifts_dir.name == "shifts"
+    assert ctx.paths.layout.enrichment_dir.name == "enrichment"
+    assert ctx.paths.layout.aggregation_dir.name == "aggregation"
     assert Path(ctx.base_output_dir).name == "custom-output"
+
+    scan_cfg = ctx.step("scan")
+    assert scan_cfg["included_name"] == "included.index.json"
+    assert scan_cfg["filtered_name"] == "filtered.index.json"
+    assert scan_cfg["report_name"] == "scan_directory.report.json"

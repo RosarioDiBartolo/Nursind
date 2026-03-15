@@ -16,7 +16,7 @@ from .event_normalization import (
     normalize_employee,
     normalize_events_file,
 )
-from .options import DEFAULT_MAX_GAP_HOURS, DEFAULT_OUTPUT_DIR
+from .options import DEFAULT_MAX_GAP_HOURS, default_output_dir
 from .output_formatting import dedupe_closed_pairs, format_output_pairs
 
 logger = logging.getLogger(__name__)
@@ -25,10 +25,11 @@ logger = logging.getLogger(__name__)
 def process_one_employee_events(
     employee: dict[str, Any],
     *,
-    output_dir: str = DEFAULT_OUTPUT_DIR,
+    output_dir: str | None = None,
     max_gap_hours: float = DEFAULT_MAX_GAP_HOURS,
     keep_inferred_column: bool = False,
 ) -> dict[str, Any]:
+    output_dir = output_dir or default_output_dir()
     employee_name = str(employee.get("employee") or "unknown")
     employee_id = employee.get("employee_id")
     employee_files = list(employee.get("files") or [])
@@ -170,7 +171,7 @@ def process_one_employee_events(
 def process_many_employee_events(
     employees: Iterable[dict[str, Any]],
     *,
-    output_dir: str = DEFAULT_OUTPUT_DIR,
+    output_dir: str | None = None,
     max_gap_hours: float = DEFAULT_MAX_GAP_HOURS,
     keep_inferred_column: bool = False,
     input_mode: str | None = None,
@@ -179,6 +180,7 @@ def process_many_employee_events(
     events_name: str | None = None,
     discovered_event_files_total: int = 0,
 ) -> dict[str, Any]:
+    output_dir = output_dir or default_output_dir()
     normalized_employees = list(employees)
 
     totals: dict[str, Any] = {

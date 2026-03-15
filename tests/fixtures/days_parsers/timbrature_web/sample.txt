@@ -1,0 +1,3 @@
+Elenco timbrature
+Data Ent Usc
+E 08:00 U 16:00
