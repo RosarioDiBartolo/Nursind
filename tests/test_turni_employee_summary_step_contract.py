@@ -1,12 +1,8 @@
 import csv
 from pathlib import Path
 
-from src.turni_employee_summary import (
-    DEFAULT_YEAR_START,
-    parse_options,
-    process_many_enriched_files,
-    process_one_enriched_file,
-)
+from src.turni_employee_summary.options import DEFAULT_YEAR_START, parse_options
+from src.turni_employee_summary.service import process_many_enriched_files, process_one_enriched_file
 from tests.step_contract import assert_process_many_contract, assert_process_one_contract
 
 

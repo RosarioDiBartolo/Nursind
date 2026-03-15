@@ -10,7 +10,16 @@ from typing import Any
 from src.drive_service.io_json import load_json
 from src.drive_service.text_extraction_csv import find_text_extraction_csvs, read_text_extraction_rows
 from src.extract_events_from_documents.page_analysis import resolve_page_texts
+from src.extract_events_from_documents.writers import write_rows_csv
 from src.raw_text_parsing import line_has_event, normalize_text
+from src.reporting import build_stage_report, compact_stage_report, resolve_output_path, write_json_report
+
+from .options import (
+    ParserRecallAuditOptions,
+    default_report_json_path,
+    default_root_dir,
+    default_suspicious_csv_path,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -148,7 +157,7 @@ def _read_pages_csv(path: Path, *, pipeline_name: str) -> list[dict[str, Any]]:
     return rows
 
 
-def _build_manifest_lookup(pipeline_dir: Path) -> dict[str, dict[str, str]]:
+def _build_manifest_lookup(pipeline_dir: Path) -> dict[str, dict[str, dict[str, str]]]:
     manifest_rows = read_text_extraction_rows(
         find_text_extraction_csvs(pipeline_dir / "documents"),
         hydrate_text=False,
@@ -510,7 +519,7 @@ def audit_parser_recall_root(
 
     for pipeline_dir in pipeline_dirs:
         pages_csv_path = pipeline_dir / "events" / "pages.csv"
-        manifest_lookup = {
+        manifest_lookup: dict[str, dict[str, dict[str, str]]] = {
             "by_file_id": {},
             "by_doc_json": {},
             "by_doc_name": {},
@@ -560,15 +569,15 @@ def audit_parser_recall_root(
             continue
 
         pipeline_name = str(row.get("pipeline") or "")
-        pipeline_dir = pipeline_dir_map.get(pipeline_name)
+        row_pipeline_dir = pipeline_dir_map.get(pipeline_name)
         page_text = (
             _load_page_text(
-                pipeline_dir=pipeline_dir,
+                pipeline_dir=row_pipeline_dir,
                 source_doc_json=str(row.get("source_doc_json") or ""),
                 page_no=int(row.get("page_no") or 0),
                 doc_cache=doc_cache,
             )
-            if pipeline_dir is not None
+            if row_pipeline_dir is not None
             else ""
         )
         (
@@ -679,7 +688,73 @@ def audit_parser_recall_root(
     }
 
 
+def build_parser_recall_report(
+    *,
+    root_dir: str | None = None,
+    report_json: str | None = None,
+    suspicious_csv: str | None = None,
+    max_tiny_rows: int,
+    min_large_rows: int,
+    low_coverage_threshold: float,
+) -> dict[str, Any]:
+    root_dir = root_dir or default_root_dir()
+    report_json = report_json or default_report_json_path()
+    suspicious_csv = suspicious_csv or default_suspicious_csv_path()
+    audit = audit_parser_recall_root(
+        root_dir,
+        max_tiny_rows=max_tiny_rows,
+        min_large_rows=min_large_rows,
+        low_coverage_threshold=low_coverage_threshold,
+    )
+
+    report_path = resolve_output_path(root_dir, report_json)
+    suspicious_csv_path = resolve_output_path(root_dir, suspicious_csv)
+    write_rows_csv(
+        rows=audit["suspicious_rows"],
+        out_csv=suspicious_csv_path,
+        columns=SUSPICIOUS_PAGE_COLUMNS,
+    )
+
+    report = build_stage_report(
+        stage="parser_recall_audit",
+        inputs={
+            "root_dir": str(Path(root_dir).resolve()),
+            "max_tiny_rows": max_tiny_rows,
+            "min_large_rows": min_large_rows,
+            "low_coverage_threshold": low_coverage_threshold,
+        },
+        outputs={
+            "report_json": str(report_path.resolve()),
+            "suspicious_csv": str(suspicious_csv_path.resolve()),
+        },
+        stats={
+            **audit["stats"],
+            "counts_by_bucket": audit["counts_by_bucket"],
+            "counts_by_pipeline": audit["counts_by_pipeline"],
+            "counts_by_parser": audit["counts_by_parser"],
+        },
+        row_totals={"items": len(audit["suspicious_rows"]), "issues": len(audit["artifacts"]["errors"])},
+        items=audit["suspicious_rows"],
+        issues=list(audit["artifacts"]["errors"]),
+    )
+    write_json_report(report_path, compact_stage_report(report))
+    return report
+
+
+def run_from_options(options: ParserRecallAuditOptions) -> dict[str, Any]:
+    return build_parser_recall_report(
+        root_dir=options.root_dir,
+        report_json=options.report_json,
+        suspicious_csv=options.suspicious_csv,
+        max_tiny_rows=options.max_tiny_rows,
+        min_large_rows=options.min_large_rows,
+        low_coverage_threshold=options.low_coverage_threshold,
+    )
+
+
 __all__ = [
     "SUSPICIOUS_PAGE_COLUMNS",
     "audit_parser_recall_root",
+    "build_parser_recall_report",
+    "run_from_options",
 ]

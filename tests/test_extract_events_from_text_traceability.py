@@ -2,7 +2,7 @@
 
 import pandas as pd
 
-from src.extract_events_from_documents import process_one_text_row
+from src.extract_events_from_documents.service import process_one_text_row
 from tests.extract_events_manifest_fixtures import build_manifest_row
 
 

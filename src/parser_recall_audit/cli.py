@@ -6,7 +6,7 @@ from typing import Sequence
 from src.drive_service.logging_utils import setup_logging
 
 from .options import parse_options
-from .runtime import run_from_options
+from .service import run_from_options
 
 logger = logging.getLogger(__name__)
 

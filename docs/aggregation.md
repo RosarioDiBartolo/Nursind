@@ -25,7 +25,7 @@ python -m "src.turni_employee_summary" --enriched-dir "output/enriched/employee_
 ## Function-level testing (`turni_employee_summary`)
 
 ```python
-from src.turni_employee_summary import (
+from src.turni_employee_summary.service import (
     process_many_enriched_files,
     process_one_enriched_file,
 )

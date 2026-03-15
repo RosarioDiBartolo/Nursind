@@ -81,14 +81,14 @@ def iter_layout_lines(document: dict[str, Any]) -> list[DocumentLine]:
             if not isinstance(raw_word, dict):
                 continue
             try:
-                word_index = int(raw_word.get("word_index"))
+                word_index = int(str(raw_word.get("word_index") or "").strip())
             except Exception:
                 continue
             words_by_index[word_index] = raw_word
 
         page_no = None
         try:
-            page_no = int(page.get("page_no"))
+            page_no = int(str(page.get("page_no") or "").strip())
         except Exception:
             page_no = None
 
@@ -272,6 +272,16 @@ def explicit_events_for_line(
             match_start=event.start,
             match_end=event.end,
         )
+        source_word_start = (
+            int(word_position["source_word_start"])
+            if isinstance(word_position.get("source_word_start"), int)
+            else None
+        )
+        source_word_end = (
+            int(word_position["source_word_end"])
+            if isinstance(word_position.get("source_word_end"), int)
+            else None
+        )
         events.append(
             ParsedEvent(
                 line=line,
@@ -284,8 +294,8 @@ def explicit_events_for_line(
                 match_start=event.start,
                 match_end=event.end,
                 source_origin="text_regex",
-                source_word_start=word_position.get("source_word_start"),
-                source_word_end=word_position.get("source_word_end"),
+                source_word_start=source_word_start,
+                source_word_end=source_word_end,
                 source_bbox_x0=word_position.get("source_bbox_x0"),
                 source_bbox_y0=word_position.get("source_bbox_y0"),
                 source_bbox_x1=word_position.get("source_bbox_x1"),

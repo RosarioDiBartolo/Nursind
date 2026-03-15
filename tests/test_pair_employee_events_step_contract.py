@@ -4,11 +4,8 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from src.pair_employee_events import (
-    parse_options,
-    process_many_employee_events,
-    process_one_employee_events,
-)
+from src.pair_employee_events.options import parse_options
+from src.pair_employee_events.service import process_many_employee_events, process_one_employee_events
 from tests.step_contract import assert_process_many_contract, assert_process_one_contract
 
 

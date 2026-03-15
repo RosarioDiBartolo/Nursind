@@ -7,8 +7,9 @@ from typing import Any, Iterable
 
 import pandas as pd
 
-from src.drive_service.fs_utils import ensure_parent_dir
+from src.drive_service.fs_utils import ensure_dir, ensure_parent_dir
 from src.drive_service.names import safe_name
+from src.reporting import build_stage_report, compact_stage_report, write_json_report
 from src.shift_services import (
     ItalianHolidayCalendar,
     ShiftClassifier,
@@ -17,7 +18,13 @@ from src.shift_services import (
     to_datetime_series,
 )
 
-from .options import DEFAULT_MIN_HOURS, default_input_dir, default_output_dir
+from .options import (
+    DEFAULT_MIN_HOURS,
+    TurniEnrichmentOptions,
+    default_input_dir,
+    default_output_dir,
+    default_report_json_path,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -67,23 +74,17 @@ def _enrich_pairs(
     classifier: ShiftClassifier,
     min_hours: float,
 ) -> tuple[pd.DataFrame, dict[str, int]]:
-    stats = {
-        "righe_totali": int(len(df)),
-        "righe_completate": 0,
-        "righe_enriched": 0,
-        "overnight_fix": 0,
-    }
+    stats = {"rows_total": int(len(df)), "rows_complete": 0, "rows_enriched": 0, "overnight_fix": 0}
     if df.empty:
         return df, stats
-
-    working = df.copy()
-    if "entry_ts" not in working.columns or "exit_ts" not in working.columns:
+    if "entry_ts" not in df.columns or "exit_ts" not in df.columns:
         return pd.DataFrame(), stats
 
+    working = df.copy()
     working["entry_ts"] = to_datetime_series(working["entry_ts"])
     working["exit_ts"] = to_datetime_series(working["exit_ts"])
     working = working.loc[working["entry_ts"].notna() & working["exit_ts"].notna()].copy()
-    stats["righe_completate"] = int(len(working))
+    stats["rows_complete"] = int(len(working))
     if working.empty:
         return pd.DataFrame(), stats
 
@@ -99,7 +100,7 @@ def _enrich_pairs(
 
     working["turno_code"] = assign_turno_code(working)
     working["turno_bucket"] = assign_turno_bucket(working, min_hours=min_hours)
-    stats["righe_enriched"] = int(len(working))
+    stats["rows_enriched"] = int(len(working))
     return working, stats
 
 
@@ -128,12 +129,10 @@ def process_one_pairs_file(
         "error": None,
     }
 
-    local_classifier = classifier
-    if local_classifier is None:
-        local_classifier = ShiftClassifier(
-            calendar=ItalianHolidayCalendar(),
-            include_holidays=include_holidays,
-        )
+    local_classifier = classifier or ShiftClassifier(
+        calendar=ItalianHolidayCalendar(),
+        include_holidays=include_holidays,
+    )
 
     if not source_path.exists():
         ensure_parent_dir(out_path)
@@ -155,9 +154,9 @@ def process_one_pairs_file(
     df["source_csv"] = str(source_path)
     enriched, sub_stats = _enrich_pairs(df, classifier=local_classifier, min_hours=min_hours)
 
-    result["rows_total"] = int(sub_stats["righe_totali"])
-    result["rows_complete"] = int(sub_stats["righe_completate"])
-    result["rows_enriched"] = int(sub_stats["righe_enriched"])
+    result["rows_total"] = int(sub_stats["rows_total"])
+    result["rows_complete"] = int(sub_stats["rows_complete"])
+    result["rows_enriched"] = int(sub_stats["rows_enriched"])
     result["overnight_fix"] = int(sub_stats["overnight_fix"])
 
     if enriched.empty:
@@ -174,7 +173,7 @@ def process_one_pairs_file(
 
     ensure_parent_dir(out_path)
     enriched.to_csv(out_path, index=False)
-    logger.info("Salvato %s", out_path)
+    logger.info("Saved %s", out_path)
     result["status"] = "ok"
     return result
 
@@ -195,36 +194,24 @@ def process_many_pairs_files(
         include_holidays=include_holidays,
     )
 
-    totals: dict[str, Any] = {
+    stats: dict[str, Any] = {
         "files_total": len(normalized_pairs),
         "files_processed": 0,
         "files_error": 0,
-        "dipendenti": len(normalized_pairs),
-        "file_totali": 0,
-        "file_mancanti": 0,
-        "file_errori": 0,
-        "righe_totali": 0,
-        "righe_completate": 0,
-        "righe_enriched": 0,
+        "employees_total": len(normalized_pairs),
+        "rows_total": 0,
+        "rows_complete": 0,
+        "rows_enriched": 0,
         "overnight_fix": 0,
-        "input_dir": os.path.abspath(input_dir) if input_dir else None,
-        "output_dir": os.path.abspath(output_dir),
-        "min_hours": float(min_hours),
         "include_holidays": bool(include_holidays),
+        "min_hours": float(min_hours),
     }
-
     items: list[dict[str, Any]] = []
-    errors: list[dict[str, str]] = []
+    issues: list[dict[str, Any]] = []
 
     for pair_index, pair_path in enumerate(normalized_pairs, start=1):
         employee_name = _employee_from_path(pair_path)
-        logger.info(
-            "Dipendente %s/%s: %s",
-            pair_index,
-            len(normalized_pairs),
-            employee_name,
-        )
-        totals["file_totali"] += 1
+        logger.info("Employee %s/%s: %s", pair_index, len(normalized_pairs), employee_name)
 
         item = process_one_pairs_file(
             pair_path,
@@ -236,27 +223,81 @@ def process_many_pairs_files(
         items.append(item)
 
         if item["status"] != "ok":
-            totals["files_error"] += 1
-            totals["file_errori"] += 1
-            if item["error_code"] == "missing_input":
-                totals["file_mancanti"] += 1
-            errors.append(
+            stats["files_error"] += 1
+            issues.append(
                 {
-                    "pairs_csv": str(item["source_pairs_csv"]),
-                    "error": str(item["error"]),
+                    "code": str(item.get("error_code") or "processing_error"),
+                    "pairs_csv": str(item.get("source_pairs_csv") or ""),
+                    "message": str(item.get("error") or "processing_error"),
                 }
             )
             continue
 
-        totals["files_processed"] += 1
-        totals["righe_totali"] += int(item["rows_total"])
-        totals["righe_completate"] += int(item["rows_complete"])
-        totals["righe_enriched"] += int(item["rows_enriched"])
-        totals["overnight_fix"] += int(item["overnight_fix"])
+        stats["files_processed"] += 1
+        stats["rows_total"] += int(item["rows_total"])
+        stats["rows_complete"] += int(item["rows_complete"])
+        stats["rows_enriched"] += int(item["rows_enriched"])
+        stats["overnight_fix"] += int(item["overnight_fix"])
 
-    return {
-        "stats": totals,
-        "items": items,
-        "errors": errors,
-        "file_errors": errors,
-    }
+    return build_stage_report(
+        stage="turni_enrichment",
+        inputs={
+            "input_dir": os.path.abspath(input_dir) if input_dir else None,
+            "output_dir": os.path.abspath(output_dir),
+            "include_holidays": bool(include_holidays),
+            "min_hours": float(min_hours),
+        },
+        outputs={"output_dir": os.path.abspath(output_dir)},
+        stats=stats,
+        row_totals={
+            "items": len(items),
+            "issues": len(issues),
+            "enriched_files": stats["files_processed"],
+        },
+        items=items,
+        issues=issues,
+    )
+
+
+def build_turni_enrichment_from_dir(
+    *,
+    input_dir: str | None = None,
+    output_dir: str | None = None,
+    min_hours: float = DEFAULT_MIN_HOURS,
+    include_holidays: bool = True,
+    report_json: str | None = None,
+) -> dict[str, Any]:
+    input_dir = input_dir or default_input_dir()
+    output_dir = output_dir or default_output_dir()
+    report_json = report_json or default_report_json_path()
+    ensure_dir(output_dir)
+    input_path = Path(input_dir)
+    pairs_files = sorted(input_path.glob("*.pairs.csv"))
+    report = process_many_pairs_files(
+        pairs_files,
+        output_dir=output_dir,
+        min_hours=min_hours,
+        include_holidays=include_holidays,
+        input_dir=input_dir,
+    )
+    report["outputs"]["report_json"] = str(Path(report_json).resolve())
+    write_json_report(report_json, compact_stage_report(report))
+    return report
+
+
+def run_from_options(options: TurniEnrichmentOptions) -> dict[str, Any]:
+    return build_turni_enrichment_from_dir(
+        input_dir=options.input_dir,
+        output_dir=options.output_dir,
+        min_hours=options.min_hours,
+        include_holidays=options.include_holidays,
+        report_json=options.report_json,
+    )
+
+
+__all__ = [
+    "build_turni_enrichment_from_dir",
+    "process_many_pairs_files",
+    "process_one_pairs_file",
+    "run_from_options",
+]

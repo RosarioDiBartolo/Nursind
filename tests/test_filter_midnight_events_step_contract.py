@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from src.filter_midnight_events import (
+from src.filter_midnight_events.service import (
     process_many_events_files,
     process_one_events_file,
 )

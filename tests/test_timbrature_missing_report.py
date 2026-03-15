@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 
 from src.drive_service.text_extraction_csv import TEXT_EXTRACTION_COLUMNS
-from src.timbrature_missing_report import (
+from src.timbrature_missing_report.service import (
     audit_missing_timbrature_pipeline,
     build_missing_timbrature_report,
 )
@@ -199,20 +199,10 @@ def test_audit_missing_timbrature_uses_relevant_pages_for_fixed_coverage_window(
     assert int(report["stats"]["missing_coverage_months_total"]) == 287
 
 
-def test_build_missing_timbrature_report_writes_new_artifacts_and_cleans_legacy(
+def test_build_missing_timbrature_report_writes_new_artifacts(
     tmp_path: Path,
 ) -> None:
     pipeline_dir = _build_pipeline_dir(tmp_path)
-    legacy_employee_csv = pipeline_dir / "missing_timbrature.employees.csv"
-    legacy_issues_csv = pipeline_dir / "missing_timbrature.issues.csv"
-    legacy_non_ocr_dir = pipeline_dir / "missing_timbrature.non_ocr_files"
-    legacy_missing_months_dir = pipeline_dir / "missing_timbrature.missing_months"
-    legacy_employee_csv.write_text("obsolete\n", encoding="utf-8")
-    legacy_issues_csv.write_text("obsolete\n", encoding="utf-8")
-    (legacy_non_ocr_dir / "old.csv").parent.mkdir(parents=True, exist_ok=True)
-    (legacy_non_ocr_dir / "old.csv").write_text("obsolete\n", encoding="utf-8")
-    (legacy_missing_months_dir / "old.csv").parent.mkdir(parents=True, exist_ok=True)
-    (legacy_missing_months_dir / "old.csv").write_text("obsolete\n", encoding="utf-8")
 
     report = build_missing_timbrature_report(pipeline_dir=str(pipeline_dir))
     summary_csv_path = Path(report["outputs"]["summary_csv"])
@@ -232,10 +222,6 @@ def test_build_missing_timbrature_report_writes_new_artifacts_and_cleans_legacy(
     assert findings_csv_path.exists()
     assert coverage_csv_path.exists()
     assert report_json_path.exists()
-    assert not legacy_employee_csv.exists()
-    assert not legacy_issues_csv.exists()
-    assert not legacy_non_ocr_dir.exists()
-    assert not legacy_missing_months_dir.exists()
 
     assert summary_rows
     assert "coverage_month_range" in summary_rows[0]
@@ -261,13 +247,12 @@ def test_build_missing_timbrature_report_writes_new_artifacts_and_cleans_legacy(
     assert report_json_payload["outputs"]["summary_csv"] == str(summary_csv_path.resolve())
     assert report_json_payload["outputs"]["findings_csv"] == str(findings_csv_path.resolve())
     assert report_json_payload["outputs"]["coverage_csv"] == str(coverage_csv_path.resolve())
-    assert report_json_payload["row_totals"]["summary_rows"] == 2
-    assert report_json_payload["row_totals"]["finding_rows"] == 2
+    assert report_json_payload["row_totals"]["items"] == 2
+    assert report_json_payload["row_totals"]["issues"] == 2
     assert report_json_payload["row_totals"]["coverage_rows"] == 287
-    assert report_json_payload["finding_counts_by_type"]["missing_text_layer"] == 1
-    assert report_json_payload["coverage_counts_by_type"]["missing_coverage_month"] == 287
-    assert "summary_rows" not in report_json_payload
-    assert "finding_rows" not in report_json_payload
+    assert report_json_payload["stats"]["finding_counts_by_type"]["missing_text_layer"] == 1
+    assert report_json_payload["stats"]["coverage_counts_by_type"]["missing_coverage_month"] == 287
+    assert "items" not in report_json_payload
     assert "coverage_rows" not in report_json_payload
 
 

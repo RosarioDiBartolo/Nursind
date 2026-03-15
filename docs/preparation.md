@@ -88,7 +88,7 @@ The audit merges:
 ## Function-level testing (`extract_events_from_documents`)
 
 ```python
-from src.extract_events_from_documents import process_one_text_row, process_many_text_rows
+from src.extract_events_from_documents.service import process_one_text_row, process_many_text_rows
 
 single = process_one_text_row(
     {
@@ -125,7 +125,7 @@ batch = process_many_text_rows(
 ## Function-level testing (`filter_midnight_events`)
 
 ```python
-from src.filter_midnight_events import (
+from src.filter_midnight_events.service import (
     process_many_events_files,
     process_one_events_file,
 )
@@ -150,7 +150,7 @@ batch = process_many_events_files(
 ## Function-level testing (`pair_employee_events`)
 
 ```python
-from src.pair_employee_events import (
+from src.pair_employee_events.service import (
     process_many_employee_events,
     process_one_employee_events,
 )

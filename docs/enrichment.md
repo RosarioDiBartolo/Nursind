@@ -46,7 +46,7 @@ Optional flags:
 ## Function-level testing (`turni_enrichment`)
 
 ```python
-from src.turni_enrichment import process_many_pairs_files, process_one_pairs_file
+from src.turni_enrichment.service import process_many_pairs_files, process_one_pairs_file
 
 single = process_one_pairs_file(
     "output/default/shifts/ROSSI.pairs.csv",

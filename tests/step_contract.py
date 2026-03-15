@@ -21,21 +21,37 @@ def assert_process_one_contract(
 
 def assert_process_many_contract(report: dict[str, Any]) -> None:
     assert isinstance(report, dict)
+    assert "stage" in report
+    assert "status" in report
+    assert report["status"] == "ok"
+    assert "inputs" in report
+    assert "outputs" in report
     assert "stats" in report
+    assert "row_totals" in report
     assert "items" in report
-    assert "errors" in report
+    assert "issues" in report
 
+    inputs = report["inputs"]
+    outputs = report["outputs"]
     stats = report["stats"]
+    row_totals = report["row_totals"]
     items = report["items"]
-    errors = report["errors"]
+    issues = report["issues"]
 
+    assert isinstance(inputs, dict)
+    assert isinstance(outputs, dict)
     assert isinstance(stats, dict)
+    assert isinstance(row_totals, dict)
     assert isinstance(items, list)
-    assert isinstance(errors, list)
+    assert isinstance(issues, list)
 
     for required_stat in ("files_total", "files_processed", "files_error"):
         assert required_stat in stats
 
+    assert "items" in row_totals
+    assert "issues" in row_totals
     assert int(stats["files_total"]) == len(items)
-    assert int(stats["files_error"]) == len(errors)
+    assert int(row_totals["items"]) == len(items)
+    assert int(stats["files_error"]) == len(issues)
+    assert int(row_totals["issues"]) == len(issues)
     assert int(stats["files_processed"]) + int(stats["files_error"]) == int(stats["files_total"])

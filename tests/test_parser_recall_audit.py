@@ -2,7 +2,7 @@ import csv
 import json
 from pathlib import Path
 
-from src.parser_recall_audit import audit_parser_recall_root, build_parser_recall_report
+from src.parser_recall_audit.service import audit_parser_recall_root, build_parser_recall_report
 
 
 def _write_csv(path: Path, rows: list[dict[str, object]]) -> None:
@@ -429,5 +429,6 @@ def test_build_parser_recall_report_writes_csv_and_json(tmp_path: Path) -> None:
     assert "source_file_link" in suspicious_rows[0]
     assert "issue_bucket" in suspicious_rows[0]
     assert report_json_payload["outputs"]["suspicious_csv"] == str(suspicious_csv_path.resolve())
-    assert report_json_payload["row_totals"]["suspicious_rows"] == 5
-    assert "suspicious_rows" not in report_json_payload
+    assert report_json_payload["row_totals"]["items"] == 5
+    assert report_json_payload["row_totals"]["issues"] == 0
+    assert "items" not in report_json_payload

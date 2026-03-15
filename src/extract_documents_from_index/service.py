@@ -17,6 +17,7 @@ from src.drive_service.text_extraction_csv import (
     prune_stale_text_extraction_docs,
     write_text_extraction_rows,
 )
+from src.reporting import build_stage_report
 
 from .options import ExtractDocumentsFromIndexOptions
 from .planning import build_initial_stats, collect_docs
@@ -112,12 +113,11 @@ def process_many_index_documents(
 ) -> dict[str, Any]:
     normalized_docs = list(docs)
     items: list[dict[str, Any]] = []
-    errors: list[dict[str, Any]] = []
+    issues: list[dict[str, Any]] = []
     stats = {
         "files_total": len(normalized_docs),
         "files_processed": 0,
         "files_error": 0,
-        "output_dir": os.path.abspath(out_dir),
     }
 
     for doc_info in normalized_docs:
@@ -133,17 +133,26 @@ def process_many_index_documents(
             stats["files_processed"] += 1
             continue
         stats["files_error"] += 1
-        errors.append(
+        issues.append(
             {
+                "code": str(result.get("error_code") or "processing_error"),
                 "source_file_id": str(result.get("source_file_id") or ""),
-                "error": str(result.get("error") or "processing_failed"),
+                "message": str(result.get("error") or "processing_failed"),
             }
         )
-    return {
-        "stats": stats,
-        "items": items,
-        "errors": errors,
-    }
+    return build_stage_report(
+        stage="extract_documents_from_index",
+        inputs={
+            "output_dir": os.path.abspath(out_dir),
+            "min_normal_score": float(min_normal_score),
+            "min_score_delta": float(min_score_delta),
+        },
+        outputs={"output_dir": os.path.abspath(out_dir)},
+        stats=stats,
+        row_totals={"items": len(items), "issues": len(issues)},
+        items=items,
+        issues=issues,
+    )
 
 
 def prepare_extraction_run(options: ExtractDocumentsFromIndexOptions) -> dict[str, Any]:
@@ -310,13 +319,33 @@ def finalize_extraction_run(
     prune_stale_text_extraction_docs(options.out, text_rows_by_file_id)
 
     payload = {
-        "source_index": state["index_path"],
-        "included_index": state["included_path"],
-        "excluded_index": state["excluded_path"],
-        "out_dir": options.out,
-        "employee_csv_files": employee_csv_files,
-        "stats": state["stats"],
-        "items": items,
+        **build_stage_report(
+            stage="extract_documents_from_index",
+            inputs={
+                "source_index": state["index_path"],
+                "output_dir": options.out,
+                "skip_included": state["skip_included"],
+                "skip_excluded": state["skip_excluded"],
+            },
+            outputs={
+                "included_index": state["included_path"],
+                "excluded_index": state["excluded_path"],
+                "employee_csv_files": employee_csv_files,
+                "report_json": state["report_path"],
+            },
+            stats=state["stats"],
+            row_totals={"items": len(items), "issues": int(state["stats"].get("failed") or 0)},
+            items=items,
+            issues=[
+                {
+                    "code": str(item.get("stage") or "processing_error"),
+                    "source_file_id": str((item.get("doc") or {}).get("file_id") or ""),
+                    "message": str(item.get("reason") or "processing_failed"),
+                }
+                for item in items
+                if item.get("status") != "success"
+            ],
+        ),
         "duration_s": round(time.time() - start_ts, 3),
     }
     ensure_dir(os.path.dirname(state["report_path"]) or ".")

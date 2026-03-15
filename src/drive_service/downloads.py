@@ -29,7 +29,3 @@ def download_file_bytes(drive, file_id: str, logger=None) -> bytes:
         return stream.read()
     finally:
         stream.close()
-
-
-def download_pdf_stream(drive, file_id: str, logger=None) -> io.BytesIO:
-    return download_file_stream(drive, file_id, logger=logger)

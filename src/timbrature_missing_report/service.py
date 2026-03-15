@@ -12,6 +12,7 @@ from src.drive_service.text_extraction_csv import (
     find_text_extraction_csvs,
     read_text_extraction_rows,
 )
+from src.reporting import build_stage_report, compact_stage_report, resolve_output_path, write_json_report
 
 from .accumulator import EmployeeAccumulator, ensure_employee, register_source_file
 from .inputs import (
@@ -32,6 +33,14 @@ from .issues import (
     append_coverage_gap,
     append_finding,
 )
+from .options import (
+    TimbratureMissingReportOptions,
+    default_coverage_csv_path,
+    default_findings_csv_path,
+    default_pipeline_dir,
+    default_report_json_path,
+    default_summary_csv_path,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +52,17 @@ REQUIRED_COVERAGE_MONTHS = {
     for year in range(COVERAGE_START_YEAR, COVERAGE_END_YEAR + 1)
     for month in range(1, 13)
 }
+
+
+def _write_csv(path: Path, rows: list[dict[str, Any]], columns: list[str]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        import csv
+
+        writer = csv.DictWriter(handle, fieldnames=columns)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow({column: row.get(column) for column in columns})
 
 
 def _employee_counter_key(employee: str | None, employee_id: str | None) -> tuple[str, str]:
@@ -442,11 +462,73 @@ def audit_missing_timbrature_pipeline(
     }
 
 
+def build_missing_timbrature_report(
+    *,
+    pipeline_dir: str | None = None,
+    report_json: str | None = None,
+    summary_csv: str | None = None,
+    findings_csv: str | None = None,
+    coverage_csv: str | None = None,
+) -> dict[str, Any]:
+    pipeline_dir = pipeline_dir or default_pipeline_dir()
+    report_json = report_json or default_report_json_path()
+    summary_csv = summary_csv or default_summary_csv_path()
+    findings_csv = findings_csv or default_findings_csv_path()
+    coverage_csv = coverage_csv or default_coverage_csv_path()
+    audit = audit_missing_timbrature_pipeline(pipeline_dir)
+
+    report_path = resolve_output_path(pipeline_dir, report_json)
+    summary_csv_path = resolve_output_path(pipeline_dir, summary_csv)
+    findings_csv_path = resolve_output_path(pipeline_dir, findings_csv)
+    coverage_csv_path = resolve_output_path(pipeline_dir, coverage_csv)
+
+    _write_csv(summary_csv_path, audit["summary_rows"], SUMMARY_COLUMNS)
+    _write_csv(findings_csv_path, audit["finding_rows"], FINDING_COLUMNS)
+    _write_csv(coverage_csv_path, audit["coverage_rows"], COVERAGE_COLUMNS)
+
+    report = build_stage_report(
+        stage="timbrature_missing_report",
+        inputs={"pipeline_dir": str(Path(pipeline_dir).resolve())},
+        outputs={
+            "report_json": str(report_path.resolve()),
+            "summary_csv": str(summary_csv_path.resolve()),
+            "findings_csv": str(findings_csv_path.resolve()),
+            "coverage_csv": str(coverage_csv_path.resolve()),
+        },
+        stats={
+            **audit["stats"],
+            "finding_counts_by_type": audit["finding_counts_by_type"],
+            "coverage_counts_by_type": audit["coverage_counts_by_type"],
+        },
+        row_totals={
+            "items": len(audit["summary_rows"]),
+            "issues": len(audit["finding_rows"]),
+            "coverage_rows": len(audit["coverage_rows"]),
+        },
+        items=audit["summary_rows"],
+        issues=audit["finding_rows"],
+    )
+    write_json_report(report_path, compact_stage_report(report))
+    return report
+
+
+def run_from_options(options: TimbratureMissingReportOptions) -> dict[str, Any]:
+    return build_missing_timbrature_report(
+        pipeline_dir=options.pipeline_dir,
+        report_json=options.report_json,
+        summary_csv=options.summary_csv,
+        findings_csv=options.findings_csv,
+        coverage_csv=options.coverage_csv,
+    )
+
+
 __all__ = [
     "COVERAGE_COLUMNS",
     "FINDING_COLUMNS",
     "ResolvedAuditInputs",
     "SUMMARY_COLUMNS",
     "audit_missing_timbrature_pipeline",
+    "build_missing_timbrature_report",
     "resolve_audit_inputs",
+    "run_from_options",
 ]

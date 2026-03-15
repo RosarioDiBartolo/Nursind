@@ -37,7 +37,7 @@ def header_preview(text: str, *, max_lines: int = 3, max_chars: int = 240) -> st
 
 def normalize_page_no(value: object) -> int:
     try:
-        parsed = int(value)  # type: ignore[arg-type]
+        parsed = int(str(value or "").strip())
     except Exception:
         return 1
     return parsed if parsed > 0 else 1
@@ -154,7 +154,7 @@ def resolve_page_numbers(
     document_payload = document.get("document")
     if isinstance(document_payload, dict):
         try:
-            page_count = int(document_payload.get("page_count"))
+            page_count = int(str(document_payload.get("page_count") or "").strip())
         except Exception:
             page_count = 0
         if page_count > 0:
@@ -300,10 +300,7 @@ def parse_document_pages(
     document: dict[str, Any],
     source_context: dict[str, Any],
     source_path: Path,
-    max_pattern_examples: int,
     max_unmatched_examples_per_file: int,
-    pattern_examples: dict[str, list[str]],
-    pattern_counts: dict[str, int],
 ) -> tuple[
     dict[str, Any],
     list[dict[str, Any]],
@@ -384,12 +381,16 @@ def parse_document_pages(
                 emitted_for_row = 0
                 if has_page_year_month:
                     for event_index, event in enumerate(row_events):
+                        resolved_year = page_year
+                        resolved_month = page_month
+                        if resolved_year is None or resolved_month is None:
+                            continue
                         event_row = build_event_row(
                             source_context=source_context,
                             parser_id=parser.parser_id,
                             page_no=page_no,
-                            page_year=int(page_year),
-                            page_month=int(page_month),
+                            page_year=resolved_year,
+                            page_month=resolved_month,
                             event_index=event_index,
                             event=event,
                         )
@@ -398,16 +399,6 @@ def parse_document_pages(
                         emitted_for_row += 1
                         event_rows.append(event_row)
                         events_extracted += 1
-                        pattern_name = str(event.event_pattern or "unknown")
-                        pattern_counts[pattern_name] = pattern_counts.get(pattern_name, 0) + 1
-                        examples = pattern_examples.setdefault(pattern_name, [])
-                        line_example = parsed_row.line.text.strip()
-                        if (
-                            line_example
-                            and line_example not in examples
-                            and len(examples) < max_pattern_examples
-                        ):
-                            examples.append(line_example)
 
                 if emitted_for_row > 0:
                     rows_with_events += 1

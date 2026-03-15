@@ -8,6 +8,7 @@ import pandas as pd
 
 from src.drive_service.fs_utils import ensure_parent_dir
 from src.drive_service.names import safe_name
+from src.reporting import build_stage_report
 from src.shift_services import PairsCloser
 
 from .event_normalization import (
@@ -52,8 +53,6 @@ def process_one_employee_events(
         "inferred_pairs": 0,
         "rows_unmatched_after_close": 0,
         "output_csv": None,
-        "missing_event_files": [],
-        "error_event_files": [],
         "error_code": None,
         "error": None,
     }
@@ -74,13 +73,6 @@ def process_one_employee_events(
 
             if not source_events_csv or not os.path.exists(source_events_csv):
                 result["files_missing"] += 1
-                result["missing_event_files"].append(
-                    {
-                        "employee": employee_name,
-                        "file_id": str(file_id or ""),
-                        "events_csv": source_events_csv,
-                    }
-                )
                 continue
 
             try:
@@ -94,15 +86,8 @@ def process_one_employee_events(
                 )
             except Exception as exc:
                 result["files_error"] += 1
-                result["error_event_files"].append(
-                    {
-                        "employee": employee_name,
-                        "file_id": str(file_id or ""),
-                        "events_csv": source_events_csv,
-                        "error": str(exc),
-                    }
-                )
-                logger.exception("Errore leggendo %s", source_events_csv)
+                logger.exception("Error reading %s", source_events_csv)
+                result["error"] = str(exc)
                 continue
 
             result["files_loaded"] += 1
@@ -132,20 +117,16 @@ def process_one_employee_events(
         else:
             partial_pairs = events_to_partial_pairs(pd.DataFrame())
 
-        partial_rows = int(len(partial_pairs))
-        result["partial_rows"] = partial_rows
-
-        if partial_pairs.empty:
-            closed = partial_pairs.copy()
-        else:
-            closed = closer.close(partial_pairs)
+        result["partial_rows"] = int(len(partial_pairs))
+        closed = partial_pairs.copy() if partial_pairs.empty else closer.close(partial_pairs)
 
         inferred_pairs = 0
         if "closed_inferred" in closed.columns:
             inferred_pairs = int(closed["closed_inferred"].fillna(False).sum())
         result["inferred_pairs"] = inferred_pairs
         result["rows_unmatched_after_close"] = max(
-            0, partial_rows - int(len(closed)) - inferred_pairs
+            0,
+            int(result["partial_rows"]) - int(len(closed)) - inferred_pairs,
         )
 
         closed, pairs_deduped = dedupe_closed_pairs(closed)
@@ -154,13 +135,12 @@ def process_one_employee_events(
         out_df = format_output_pairs(closed, keep_inferred_column=keep_inferred_column)
         result["pairs_out"] = int(len(out_df))
 
-        employee_safe = safe_name(employee_name)
-        out_path = os.path.abspath(os.path.join(output_dir, f"{employee_safe}.pairs.csv"))
+        out_path = os.path.abspath(os.path.join(output_dir, f"{safe_name(employee_name)}.pairs.csv"))
         ensure_parent_dir(out_path)
         out_df.to_csv(out_path, index=False)
         result["output_csv"] = out_path
-
         result["status"] = "ok"
+        result["error"] = None
         return result
     except Exception as exc:
         result["error_code"] = "processing_error"
@@ -183,7 +163,7 @@ def process_many_employee_events(
     output_dir = output_dir or default_output_dir()
     normalized_employees = list(employees)
 
-    totals: dict[str, Any] = {
+    stats: dict[str, Any] = {
         "files_total": len(normalized_employees),
         "files_processed": 0,
         "files_error": 0,
@@ -204,25 +184,16 @@ def process_many_employee_events(
         "pairs_deduped": 0,
         "inferred_pairs": 0,
         "rows_unmatched_after_close": 0,
-        "input_mode": input_mode,
-        "input_dir": os.path.abspath(input_dir) if input_dir else None,
-        "index_path": os.path.abspath(index_path) if index_path else None,
-        "output_dir": os.path.abspath(output_dir),
-        "events_name": events_name,
-        "max_gap_hours": float(max_gap_hours),
         "discovered_event_files_total": int(discovered_event_files_total),
+        "max_gap_hours": float(max_gap_hours),
     }
-
     items: list[dict[str, Any]] = []
-    errors: list[dict[str, str]] = []
-    by_employee: list[dict[str, Any]] = []
-    missing_event_files: list[dict[str, str]] = []
-    error_event_files: list[dict[str, str]] = []
+    issues: list[dict[str, Any]] = []
 
     for employee_index, employee in enumerate(normalized_employees, start=1):
         employee_name = str(employee.get("employee") or "unknown")
         logger.info(
-            "Dipendente %s/%s: %s (file=%s)",
+            "Employee %s/%s: %s (files=%s)",
             employee_index,
             len(normalized_employees),
             employee_name,
@@ -236,50 +207,27 @@ def process_many_employee_events(
             keep_inferred_column=keep_inferred_column,
         )
         items.append(result)
-        by_employee.append(
-            {
-                "employee": result["source_employee"],
-                "employee_id": result["employee_id"],
-                "files_total": int(result["files_total"]),
-                "files_loaded": int(result["files_loaded"]),
-                "files_missing": int(result["files_missing"]),
-                "files_error": int(result["files_error"]),
-                "events_rows_in": int(result["events_rows_in"]),
-                "events_valid": int(result["events_valid"]),
-                "events_invalid_kind": int(result["events_invalid_kind"]),
-                "events_invalid_ts": int(result["events_invalid_ts"]),
-                "events_deduped": int(result["events_deduped"]),
-                "partial_rows": int(result["partial_rows"]),
-                "pairs_out": int(result["pairs_out"]),
-                "pairs_deduped": int(result["pairs_deduped"]),
-                "inferred_pairs": int(result["inferred_pairs"]),
-                "rows_unmatched_after_close": int(result["rows_unmatched_after_close"]),
-                "output_csv": result["output_csv"],
-                "status": result["status"],
-                "error_code": result["error_code"],
-                "error": result["error"],
-            }
-        )
 
-        totals["employees_processed"] += 1
+        stats["employees_processed"] += 1
         if result["status"] == "ok":
-            totals["files_processed"] += 1
+            stats["files_processed"] += 1
         else:
-            totals["files_error"] += 1
-            errors.append(
+            stats["files_error"] += 1
+            issues.append(
                 {
-                    "employee": str(result["source_employee"]),
-                    "error": str(result["error"]),
+                    "code": str(result.get("error_code") or "processing_error"),
+                    "employee": str(result.get("source_employee") or ""),
+                    "message": str(result.get("error") or "processing_error"),
                 }
             )
 
         if int(result["pairs_out"]) > 0:
-            totals["employees_with_pairs"] += 1
+            stats["employees_with_pairs"] += 1
 
-        totals["event_files_total"] += int(result["files_total"])
-        totals["event_files_loaded"] += int(result["files_loaded"])
-        totals["event_files_missing"] += int(result["files_missing"])
-        totals["event_files_error"] += int(result["files_error"])
+        stats["event_files_total"] += int(result["files_total"])
+        stats["event_files_loaded"] += int(result["files_loaded"])
+        stats["event_files_missing"] += int(result["files_missing"])
+        stats["event_files_error"] += int(result["files_error"])
         for key in (
             "events_rows_in",
             "events_valid",
@@ -292,16 +240,28 @@ def process_many_employee_events(
             "inferred_pairs",
             "rows_unmatched_after_close",
         ):
-            totals[key] += int(result[key])
+            stats[key] += int(result[key])
 
-        missing_event_files.extend(list(result["missing_event_files"]))
-        error_event_files.extend(list(result["error_event_files"]))
+    return build_stage_report(
+        stage="pair_employee_events",
+        inputs={
+            "input_mode": input_mode,
+            "input_dir": os.path.abspath(input_dir) if input_dir else None,
+            "index_path": os.path.abspath(index_path) if index_path else None,
+            "output_dir": os.path.abspath(output_dir),
+            "events_name": events_name,
+            "max_gap_hours": float(max_gap_hours),
+        },
+        outputs={"output_dir": os.path.abspath(output_dir)},
+        stats=stats,
+        row_totals={"items": len(items), "issues": len(issues)},
+        items=items,
+        issues=issues,
+    )
 
-    return {
-        "stats": totals,
-        "items": items,
-        "errors": errors,
-        "by_employee": by_employee,
-        "missing_event_files": missing_event_files,
-        "error_event_files": error_event_files,
-    }
+
+__all__ = [
+    "normalize_employee",
+    "process_many_employee_events",
+    "process_one_employee_events",
+]

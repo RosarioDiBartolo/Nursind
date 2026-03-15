@@ -3,10 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import src.extract_documents_from_index.service as service
-from src.extract_documents_from_index import (
-    process_many_index_documents,
-    process_one_index_document,
-)
+from src.extract_documents_from_index.service import process_many_index_documents, process_one_index_document
 from tests.step_contract import assert_process_many_contract, assert_process_one_contract
 
 

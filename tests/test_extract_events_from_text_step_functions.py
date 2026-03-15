@@ -3,7 +3,7 @@
 import pandas as pd
 import pytest
 
-from src.extract_events_from_documents import (
+from src.extract_events_from_documents.service import (
     extract_events_from_documents_dir,
     process_many_text_rows,
     process_one_text_row,
@@ -114,8 +114,8 @@ def test_process_many_text_rows_tracks_missing_page_year_month(tmp_path: Path) -
     assert int(stats["files_with_events"]) == 1
     assert int(stats["files_without_events"]) == 2
     assert int(stats["events_dropped_missing_year_month"]) >= 2
-    assert len(report["errors"]) == 0
-    assert len(report["pages_missing_year_month"]) >= 1
+    assert len(report["issues"]) == 0
+    assert int(report["row_totals"]["pages_missing_year_month"]) >= 1
     assert len(report["items"]) == 3
 
 
@@ -147,7 +147,7 @@ def test_extract_events_from_documents_dir_reads_employee_manifest_csv(tmp_path:
         report_json=str(report_json),
     )
 
-    assert report["stats"]["input_mode"] == "employee_manifest_csv"
+    assert report["inputs"]["input_mode"] == "employee_manifest_csv"
     assert int(report["stats"]["files_total"]) == 1
 
     out_events_csv = output_dir / "events.csv"

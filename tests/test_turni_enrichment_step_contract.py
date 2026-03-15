@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from src.turni_enrichment import process_many_pairs_files, process_one_pairs_file
+from src.turni_enrichment.service import process_many_pairs_files, process_one_pairs_file
 from tests.step_contract import assert_process_many_contract, assert_process_one_contract
 
 

@@ -74,7 +74,7 @@ class CartellinoOcrParser(BaseFormatParser):
                 if header is None:
                     continue
                 day, dow = header
-                events = []
+                events: list[ParsedEvent] = []
                 if bands:
                     events.extend(self._events_from_layout_line(line=line, day=day, dow=dow, bands=bands))
                 if not events:
@@ -300,6 +300,6 @@ class CartellinoOcrParser(BaseFormatParser):
 
     def _float_or_none(self, value: object) -> float | None:
         try:
-            return float(value)
+            return float(str(value))
         except Exception:
             return None
