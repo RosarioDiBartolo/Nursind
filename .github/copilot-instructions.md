@@ -4,13 +4,16 @@ Keep this file **generic**. Project-specific context should live in `README.md` 
 ## Mandatory context
 - Always read `AGENTS.md` when present.
 - Read `README.md` before making changes.
+- Read `llm.md` for low-context navigation and task routing.
+- Read `docs/codebase_map.md` for code ownership, test routing, and default skip paths.
 - Read `docs/shared_logic_registry.md` before introducing or moving shared helpers.
 - Read the relevant step docs in `docs/*` for impacted pipeline stages.
 
 ## Markdown files (purpose + usage)
 - `README.md`: Public overview and quickstart; keep high-level and current.
 - `AGENTS.md`: Agent routing/instructions; must be followed when present.
-- `llm.md`: Lightweight navigation/index doc that points to canonical docs.
+- `llm.md`: Low-context routing doc for LLM sessions; keep task-oriented and short.
+- `docs/codebase_map.md`: Code ownership and navigation map for agents; keep concrete and code-focused.
 - `CODEBASE_BRIEFING.md`: One-page human summary; keep short and point to canonical docs.
 - `PIPELINE_COMMANDS.md`: Canonical command list for the active pipeline.
 - `docs/ingestion.md`: Detailed docs for scan + text extraction pipeline.

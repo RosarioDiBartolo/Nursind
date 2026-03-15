@@ -295,6 +295,8 @@ python -m "src.extract_documents_from_index" --index "<shared_output_root>/scan/
 
 ## Documentation Map
 
+- `llm.md`
+- `docs/codebase_map.md`
 - `PIPELINE_COMMANDS.md`
 - `docs/ingestion.md`
 - `docs/preparation.md`
@@ -302,7 +304,6 @@ python -m "src.extract_documents_from_index" --index "<shared_output_root>/scan/
 - `docs/aggregation.md`
 - `docs/schemas.md`
 - `docs/shared_logic_registry.md`
-- `llm.md`
 - `CODEBASE_BRIEFING.md`
 
 ## Current Priorities

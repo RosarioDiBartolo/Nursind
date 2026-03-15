@@ -24,3 +24,7 @@
 - Split code by logic boundaries (parsing, transformation, I/O, orchestration) instead of by convenience.
 - Maximum 3 responsibilities per file/module; if a 4th appears, split the file.
 - When a file grows mixed responsibilities, split it into focused modules with explicit interfaces.
+
+## Commit Workflow
+- After any substantial code change, propose a descriptive commit message that summarizes the actual changes.
+- Do not create a commit for substantial changes until the user explicitly confirms they are satisfied and wants the commit created.

@@ -1,8 +1,13 @@
 # Codebase Briefing (Short)
-Last updated: 2026-03-13
+Last updated: 2026-03-15
 
 ## Purpose
 Process payroll PDFs through a canonical document-first pipeline and produce per-employee shift summaries plus audit outputs.
+
+## Fast Navigation
+- LLM/Codex sessions should start with `llm.md`.
+- For code ownership, test routing, and skip guidance, use `docs/codebase_map.md`.
+- For shared helper reuse rules, use `docs/shared_logic_registry.md`.
 
 ## Active pipeline
 1. `src/scan_directory`
@@ -27,6 +32,8 @@ The supported filesystem layout under the shared pipeline root is:
 ## Details
 For full architecture, commands, and schemas, see:
 - `README.md`
+- `llm.md`
+- `docs/codebase_map.md`
 - `PIPELINE_COMMANDS.md`
 - `docs/ingestion.md`
 - `docs/preparation.md`
