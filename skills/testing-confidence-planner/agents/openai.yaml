@@ -1,4 +1,0 @@
-interface:
-  display_name: "Testing Confidence Planner"
-  short_description: "Risk-first testing strategy and test design"
-  default_prompt: "Use $testing-confidence-planner to build a risk-prioritized test plan for my stack."
