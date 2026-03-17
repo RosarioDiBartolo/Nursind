@@ -1,8 +1,8 @@
-import csv
+﻿import csv
 from pathlib import Path
 
-from src.turni_employee_summary.options import DEFAULT_YEAR_START, parse_options
-from src.turni_employee_summary.service import process_many_enriched_files, process_one_enriched_file
+from cartellino_parser.turni_employee_summary.options import DEFAULT_YEAR_START, parse_options
+from cartellino_parser.turni_employee_summary.service import process_many_enriched_files, process_one_enriched_file
 from tests.step_contract import assert_process_many_contract, assert_process_one_contract
 
 
@@ -92,3 +92,4 @@ def test_turni_summary_process_many_contract(tmp_path: Path) -> None:
     assert int(report["stats"]["files_total"]) == 2
     assert int(report["stats"]["files_processed"]) == 1
     assert int(report["stats"]["files_error"]) == 1
+

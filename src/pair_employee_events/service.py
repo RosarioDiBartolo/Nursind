@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import logging
 import os
@@ -6,10 +6,10 @@ from typing import Any, Iterable
 
 import pandas as pd
 
-from src.drive_service.fs_utils import ensure_parent_dir
-from src.drive_service.names import safe_name
-from src.reporting import build_stage_report
-from src.shift_services import PairsCloser
+from cartellino_parser.drive_service.fs_utils import ensure_parent_dir
+from cartellino_parser.drive_service.names import safe_name
+from cartellino_parser.reporting import build_stage_report
+from cartellino_parser.shift_services import PairsCloser
 
 from .event_normalization import (
     dedupe_events,
@@ -242,7 +242,7 @@ def process_many_employee_events(
         ):
             stats[key] += int(result[key])
 
-    return build_stage_report(
+    report = build_stage_report(
         stage="pair_employee_events",
         inputs={
             "input_mode": input_mode,
@@ -258,6 +258,9 @@ def process_many_employee_events(
         items=items,
         issues=issues,
     )
+    # Preserve the employee-level row alias expected by older audit/report consumers.
+    report["by_employee"] = list(items)
+    return report
 
 
 __all__ = [
@@ -265,3 +268,4 @@ __all__ = [
     "process_many_employee_events",
     "process_one_employee_events",
 ]
+

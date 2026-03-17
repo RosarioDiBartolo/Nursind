@@ -1,23 +1,23 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import os
 import threading
 import time
 from typing import Any, Iterable
 
-from src.drive_service.fs_utils import ensure_dir
-from src.drive_service.index import MapIndex
-from src.drive_service.index_runtime import resolve_output_path, update_index_meta
-from src.drive_service.io_json import write_json
-from src.drive_service.schema import IndexFile, Outputs
-from src.drive_service.text_extraction_csv import (
+from cartellino_parser.drive_service.fs_utils import ensure_dir
+from cartellino_parser.drive_service.index import MapIndex
+from cartellino_parser.drive_service.index_runtime import resolve_output_path, update_index_meta
+from cartellino_parser.drive_service.io_json import write_json
+from cartellino_parser.drive_service.schema import IndexFile, Outputs
+from cartellino_parser.drive_service.text_extraction_csv import (
     build_employee_csv_rel_path,
     build_text_extraction_row,
     load_text_extraction_rows,
     prune_stale_text_extraction_docs,
     write_text_extraction_rows,
 )
-from src.reporting import build_stage_report
+from cartellino_parser.reporting import build_stage_report
 
 from .options import ExtractDocumentsFromIndexOptions
 from .planning import build_initial_stats, collect_docs
@@ -216,6 +216,7 @@ def prepare_extraction_run(options: ExtractDocumentsFromIndexOptions) -> dict[st
         "log_every": log_every,
         "skip_included": skip_included,
         "skip_excluded": skip_excluded,
+        "runtime_issues": [],
         "stats": stats,
         "docs": docs,
     }
@@ -318,6 +319,17 @@ def finalize_extraction_run(
     employee_csv_files = write_text_extraction_rows(options.out, text_rows_by_file_id)
     prune_stale_text_extraction_docs(options.out, text_rows_by_file_id)
 
+    issues = [
+        {
+            "code": str(item.get("stage") or "processing_error"),
+            "source_file_id": str((item.get("doc") or {}).get("file_id") or ""),
+            "message": str(item.get("reason") or "processing_failed"),
+        }
+        for item in items
+        if item.get("status") != "success"
+    ]
+    issues.extend(dict(issue) for issue in state.get("runtime_issues", []))
+
     payload = {
         **build_stage_report(
             stage="extract_documents_from_index",
@@ -334,17 +346,10 @@ def finalize_extraction_run(
                 "report_json": state["report_path"],
             },
             stats=state["stats"],
-            row_totals={"items": len(items), "issues": int(state["stats"].get("failed") or 0)},
+            row_totals={"items": len(items), "issues": len(issues)},
             items=items,
-            issues=[
-                {
-                    "code": str(item.get("stage") or "processing_error"),
-                    "source_file_id": str((item.get("doc") or {}).get("file_id") or ""),
-                    "message": str(item.get("reason") or "processing_failed"),
-                }
-                for item in items
-                if item.get("status") != "success"
-            ],
+            issues=issues,
+            status="interrupted" if int(state["stats"].get("interrupted") or 0) else "ok",
         ),
         "duration_s": round(time.time() - start_ts, 3),
     }
@@ -360,3 +365,4 @@ __all__ = [
     "process_many_index_documents",
     "process_one_index_document",
 ]
+

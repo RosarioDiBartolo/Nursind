@@ -3,10 +3,12 @@ from __future__ import annotations
 import logging
 from typing import Sequence
 
-from src.drive_service.logging_utils import setup_logging
+from cartellino_parser import PipelineClient
+from cartellino_parser._cli_requests import request_from_object
+from cartellino_parser.drive_service.logging_utils import setup_logging
+from cartellino_parser.models import ParserRecallAuditRequest
 
 from .options import parse_options
-from .service import run_from_options
 
 logger = logging.getLogger(__name__)
 
@@ -14,9 +16,11 @@ logger = logging.getLogger(__name__)
 def main(argv: Sequence[str] | None = None) -> int:
     options = parse_options(argv)
     setup_logging(options.verbose)
-    report = run_from_options(options)
-    stats = report["stats"]
-    outputs = report.get("outputs") or {}
+    report = PipelineClient().audit_parser_recall(
+        request_from_object(ParserRecallAuditRequest, options)
+    )
+    stats = report.stats
+    outputs = report.outputs
     logger.info(
         (
             "Completed: pipelines=%s pages=%s suspicious=%s tiny=%s zero=%s low=%s "

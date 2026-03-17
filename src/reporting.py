@@ -1,10 +1,10 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from pathlib import Path
 from typing import Any
 
-from src.drive_service.fs_utils import ensure_parent_dir
-from src.drive_service.io_json import write_json
+from cartellino_parser.drive_service.fs_utils import ensure_parent_dir
+from cartellino_parser.drive_service.io_json import write_json
 
 
 def resolve_output_path(base_dir: str | Path, path: str | Path) -> Path:
@@ -66,3 +66,4 @@ __all__ = [
     "resolve_output_path",
     "write_json_report",
 ]
+

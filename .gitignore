@@ -8,6 +8,7 @@ cartellini_out
 token.json
 # C extensions
 *.so
+.tmp
 *.json
 !src/notebooks/shared_config.json
 *.csv

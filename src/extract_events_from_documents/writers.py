@@ -1,10 +1,10 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import csv
 from pathlib import Path
 from typing import Any
 
-from src.drive_service.fs_utils import ensure_parent_dir
+from cartellino_parser.drive_service.fs_utils import ensure_parent_dir
 
 EVENT_COLUMNS = [
     "event_id",
@@ -74,3 +74,4 @@ __all__ = [
     "PAGE_COLUMNS",
     "write_rows_csv",
 ]
+

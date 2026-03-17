@@ -32,4 +32,4 @@ Keep this file **generic**. Project-specific context should live in `README.md` 
 - Prefer explicit, readable control flow over cleverness.
 - Use relative imports within a package; use absolute imports for third-party deps.
 - Use `logging.getLogger(__name__)` and configurable log levels for CLIs.
-- Keep `python -m "src.<step>"` stable, but prefer concrete imports like `src.<step>.service` and `src.<step>.options` in tests, notebooks, and docs instead of package-root re-export APIs.
+- Keep installed console scripts and `python -m "cartellino_parser.<step>"` stable, but prefer concrete imports like `cartellino_parser.<step>.service` and `cartellino_parser.<step>.options` in tests, notebooks, and docs instead of package-root re-export APIs.

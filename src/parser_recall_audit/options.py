@@ -1,10 +1,10 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass, field
 from typing import Sequence
 
-from src.pipeline_paths import build_pipeline_paths, with_parser_recall_audit_overrides
+from cartellino_parser.pipeline_paths import build_pipeline_paths, with_parser_recall_audit_overrides
 
 DEFAULT_MAX_TINY_ROWS = 3
 DEFAULT_MIN_LARGE_ROWS = 10
@@ -117,3 +117,4 @@ __all__ = [
     "default_suspicious_csv_path",
     "parse_options",
 ]
+

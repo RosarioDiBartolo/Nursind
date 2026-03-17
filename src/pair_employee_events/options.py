@@ -1,10 +1,10 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass, field
 from typing import Sequence
 
-from src.pipeline_paths import build_pipeline_paths, with_pair_employee_overrides
+from cartellino_parser.pipeline_paths import build_pipeline_paths, with_pair_employee_overrides
 
 from .artifacts import PAIR_EMPLOYEE_ARTIFACTS
 
@@ -121,3 +121,4 @@ def parse_options(argv: Sequence[str] | None = None) -> PairEmployeeEventsOption
         keep_inferred_column=bool(args.keep_inferred_column),
         verbose=bool(args.verbose),
     )
+

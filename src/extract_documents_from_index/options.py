@@ -1,11 +1,11 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import argparse
 import os
 from dataclasses import dataclass, field
 from typing import Sequence
 
-from src.pipeline_paths import build_pipeline_paths, with_extract_documents_overrides
+from cartellino_parser.pipeline_paths import build_pipeline_paths, with_extract_documents_overrides
 
 from .artifacts import EXTRACT_DOCUMENTS_ARTIFACTS
 
@@ -192,3 +192,4 @@ def parse_options(argv: Sequence[str] | None = None) -> ExtractDocumentsFromInde
         report=str(resolved.report_json),
         verbose=args.verbose,
     )
+

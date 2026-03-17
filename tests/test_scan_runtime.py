@@ -1,11 +1,11 @@
-from pathlib import Path
+﻿from pathlib import Path
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from src.drive_service.io_json import load_json  # noqa: E402
-from src.scan_directory import runtime  # noqa: E402
+from cartellino_parser.drive_service.io_json import load_json  # noqa: E402
+from cartellino_parser.scan_directory import runtime  # noqa: E402
 
 
 class _FakeFilesApi:
@@ -397,3 +397,4 @@ def test_run_scan_uses_default_exclude_terms_when_none(monkeypatch, tmp_path):
     )
 
     assert received_terms == [["term-a", "term-b"]]
+

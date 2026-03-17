@@ -1,8 +1,8 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import pandas as pd
 
-from src.shift_services import to_datetime_series
+from cartellino_parser.shift_services import to_datetime_series
 
 
 def normalize_employee(name: str | None) -> str:
@@ -194,3 +194,4 @@ __all__ = [
     "normalize_employee",
     "normalize_events_file",
 ]
+

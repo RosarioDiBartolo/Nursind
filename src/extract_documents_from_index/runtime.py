@@ -3,20 +3,16 @@ from __future__ import annotations
 import threading
 import time
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
+from typing import Any
 
-from src.drive_service.auth_service import load_creds
-from src.drive_service.index_runtime import (
-    maybe_flush_indexes,
-)
-from src.drive_service.logging_utils import get_logger, setup_logging
-from src.drive_service.schema import IndexFile
+from cartellino_parser.drive_service.auth_service import load_creds
+from cartellino_parser.drive_service.index_runtime import maybe_flush_indexes
+from cartellino_parser.drive_service.logging_utils import get_logger, setup_logging
+from cartellino_parser.drive_service.schema import IndexFile
+from cartellino_parser.exceptions import CredentialsError
 
 from .options import ExtractDocumentsFromIndexOptions
-from .service import (
-    apply_extraction_result,
-    finalize_extraction_run,
-    prepare_extraction_run,
-)
+from .service import apply_extraction_result, finalize_extraction_run, prepare_extraction_run
 from .workers import download_pdf_bytes, extract_and_write
 
 
@@ -49,8 +45,103 @@ def _flush_progress(
     )
 
 
-def run_extraction(options: ExtractDocumentsFromIndexOptions) -> int:
-    setup_logging(options.verbose)
+def _record_result(
+    *,
+    result: dict[str, Any],
+    processed: int,
+    stats: dict[str, Any],
+    items: list[dict[str, Any]],
+    state: dict[str, Any],
+    start_ts: float,
+    logger,
+) -> int:
+    processed += 1
+    stats["processed"] = processed
+    apply_extraction_result(
+        result,
+        stats=stats,
+        items=items,
+        included_map=state["included_map"],
+        excluded_map=state["excluded_map"],
+        text_rows_by_file_id=state["text_rows_by_file_id"],
+    )
+    _flush_progress(
+        processed=processed,
+        flush_every=state["flush_every"],
+        log_every=state["log_every"],
+        start_ts=start_ts,
+        included_index=state["included_index"],
+        excluded_index=state["excluded_index"],
+        included_map=state["included_map"],
+        excluded_map=state["excluded_map"],
+        included_path=state["included_path"],
+        excluded_path=state["excluded_path"],
+        logger=logger,
+    )
+    return processed
+
+
+def _cancel_pending_futures(futures) -> int:
+    cancelled = 0
+    for future in list(futures):
+        cancel = getattr(future, "cancel", None)
+        if callable(cancel) and cancel():
+            cancelled += 1
+    return cancelled
+
+
+def _drain_extract_futures(
+    *,
+    extract_futures: dict,
+    processed: int,
+    stats: dict[str, Any],
+    items: list[dict[str, Any]],
+    state: dict[str, Any],
+    start_ts: float,
+    logger,
+    cancel_pending: bool = False,
+) -> tuple[int, int]:
+    cancelled = 0
+    if cancel_pending:
+        for future in list(extract_futures):
+            cancel = getattr(future, "cancel", None)
+            if callable(cancel) and cancel():
+                extract_futures.pop(future, None)
+                cancelled += 1
+
+    for done in as_completed(list(extract_futures)):
+        doc_info = extract_futures.pop(done, {})
+        try:
+            result = done.result()
+        except Exception as exc:
+            result = {
+                "status": "failed",
+                "stage": "extract",
+                "reason": f"{type(exc).__name__}: {exc}",
+                "doc": doc_info,
+            }
+        processed = _record_result(
+            result=result,
+            processed=processed,
+            stats=stats,
+            items=items,
+            state=state,
+            start_ts=start_ts,
+            logger=logger,
+        )
+    return processed, cancelled
+
+
+def run_extraction(
+    options: ExtractDocumentsFromIndexOptions,
+    *,
+    creds=None,
+    auto_load_creds: bool = True,
+    configure_logging: bool = True,
+    return_report: bool = False,
+) -> int | dict:
+    if configure_logging:
+        setup_logging(options.verbose)
     logger = get_logger()
     logger.info("Starting document extraction pipeline at out=%s", options.out)
 
@@ -70,7 +161,7 @@ def run_extraction(options: ExtractDocumentsFromIndexOptions) -> int:
         state["max_in_flight"],
     )
 
-    items: list[dict] = []
+    items: list[dict[str, Any]] = []
     t0 = time.time()
     processed = 0
     stop_event = threading.Event()
@@ -78,9 +169,15 @@ def run_extraction(options: ExtractDocumentsFromIndexOptions) -> int:
     if docs:
         needs_drive = any(not bool(doc.get("local")) for doc in docs)
         if needs_drive:
-            logger.info("Loading credentials...")
-            creds = load_creds()
-            logger.info("Credentials loaded")
+            if creds is None:
+                if not auto_load_creds:
+                    raise CredentialsError(
+                        "Drive credentials are required for document extraction. "
+                        "Pass explicit credentials or enable environment-based loading."
+                    )
+                logger.info("Loading credentials...")
+                creds = load_creds()
+                logger.info("Credentials loaded")
         else:
             logger.info("No remote documents queued; skipping credential load")
             creds = None
@@ -106,27 +203,13 @@ def run_extraction(options: ExtractDocumentsFromIndexOptions) -> int:
                         }
 
                     if download_result["status"] != "success":
-                        processed += 1
-                        stats["processed"] = processed
-                        apply_extraction_result(
-                            download_result,
+                        processed = _record_result(
+                            result=download_result,
+                            processed=processed,
                             stats=stats,
                             items=items,
-                            included_map=state["included_map"],
-                            excluded_map=state["excluded_map"],
-                            text_rows_by_file_id=state["text_rows_by_file_id"],
-                        )
-                        _flush_progress(
-                            processed=processed,
-                            flush_every=state["flush_every"],
-                            log_every=state["log_every"],
+                            state=state,
                             start_ts=t0,
-                            included_index=state["included_index"],
-                            excluded_index=state["excluded_index"],
-                            included_map=state["included_map"],
-                            excluded_map=state["excluded_map"],
-                            included_path=state["included_path"],
-                            excluded_path=state["excluded_path"],
                             logger=logger,
                         )
                         continue
@@ -143,27 +226,13 @@ def run_extraction(options: ExtractDocumentsFromIndexOptions) -> int:
                                 "reason": f"{type(exc).__name__}: {exc}",
                                 "doc": doc_info,
                             }
-                        processed += 1
-                        stats["processed"] = processed
-                        apply_extraction_result(
-                            result,
+                        processed = _record_result(
+                            result=result,
+                            processed=processed,
                             stats=stats,
                             items=items,
-                            included_map=state["included_map"],
-                            excluded_map=state["excluded_map"],
-                            text_rows_by_file_id=state["text_rows_by_file_id"],
-                        )
-                        _flush_progress(
-                            processed=processed,
-                            flush_every=state["flush_every"],
-                            log_every=state["log_every"],
+                            state=state,
                             start_ts=t0,
-                            included_index=state["included_index"],
-                            excluded_index=state["excluded_index"],
-                            included_map=state["included_map"],
-                            excluded_map=state["excluded_map"],
-                            included_path=state["included_path"],
-                            excluded_path=state["excluded_path"],
                             logger=logger,
                         )
 
@@ -178,45 +247,48 @@ def run_extraction(options: ExtractDocumentsFromIndexOptions) -> int:
                     )
                     extract_futures[extract_future] = doc_info
 
-                for done in as_completed(list(extract_futures)):
-                    doc_info = extract_futures.pop(done, {})
-                    try:
-                        result = done.result()
-                    except Exception as exc:
-                        result = {
-                            "status": "failed",
-                            "stage": "extract",
-                            "reason": f"{type(exc).__name__}: {exc}",
-                            "doc": doc_info,
-                        }
-                    processed += 1
-                    stats["processed"] = processed
-                    apply_extraction_result(
-                        result,
-                        stats=stats,
-                        items=items,
-                        included_map=state["included_map"],
-                        excluded_map=state["excluded_map"],
-                        text_rows_by_file_id=state["text_rows_by_file_id"],
-                    )
-                    _flush_progress(
-                        processed=processed,
-                        flush_every=state["flush_every"],
-                        log_every=state["log_every"],
-                        start_ts=t0,
-                        included_index=state["included_index"],
-                        excluded_index=state["excluded_index"],
-                        included_map=state["included_map"],
-                        excluded_map=state["excluded_map"],
-                        included_path=state["included_path"],
-                        excluded_path=state["excluded_path"],
-                        logger=logger,
-                    )
+                processed, _ = _drain_extract_futures(
+                    extract_futures=extract_futures,
+                    processed=processed,
+                    stats=stats,
+                    items=items,
+                    state=state,
+                    start_ts=t0,
+                    logger=logger,
+                )
             except KeyboardInterrupt:
                 stop_event.set()
-                logger.warning("Interrupted by user, flushing indexes...")
+                stats["interrupted"] = 1
+                stats["cancelled_downloads"] += _cancel_pending_futures(download_futures)
+                processed, cancelled_extracts = _drain_extract_futures(
+                    extract_futures=extract_futures,
+                    processed=processed,
+                    stats=stats,
+                    items=items,
+                    state=state,
+                    start_ts=t0,
+                    logger=logger,
+                    cancel_pending=True,
+                )
+                stats["cancelled_extracts"] += cancelled_extracts
+                stats["not_processed_due_to_interrupt"] = max(
+                    0,
+                    int(stats.get("queued") or 0) - int(stats.get("processed") or 0),
+                )
+                state["runtime_issues"].append(
+                    {
+                        "code": "interrupt",
+                        "message": (
+                            "Interrupted by user; drained submitted extraction tasks "
+                            "and cancelled pending work before finalization."
+                        ),
+                    }
+                )
+                logger.warning(
+                    "Interrupted by user, drained in-flight extraction tasks and flushing indexes..."
+                )
 
-    finalize_extraction_run(
+    report = finalize_extraction_run(
         options=options,
         state=state,
         items=items,
@@ -224,7 +296,15 @@ def run_extraction(options: ExtractDocumentsFromIndexOptions) -> int:
     )
     logger.info("Report saved to %s", state["report_path"])
     logger.info("Done in %.1fs", time.time() - t0)
+    if return_report:
+        return report
     return 0
 
 
-__all__ = ["_flush_progress", "run_extraction"]
+__all__ = [
+    "_cancel_pending_futures",
+    "_drain_extract_futures",
+    "_flush_progress",
+    "_record_result",
+    "run_extraction",
+]

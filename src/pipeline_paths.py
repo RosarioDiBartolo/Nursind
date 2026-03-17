@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import os
 from dataclasses import dataclass
@@ -6,17 +6,17 @@ from functools import lru_cache
 from pathlib import Path
 from typing import TypeAlias
 
-from src.drive_service.fs_utils import ensure_dir
-from src.pipeline_path_types import PipelineStage
-from src.scan_directory.artifacts import SCAN_ARTIFACTS
-from src.extract_documents_from_index.artifacts import EXTRACT_DOCUMENTS_ARTIFACTS
-from src.extract_events_from_documents.artifacts import EXTRACT_EVENTS_ARTIFACTS
-from src.filter_midnight_events.artifacts import FILTER_MIDNIGHT_ARTIFACTS
-from src.pair_employee_events.artifacts import PAIR_EMPLOYEE_ARTIFACTS
-from src.turni_enrichment.artifacts import TURNI_ENRICHMENT_ARTIFACTS
-from src.turni_employee_summary.artifacts import TURNI_EMPLOYEE_SUMMARY_ARTIFACTS
-from src.parser_recall_audit.artifacts import PARSER_RECALL_AUDIT_ARTIFACTS
-from src.timbrature_missing_report.artifacts import TIMBRATURE_MISSING_REPORT_ARTIFACTS
+from cartellino_parser.drive_service.fs_utils import ensure_dir
+from cartellino_parser.pipeline_path_types import PipelineStage
+from cartellino_parser.scan_directory.artifacts import SCAN_ARTIFACTS
+from cartellino_parser.extract_documents_from_index.artifacts import EXTRACT_DOCUMENTS_ARTIFACTS
+from cartellino_parser.extract_events_from_documents.artifacts import EXTRACT_EVENTS_ARTIFACTS
+from cartellino_parser.filter_midnight_events.artifacts import FILTER_MIDNIGHT_ARTIFACTS
+from cartellino_parser.pair_employee_events.artifacts import PAIR_EMPLOYEE_ARTIFACTS
+from cartellino_parser.turni_enrichment.artifacts import TURNI_ENRICHMENT_ARTIFACTS
+from cartellino_parser.turni_employee_summary.artifacts import TURNI_EMPLOYEE_SUMMARY_ARTIFACTS
+from cartellino_parser.parser_recall_audit.artifacts import PARSER_RECALL_AUDIT_ARTIFACTS
+from cartellino_parser.timbrature_missing_report.artifacts import TIMBRATURE_MISSING_REPORT_ARTIFACTS
 
 PathLike: TypeAlias = str | Path
 _StepOverrideMap: TypeAlias = dict[str, dict[str, PathLike]]
@@ -754,8 +754,8 @@ def _resolve_root_prefix_from_drive(root_id: str) -> str | None:
     if not root:
         return None
     try:
-        from src.drive_service.auth_service import load_creds
-        from src.drive_service.drive_client import get_drive_service
+        from cartellino_parser.drive_service.auth_service import load_creds
+        from cartellino_parser.drive_service.drive_client import get_drive_service
 
         creds = load_creds()
         drive = get_drive_service(creds)
@@ -796,3 +796,4 @@ __all__ = [
     "with_turni_employee_summary_overrides",
     "with_turni_enrichment_overrides",
 ]
+

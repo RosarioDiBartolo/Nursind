@@ -1,10 +1,10 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass, field
 from typing import Sequence
 
-from src.pipeline_paths import build_pipeline_paths, with_timbrature_missing_report_overrides
+from cartellino_parser.pipeline_paths import build_pipeline_paths, with_timbrature_missing_report_overrides
 
 
 def _default_paths():
@@ -120,3 +120,4 @@ __all__ = [
     "default_summary_csv_path",
     "parse_options",
 ]
+

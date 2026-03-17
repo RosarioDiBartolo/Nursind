@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from src.filter_midnight_events.service import (
+from cartellino_parser.filter_midnight_events.service import (
     process_many_events_files,
     process_one_events_file,
 )
@@ -114,4 +114,5 @@ def test_filter_midnight_process_many_contract(tmp_path: Path) -> None:
     assert report["stats"]["files_total"] == 2
     assert report["stats"]["files_processed"] == 1
     assert report["stats"]["files_error"] == 1
+
 

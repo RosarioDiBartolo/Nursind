@@ -23,11 +23,12 @@ The supported filesystem layout under the shared pipeline root is:
 `scan`, `documents`, `events`, `shifts`, `enrichment`, `aggregation`.
 
 ## Key entry points
-- Scan: `python -m "src.scan_directory"`
-- Document extraction: `python -m "src.extract_documents_from_index"`
-- Events, clean, pair: `python -m "src.extract_events_from_documents"`, `python -m "src.filter_midnight_events"`, `python -m "src.pair_employee_events"`
-- Enrich + summary: `python -m "src.turni_enrichment"`, `python -m "src.turni_employee_summary"`
-- Audit: `python -m "src.timbrature_missing_report"`
+- Public imports use `cartellino_parser.*`.
+- Scan: `drive-scan`
+- Document extraction: `cartellino-extract-documents`
+- Events, clean, pair: `cartellino-extract-events`, `cartellino-filter-midnight`, `cartellino-pair-employee-events`
+- Enrich + summary: `cartellino-turni-enrichment`, `cartellino-turni-summary`
+- Audit: `cartellino-missing-timbrature`
 
 ## Details
 For full architecture, commands, and schemas, see:

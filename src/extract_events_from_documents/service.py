@@ -1,15 +1,15 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import logging
 import os
 from pathlib import Path
 from typing import Any, Iterable
 
-from src.drive_service.text_extraction_csv import (
+from cartellino_parser.drive_service.text_extraction_csv import (
     find_text_extraction_csvs,
     read_text_extraction_rows,
 )
-from src.reporting import build_stage_report, compact_stage_report, write_json_report
+from cartellino_parser.reporting import build_stage_report, compact_stage_report, write_json_report
 
 from .options import (
     DEFAULT_MANIFEST_GLOB,
@@ -303,3 +303,4 @@ __all__ = [
     "process_one_text_row",
     "run_from_options",
 ]
+

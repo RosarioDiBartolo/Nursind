@@ -3,10 +3,12 @@ from __future__ import annotations
 import logging
 from typing import Sequence
 
-from src.drive_service.logging_utils import setup_logging
+from cartellino_parser import PipelineClient
+from cartellino_parser._cli_requests import request_from_object
+from cartellino_parser.drive_service.logging_utils import setup_logging
+from cartellino_parser.models import TurniEnrichmentRequest
 
 from .options import parse_options
-from .service import run_from_options
 
 logger = logging.getLogger(__name__)
 
@@ -14,8 +16,8 @@ logger = logging.getLogger(__name__)
 def main(argv: Sequence[str] | None = None) -> int:
     options = parse_options(argv)
     setup_logging(options.verbose)
-    report = run_from_options(options)
-    stats = report["stats"]
+    report = PipelineClient().enrich_shifts(request_from_object(TurniEnrichmentRequest, options))
+    stats = report.stats
     logger.info(
         "Completed: employees=%s files=%s processed=%s errors=%s rows=%s completed=%s enriched=%s overnight_fix=%s",
         stats["employees_total"],

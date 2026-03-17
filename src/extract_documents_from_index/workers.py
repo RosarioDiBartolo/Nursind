@@ -1,21 +1,21 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import os
 import threading
 from io import BytesIO
 
-from src.drive_service.drive_client import get_drive_service
-from src.drive_service.index_downloads import download_pdf_bytes_for_index_item
-from src.drive_service.logging_utils import get_logger
-from src.drive_service.names import safe_name
-from src.drive_service.text_extraction_csv import (
+from cartellino_parser.drive_service.drive_client import get_drive_service
+from cartellino_parser.drive_service.index_downloads import download_pdf_bytes_for_index_item
+from cartellino_parser.drive_service.logging_utils import get_logger
+from cartellino_parser.drive_service.names import safe_name
+from cartellino_parser.drive_service.text_extraction_csv import (
     TEXT_EXTRACTION_DOC_SCHEMA_VERSION,
     build_google_drive_file_id,
     build_google_drive_file_link,
     build_source_text_ref,
     write_text_extraction_doc,
 )
-from src.pdf_text_extraction import extract_layout
+from cartellino_parser.pdf_text_extraction import extract_layout
 
 from .quality import extract_best_text
 
@@ -41,6 +41,14 @@ def _get_zip_cache() -> tuple[dict[str, bytes], list[str]]:
         _thread_local.zip_cache = cache
         _thread_local.zip_cache_order = order
     return cache, order
+
+
+def _reset_thread_local_state(*, clear_drive: bool = True) -> None:
+    for attr in ("zip_cache", "zip_cache_order"):
+        if hasattr(_thread_local, attr):
+            delattr(_thread_local, attr)
+    if clear_drive and hasattr(_thread_local, "drive"):
+        delattr(_thread_local, "drive")
 
 
 def _resolve_output_stem(
@@ -225,4 +233,5 @@ def extract_and_write(
     }
 
 
-__all__ = ["download_pdf_bytes", "extract_and_write"]
+__all__ = ["_reset_thread_local_state", "download_pdf_bytes", "extract_and_write"]
+

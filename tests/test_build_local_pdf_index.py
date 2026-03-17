@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from pathlib import Path
 import sys
@@ -6,11 +6,11 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from src.drive_service.index.build_local_pdf_index import (  # noqa: E402
+from cartellino_parser.drive_service.index.build_local_pdf_index import (  # noqa: E402
     build_local_pdf_index,
     main,
 )
-from src.drive_service.index import MapIndex  # noqa: E402
+from cartellino_parser.drive_service.index import MapIndex  # noqa: E402
 
 
 def test_build_local_pdf_index_writes_expected_map_index(tmp_path):
@@ -124,3 +124,4 @@ def test_map_index_load_infers_local_flag_for_legacy_local_entries(tmp_path):
 
     assert loaded.files["local::sample.pdf"].local is True
     assert loaded.files["drive-1"].local is False
+

@@ -1,11 +1,11 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass, field
 from typing import Sequence
 
-from src.drive_service.text_extraction_csv import TEXT_EXTRACTION_CSV_GLOB
-from src.pipeline_paths import build_pipeline_paths, with_extract_events_overrides
+from cartellino_parser.drive_service.text_extraction_csv import TEXT_EXTRACTION_CSV_GLOB
+from cartellino_parser.pipeline_paths import build_pipeline_paths, with_extract_events_overrides
 
 from .artifacts import EXTRACT_EVENTS_ARTIFACTS
 
@@ -129,3 +129,4 @@ def parse_options(argv: Sequence[str] | None = None) -> ExtractEventsFromTextOpt
         max_unmatched_examples_per_file=max(0, int(args.max_unmatched_examples_per_file)),
         verbose=args.verbose,
     )
+

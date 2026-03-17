@@ -2,7 +2,7 @@
 
 import pandas as pd
 
-from src.extract_events_from_documents.service import process_one_text_row
+from cartellino_parser.extract_events_from_documents.service import process_one_text_row
 from tests.extract_events_manifest_fixtures import build_manifest_row
 
 
@@ -39,4 +39,5 @@ def test_layout_parser_keeps_line_level_provenance(tmp_path: Path) -> None:
     assert list(df["event_kind"]) == ["E", "U"]
     assert list(df["event_time_hhmm"]) == ["06:54", "13:11"]
     assert "line_no=2" in str(df.loc[0, "source_event_ref"])
+
 

@@ -1,18 +1,18 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import logging
 from collections import Counter
 from pathlib import Path
 from typing import Any
 
-from src.drive_service.index import MapIndex
-from src.drive_service.io_json import load_json
-from src.drive_service.names import normalize_name
-from src.drive_service.text_extraction_csv import (
+from cartellino_parser.drive_service.index import MapIndex
+from cartellino_parser.drive_service.io_json import load_json
+from cartellino_parser.drive_service.names import normalize_name
+from cartellino_parser.drive_service.text_extraction_csv import (
     find_text_extraction_csvs,
     read_text_extraction_rows,
 )
-from src.reporting import build_stage_report, compact_stage_report, resolve_output_path, write_json_report
+from cartellino_parser.reporting import build_stage_report, compact_stage_report, resolve_output_path, write_json_report
 
 from .accumulator import EmployeeAccumulator, ensure_employee, register_source_file
 from .inputs import (
@@ -83,6 +83,16 @@ def _count_rows_by_employee(rows: list[dict[str, Any]]) -> Counter[tuple[str, st
             )
         ] += 1
     return counts
+
+
+def _extract_pair_report_rows(payload: dict[str, Any] | None) -> list[dict[str, Any]]:
+    if not isinstance(payload, dict):
+        return []
+    for key in ("by_employee", "items"):
+        raw_rows = payload.get(key)
+        if isinstance(raw_rows, list):
+            return [row for row in raw_rows if isinstance(row, dict)]
+    return []
 
 
 def _coverage_month_from_page_row(row: dict[str, str]) -> YearMonth | None:
@@ -311,11 +321,7 @@ def audit_missing_timbrature_pipeline(
             )
             logger.exception("Failed reading pair report from %s", resolved.pair_report_path)
 
-    pair_report_rows = []
-    if pair_report_payload is not None:
-        raw_rows = pair_report_payload.get("by_employee")
-        if isinstance(raw_rows, list):
-            pair_report_rows = [row for row in raw_rows if isinstance(row, dict)]
+    pair_report_rows = _extract_pair_report_rows(pair_report_payload)
 
     for row in pair_report_rows:
         record = ensure_employee(
@@ -532,3 +538,4 @@ __all__ = [
     "resolve_audit_inputs",
     "run_from_options",
 ]
+

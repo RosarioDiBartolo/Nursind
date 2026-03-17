@@ -1,9 +1,9 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 from pathlib import Path
 
-from src.notebooks.shared_config import load_notebook_context
+from cartellino_parser.notebooks.shared_config import load_notebook_context
 
 
 def test_load_notebook_context_resolves_canonical_pipeline_paths(tmp_path: Path) -> None:
@@ -34,3 +34,4 @@ def test_load_notebook_context_resolves_canonical_pipeline_paths(tmp_path: Path)
     assert scan_cfg["included_name"] == "included.index.json"
     assert scan_cfg["filtered_name"] == "filtered.index.json"
     assert scan_cfg["report_name"] == "scan_directory.report.json"
+

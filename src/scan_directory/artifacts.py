@@ -1,8 +1,8 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from dataclasses import dataclass
 
-from src.pipeline_path_types import ArtifactScope, PipelineStage
+from cartellino_parser.pipeline_path_types import ArtifactScope, PipelineStage
 
 
 @dataclass(frozen=True, slots=True)
@@ -16,4 +16,5 @@ class ScanArtifactsSpec:
 
 
 SCAN_ARTIFACTS = ScanArtifactsSpec()
+
 

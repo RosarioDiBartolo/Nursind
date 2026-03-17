@@ -1,8 +1,8 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import pandas as pd
 
-from src.shift_services import compute_turno, to_datetime_series
+from cartellino_parser.shift_services import compute_turno, to_datetime_series
 
 
 def empty_pair_rows() -> pd.DataFrame:
@@ -128,3 +128,4 @@ __all__ = [
     "empty_pair_rows",
     "format_output_pairs",
 ]
+

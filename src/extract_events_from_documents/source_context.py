@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 from typing import Any
 
-from src.drive_service.text_extraction_csv import load_text_extraction_doc
+from cartellino_parser.drive_service.text_extraction_csv import load_text_extraction_doc
 
 
 def first_non_empty_string(*values: object) -> str | None:
@@ -138,7 +138,7 @@ def load_manifest_document(
         if isinstance(payload, dict):
             return payload
     doc_path = Path(doc_json)
-    if doc_path.is_absolute() and doc_path.exists():
+    if doc_path.is_absolute() and doc_path.parent.name == "docs" and doc_path.exists():
         try:
             return json.loads(doc_path.read_text(encoding="utf-8"))
         except Exception:
@@ -151,3 +151,4 @@ __all__ = [
     "resolve_source_context",
     "resolve_source_path",
 ]
+

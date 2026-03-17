@@ -1,8 +1,8 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from src.drive_service.names import normalize_name
+from cartellino_parser.drive_service.names import normalize_name
 
 from .inputs import YearMonth
 
@@ -69,3 +69,4 @@ __all__ = [
     "ensure_employee",
     "register_source_file",
 ]
+

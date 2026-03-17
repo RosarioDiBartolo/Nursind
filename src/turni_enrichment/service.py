@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import logging
 import os
@@ -7,10 +7,10 @@ from typing import Any, Iterable
 
 import pandas as pd
 
-from src.drive_service.fs_utils import ensure_dir, ensure_parent_dir
-from src.drive_service.names import safe_name
-from src.reporting import build_stage_report, compact_stage_report, write_json_report
-from src.shift_services import (
+from cartellino_parser.drive_service.fs_utils import ensure_dir, ensure_parent_dir
+from cartellino_parser.drive_service.names import safe_name
+from cartellino_parser.reporting import build_stage_report, compact_stage_report, write_json_report
+from cartellino_parser.shift_services import (
     ItalianHolidayCalendar,
     ShiftClassifier,
     assign_turno_bucket,
@@ -301,3 +301,4 @@ __all__ = [
     "process_one_pairs_file",
     "run_from_options",
 ]
+

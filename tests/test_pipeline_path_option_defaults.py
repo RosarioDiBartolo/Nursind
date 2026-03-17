@@ -1,13 +1,13 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import importlib
 from pathlib import Path
 
-from src.pipeline_paths import build_pipeline_paths
+from cartellino_parser.pipeline_paths import build_pipeline_paths
 
 
 def test_extract_documents_parse_options_uses_central_defaults() -> None:
-    from src.extract_documents_from_index.options import parse_options
+    from cartellino_parser.extract_documents_from_index.options import parse_options
 
     options = parse_options([])
     defaults = build_pipeline_paths().extract_documents
@@ -20,7 +20,7 @@ def test_extract_documents_parse_options_uses_central_defaults() -> None:
 
 
 def test_extract_events_parse_options_resolves_report_relative_to_output_dir(tmp_path: Path) -> None:
-    from src.extract_events_from_documents.options import parse_options
+    from cartellino_parser.extract_events_from_documents.options import parse_options
 
     output_dir = tmp_path / "events"
     options = parse_options(
@@ -39,7 +39,7 @@ def test_extract_events_parse_options_resolves_report_relative_to_output_dir(tmp
 
 
 def test_timbrature_parse_options_resolves_relative_outputs_from_pipeline_dir(tmp_path: Path) -> None:
-    from src.timbrature_missing_report.options import parse_options
+    from cartellino_parser.timbrature_missing_report.options import parse_options
 
     pipeline_dir = tmp_path / "pipeline"
     options = parse_options(
@@ -78,3 +78,4 @@ def test_extract_documents_options_import_is_side_effect_free(
     importlib.reload(module)
 
     assert not (tmp_path / "import-safe-output").exists()
+

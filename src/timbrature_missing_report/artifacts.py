@@ -1,8 +1,8 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from dataclasses import dataclass
 
-from src.pipeline_path_types import ArtifactScope
+from cartellino_parser.pipeline_path_types import ArtifactScope
 
 
 @dataclass(frozen=True, slots=True)
@@ -16,3 +16,4 @@ class TimbratureMissingReportArtifactsSpec:
 
 
 TIMBRATURE_MISSING_REPORT_ARTIFACTS = TimbratureMissingReportArtifactsSpec()
+

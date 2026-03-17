@@ -1,7 +1,7 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-from src.raw_text_parsing import DAY_HEADER_RE
-from src.raw_text_parsing import normalize_text, parse_day_header
+from cartellino_parser.raw_text_parsing import DAY_HEADER_RE
+from cartellino_parser.raw_text_parsing import normalize_text, parse_day_header
 
 from .base import BaseFormatParser
 from .common import (
@@ -61,3 +61,4 @@ class CartellinoClassicParser(BaseFormatParser):
                 )
             )
         return tuple(rows)
+

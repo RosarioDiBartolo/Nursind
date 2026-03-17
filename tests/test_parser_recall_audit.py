@@ -1,8 +1,8 @@
-import csv
+﻿import csv
 import json
 from pathlib import Path
 
-from src.parser_recall_audit.service import audit_parser_recall_root, build_parser_recall_report
+from cartellino_parser.parser_recall_audit.service import audit_parser_recall_root, build_parser_recall_report
 
 
 def _write_csv(path: Path, rows: list[dict[str, object]]) -> None:
@@ -432,3 +432,4 @@ def test_build_parser_recall_report_writes_csv_and_json(tmp_path: Path) -> None:
     assert report_json_payload["row_totals"]["items"] == 5
     assert report_json_payload["row_totals"]["issues"] == 0
     assert "items" not in report_json_payload
+

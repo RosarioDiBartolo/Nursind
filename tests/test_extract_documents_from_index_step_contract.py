@@ -1,9 +1,9 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from pathlib import Path
 
-import src.extract_documents_from_index.service as service
-from src.extract_documents_from_index.service import process_many_index_documents, process_one_index_document
+import cartellino_parser.extract_documents_from_index.service as service
+from cartellino_parser.extract_documents_from_index.service import process_many_index_documents, process_one_index_document
 from tests.step_contract import assert_process_many_contract, assert_process_one_contract
 
 
@@ -105,4 +105,5 @@ def test_extract_documents_process_many_contract(monkeypatch, tmp_path: Path) ->
     assert int(report["stats"]["files_total"]) == 2
     assert int(report["stats"]["files_processed"]) == 1
     assert int(report["stats"]["files_error"]) == 1
+
 

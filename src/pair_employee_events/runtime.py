@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 import logging
@@ -7,7 +7,7 @@ from typing import Any
 
 import pandas as pd
 
-from src.drive_service.fs_utils import ensure_dir, ensure_parent_dir
+from cartellino_parser.drive_service.fs_utils import ensure_dir, ensure_parent_dir
 
 from .options import (
     DEFAULT_EVENTS_NAME,
@@ -189,3 +189,4 @@ def run_from_options(options: PairEmployeeEventsOptions) -> dict[str, Any]:
         employee_filter=options.employee_filter,
         keep_inferred_column=options.keep_inferred_column,
     )
+

@@ -1,8 +1,8 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from dataclasses import dataclass
 
-from src.pipeline_path_types import ArtifactScope
+from cartellino_parser.pipeline_path_types import ArtifactScope
 
 
 @dataclass(frozen=True, slots=True)
@@ -14,4 +14,5 @@ class ParserRecallAuditArtifactsSpec:
 
 
 PARSER_RECALL_AUDIT_ARTIFACTS = ParserRecallAuditArtifactsSpec()
+
 

@@ -1,11 +1,11 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from src.raw_text_parsing import (
+from cartellino_parser.raw_text_parsing import (
     infer_year_month_from_filename,
     infer_year_month_from_header,
     infer_year_month_from_header_date,
@@ -525,3 +525,4 @@ __all__ = [
     "base_process_result",
     "parse_document_pages",
 ]
+

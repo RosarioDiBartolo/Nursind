@@ -1,10 +1,10 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import re
 from collections import defaultdict
 from typing import Any
 
-from src.raw_text_parsing import normalize_text, parse_day_header
+from cartellino_parser.raw_text_parsing import normalize_text, parse_day_header
 
 from ..models import DocumentLine, ParsedEvent
 from .base import BaseFormatParser
@@ -303,3 +303,4 @@ class CartellinoOcrParser(BaseFormatParser):
             return float(str(value))
         except Exception:
             return None
+

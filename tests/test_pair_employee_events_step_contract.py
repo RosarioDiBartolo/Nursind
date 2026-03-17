@@ -4,8 +4,8 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from src.pair_employee_events.options import parse_options
-from src.pair_employee_events.service import process_many_employee_events, process_one_employee_events
+from cartellino_parser.pair_employee_events.options import parse_options
+from cartellino_parser.pair_employee_events.service import process_many_employee_events, process_one_employee_events
 from tests.step_contract import assert_process_many_contract, assert_process_one_contract
 
 
@@ -158,9 +158,11 @@ def test_pair_employee_process_many_contract(tmp_path: Path) -> None:
     assert int(report["stats"]["files_processed"]) == 2
     assert int(report["stats"]["files_error"]) == 0
     assert int(report["stats"]["employees_with_pairs"]) == 1
+    assert report["by_employee"] == report["items"]
 
 
 def test_pair_employee_parser_rejects_removed_index_flag() -> None:
     with pytest.raises(SystemExit):
         parse_options(["--index", "scan/included.index.json"])
+
 

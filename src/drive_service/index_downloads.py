@@ -1,13 +1,13 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from pathlib import Path
 
-from src.drive_service.archive_utils import (
+from cartellino_parser.drive_service.archive_utils import (
     BadZipFile,
     extract_zip_member_bytes,
     parse_archive_member_id,
 )
-from src.drive_service.downloads import download_file_bytes
+from cartellino_parser.drive_service.downloads import download_file_bytes
 
 
 def resolve_index_pdf_source(
@@ -153,3 +153,4 @@ def download_pdf_bytes_for_index_item(
 
 
 __all__ = ["download_pdf_bytes_for_index_item", "resolve_index_pdf_source"]
+

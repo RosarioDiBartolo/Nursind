@@ -1,8 +1,8 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from typing import Any
 
-from src.drive_service.text_extraction_csv import build_google_drive_file_link
+from cartellino_parser.drive_service.text_extraction_csv import build_google_drive_file_link
 
 from .accumulator import EmployeeAccumulator
 from .inputs import YearMonth, format_year_month
@@ -113,3 +113,4 @@ __all__ = [
     "append_coverage_gap",
     "append_finding",
 ]
+

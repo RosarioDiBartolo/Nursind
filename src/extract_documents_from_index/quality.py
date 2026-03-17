@@ -1,8 +1,8 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from io import BytesIO
 
-from src.pdf_text_extraction import extract_text, extract_text_vertical, has_text_layer
+from cartellino_parser.pdf_text_extraction import extract_text, extract_text_vertical, has_text_layer
 
 
 def score_text_quality(text: str) -> dict:
@@ -84,3 +84,4 @@ def extract_best_text(pdf_bytes: bytes, min_normal_score: float, min_score_delta
         "normal_quality": normal_quality,
         "vertical_quality": vertical_quality,
     }
+

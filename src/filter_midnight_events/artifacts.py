@@ -1,8 +1,8 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from dataclasses import dataclass
 
-from src.pipeline_path_types import ArtifactRef, ArtifactScope, PipelineStage
+from cartellino_parser.pipeline_path_types import ArtifactRef, ArtifactScope, PipelineStage
 
 
 @dataclass(frozen=True, slots=True)
@@ -19,4 +19,5 @@ class FilterMidnightArtifactsSpec:
 
 
 FILTER_MIDNIGHT_ARTIFACTS = FilterMidnightArtifactsSpec()
+
 

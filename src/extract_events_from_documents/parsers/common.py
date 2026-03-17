@@ -1,9 +1,9 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import re
 from typing import Any
 
-from src.raw_text_parsing import DAY_PREFIX_RE, QTA_RE, extract_events, normalize_text
+from cartellino_parser.raw_text_parsing import DAY_PREFIX_RE, QTA_RE, extract_events, normalize_text
 
 from ..models import DocumentLine, ParsedEvent, ParsedRow
 
@@ -383,3 +383,4 @@ def _union_bbox(words: Any) -> dict[str, float]:
         "source_bbox_x1": max(coords["x1"]),
         "source_bbox_y1": max(coords["y1"]),
     }
+

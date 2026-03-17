@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from src.extract_events_from_documents.parsers import resolve_parser
+from cartellino_parser.extract_events_from_documents.parsers import resolve_parser
 
 FIXTURES_ROOT = Path(__file__).parent / "fixtures" / "days_parsers"
 
@@ -53,4 +53,5 @@ def test_parser_contracts_from_fixtures(expected_path: Path) -> None:
             assert event.event_kind == str(expected_event["kind"])
             assert event.event_time_hhmm == str(expected_event["time_hhmm"])
             assert isinstance(event.event_pattern, str) and event.event_pattern
+
 

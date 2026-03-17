@@ -1,9 +1,17 @@
 import io
 
-from googleapiclient.http import MediaIoBaseDownload
+from cartellino_parser.exceptions import OptionalDependencyError
 
 
 def download_file_stream(drive, file_id: str, logger=None) -> io.BytesIO:
+    try:
+        from googleapiclient.http import MediaIoBaseDownload
+    except ModuleNotFoundError as exc:
+        raise OptionalDependencyError(
+            "Google Drive downloads require optional Google client dependencies. "
+            "Install the 'google' extra to download remote files."
+        ) from exc
+
     if logger:
         logger.debug("Starting download for %s", file_id)
     request = drive.files().get_media(fileId=file_id, supportsAllDrives=True)

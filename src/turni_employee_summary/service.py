@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import logging
 import os
@@ -7,9 +7,9 @@ from typing import Any, Iterable, Literal
 
 import pandas as pd
 
-from src.drive_service.fs_utils import ensure_parent_dir
-from src.reporting import build_stage_report, compact_stage_report, write_json_report
-from src.shift_services import assign_turno_bucket, to_datetime_series
+from cartellino_parser.drive_service.fs_utils import ensure_parent_dir
+from cartellino_parser.reporting import build_stage_report, compact_stage_report, write_json_report
+from cartellino_parser.shift_services import assign_turno_bucket, to_datetime_series
 
 from .options import (
     DEFAULT_OUTPUT_FORMAT,
@@ -269,3 +269,4 @@ __all__ = [
     "process_one_enriched_file",
     "run_from_options",
 ]
+

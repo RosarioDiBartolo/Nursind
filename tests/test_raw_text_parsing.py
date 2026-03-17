@@ -1,6 +1,6 @@
-from pathlib import Path
+﻿from pathlib import Path
 
-from src.raw_text_parsing import (
+from cartellino_parser.raw_text_parsing import (
     infer_year_month_from_filename,
     infer_year_month_from_header,
     parse_day_header,
@@ -37,3 +37,4 @@ def test_resolve_year_month_uses_header_date_as_last_resort() -> None:
 
 def test_parse_day_header_handles_doubled_ocr_prefix_and_dow() -> None:
     assert parse_day_header("0011 DDoo RRR ! ! ! !") == (1, "DO")
+

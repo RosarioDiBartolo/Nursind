@@ -1,11 +1,11 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from src.pipeline_paths import PipelinePaths, _resolve_root_prefix_from_drive, build_pipeline_paths
+from cartellino_parser.pipeline_paths import PipelinePaths, _resolve_root_prefix_from_drive, build_pipeline_paths
 
 ROOT_ID_PLACEHOLDER = "<drive_root_id>"
 DEFAULT_CONFIG_NAME = "shared_config.json"
@@ -136,3 +136,4 @@ __all__ = [
     "ROOT_ID_PLACEHOLDER",
     "load_notebook_context",
 ]
+

@@ -1,11 +1,11 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import hashlib
 import os
 
-from src.drive_service.archive_utils import parse_archive_member_id
-from src.drive_service.index_runtime import doc_attr
-from src.drive_service.names import safe_name
+from cartellino_parser.drive_service.archive_utils import parse_archive_member_id
+from cartellino_parser.drive_service.index_runtime import doc_attr
+from cartellino_parser.drive_service.names import safe_name
 
 
 def build_initial_stats(source_total: int) -> dict:
@@ -23,6 +23,10 @@ def build_initial_stats(source_total: int) -> dict:
         "extract_failed": 0,
         "excluded_missing_text_layer": 0,
         "used_vertical": 0,
+        "interrupted": 0,
+        "cancelled_downloads": 0,
+        "cancelled_extracts": 0,
+        "not_processed_due_to_interrupt": 0,
     }
 
 
@@ -130,3 +134,4 @@ def _doc_suffix(doc: dict) -> str:
     if file_id:
         return safe_name(file_id)[:12]
     return "unknown"
+

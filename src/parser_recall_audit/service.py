@@ -7,12 +7,16 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
 
-from src.drive_service.io_json import load_json
-from src.drive_service.text_extraction_csv import find_text_extraction_csvs, read_text_extraction_rows
-from src.extract_events_from_documents.page_analysis import resolve_page_texts
-from src.extract_events_from_documents.writers import write_rows_csv
-from src.raw_text_parsing import line_has_event, normalize_text
-from src.reporting import build_stage_report, compact_stage_report, resolve_output_path, write_json_report
+from cartellino_parser.drive_service.io_json import load_json
+from cartellino_parser.drive_service.text_extraction_csv import (
+    find_text_extraction_csvs,
+    read_text_extraction_rows,
+    resolve_doc_json_path,
+)
+from cartellino_parser.extract_events_from_documents.page_analysis import resolve_page_texts
+from cartellino_parser.extract_events_from_documents.writers import write_rows_csv
+from cartellino_parser.raw_text_parsing import line_has_event, normalize_text
+from cartellino_parser.reporting import build_stage_report, compact_stage_report, resolve_output_path, write_json_report
 
 from .options import (
     ParserRecallAuditOptions,
@@ -322,17 +326,28 @@ def _resolve_doc_json_path(
         return None
 
     raw_path = Path(raw)
-    candidates = []
+    docs_base = (pipeline_dir / "documents").resolve()
+    docs_root = (docs_base / "docs").resolve()
+    candidates: list[Path] = []
+
     if raw_path.is_absolute():
-        candidates.append(raw_path)
+        try:
+            resolved = raw_path.resolve()
+            resolved.relative_to(docs_root)
+        except ValueError:
+            return None
+        if resolved.exists():
+            return resolved
+        return None
+
+    shared_candidate = resolve_doc_json_path(docs_base, raw)
+    if shared_candidate is not None:
+        candidates.append(shared_candidate)
+
+    if raw_path.parts[:2] == ("documents", "docs"):
+        candidates.append((pipeline_dir / raw_path).resolve())
     else:
-        candidates.extend(
-            [
-                (Path.cwd() / raw_path).resolve(),
-                (pipeline_dir / raw_path).resolve(),
-                (pipeline_dir / "documents" / "docs" / raw_path.name).resolve(),
-            ]
-        )
+        candidates.append((docs_root / raw_path.name).resolve())
 
     seen: set[Path] = set()
     for candidate in candidates:
@@ -340,6 +355,10 @@ def _resolve_doc_json_path(
         if resolved in seen:
             continue
         seen.add(resolved)
+        try:
+            resolved.relative_to(docs_root)
+        except ValueError:
+            continue
         if resolved.exists():
             return resolved
     return None
@@ -758,3 +777,4 @@ __all__ = [
     "build_parser_recall_report",
     "run_from_options",
 ]
+

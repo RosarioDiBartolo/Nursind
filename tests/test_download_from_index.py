@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from pathlib import Path
 import sys
@@ -6,9 +6,9 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from src.drive_service.archive_utils import build_archive_member_id  # noqa: E402
-from src.drive_service.index import MapIndex  # noqa: E402
-import src.download_from_index as download_from_index  # noqa: E402
+from cartellino_parser.drive_service.archive_utils import build_archive_member_id  # noqa: E402
+from cartellino_parser.drive_service.index import MapIndex  # noqa: E402
+import cartellino_parser.download_from_index as download_from_index  # noqa: E402
 
 
 def test_select_docs_for_download_random_sample_is_deterministic():
@@ -207,3 +207,4 @@ def test_main_downloads_local_index_entry_without_drive_creds(monkeypatch, tmp_p
     written_files = list(out_dir.rglob("*.pdf"))
     assert len(written_files) == 1
     assert written_files[0].read_bytes() == b"%PDF-local"
+

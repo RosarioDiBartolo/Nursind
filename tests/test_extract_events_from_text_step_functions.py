@@ -3,7 +3,7 @@
 import pandas as pd
 import pytest
 
-from src.extract_events_from_documents.service import (
+from cartellino_parser.extract_events_from_documents.service import (
     extract_events_from_documents_dir,
     process_many_text_rows,
     process_one_text_row,
@@ -185,4 +185,5 @@ def test_extract_events_from_documents_dir_requires_employee_manifests(tmp_path:
             output_dir=str(tmp_path / "events"),
             report_json=str(tmp_path / "events.report.json"),
         )
+
 

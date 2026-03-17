@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 """Download PDF files listed in a MapIndex into a local folder."""
 
@@ -7,13 +7,13 @@ from hashlib import sha1
 import os
 import random
  
-from src.drive_service.auth_service import load_creds
-from src.drive_service.drive_client import get_drive_service
-from src.drive_service.fs_utils import ensure_dir
-from src.drive_service.index import MapIndex
-from src.drive_service.index_downloads import download_pdf_bytes_for_index_item
-from src.drive_service.logging_utils import get_logger, setup_logging
-from src.drive_service.names import safe_name
+from cartellino_parser.drive_service.auth_service import load_creds
+from cartellino_parser.drive_service.drive_client import get_drive_service
+from cartellino_parser.drive_service.fs_utils import ensure_dir
+from cartellino_parser.drive_service.index import MapIndex
+from cartellino_parser.drive_service.index_downloads import download_pdf_bytes_for_index_item
+from cartellino_parser.drive_service.logging_utils import get_logger, setup_logging
+from cartellino_parser.drive_service.names import safe_name
  
 
 DEFAULT_INDEX = "scan/samples.index.scan.map.json"
@@ -215,3 +215,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

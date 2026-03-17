@@ -2,7 +2,7 @@
 
 import pandas as pd
 
-from src.extract_events_from_documents.service import process_one_text_row
+from cartellino_parser.extract_events_from_documents.service import process_one_text_row
 from tests.extract_events_manifest_fixtures import build_manifest_row
 
 
@@ -82,4 +82,5 @@ def test_page_and_event_refs_are_root_relative_when_doc_json_is_absolute(
     assert "/docs/" in f"/{page_ref_path}"
     assert str(events_df.loc[0, "source_file_link"]) == "https://drive.google.com/file/d/pdf-202/view"
     assert str(pages_df.loc[0, "source_drive_path"]) == "/Root/Mario Rossi/luglio23.pdf"
+
 

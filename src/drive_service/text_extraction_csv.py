@@ -255,7 +255,18 @@ def resolve_doc_json_path(base_dir: str | Path, rel_path: str | None) -> Path | 
     normalized_rel = str(rel_path or "").strip()
     if not normalized_rel:
         return None
-    return Path(base_dir) / Path(normalized_rel)
+    raw_path = Path(normalized_rel)
+    if raw_path.is_absolute():
+        return None
+
+    base_path = Path(base_dir).resolve()
+    docs_root = (base_path / TEXT_EXTRACTION_DOCS_DIR).resolve()
+    candidate = (base_path / raw_path).resolve()
+    try:
+        candidate.relative_to(docs_root)
+    except ValueError:
+        return None
+    return candidate
 
 
 def prune_stale_text_extraction_docs(

@@ -1,9 +1,9 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import csv
 from pathlib import Path
 
-from src.drive_service.text_extraction_csv import (
+from cartellino_parser.drive_service.text_extraction_csv import (
     TEXT_EXTRACTION_COLUMNS,
     TEXT_EXTRACTION_DOC_SCHEMA_VERSION,
     write_text_extraction_doc,
@@ -71,3 +71,4 @@ def write_manifest_csv(path: Path, rows: list[dict[str, str]]) -> None:
         writer.writeheader()
         for row in rows:
             writer.writerow(row)
+

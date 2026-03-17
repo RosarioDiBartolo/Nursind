@@ -14,6 +14,57 @@ The active workflow is intentionally narrow and explicit:
 - **Aggregate** yearly summaries
 - **Audit** missing timbrature against the same pipeline root
 
+## Install and Package Shape
+
+Install the project with:
+
+```powershell
+python -m pip install -e .[dev]
+```
+
+Supported imports use the public `cartellino_parser.*` namespace, for example:
+
+```python
+from cartellino_parser.pipeline_paths import build_pipeline_paths
+```
+
+Installed console scripts are thin wrappers around the same modules. The on-disk `src/` tree remains the implementation layout, but `src.*` is no longer the supported public import surface.
+
+For external modules, prefer the public client API:
+
+```python
+from cartellino_parser import PipelineClient
+from cartellino_parser.models import ExtractEventsRequest
+
+client = PipelineClient()
+report = client.extract_events(
+    ExtractEventsRequest(
+        input_dir="output/default/documents",
+        output_dir="output/default/events",
+    )
+)
+
+print(report.stage)
+print(report.outputs)
+```
+
+Drive-backed steps can be configured explicitly instead of relying on ambient environment:
+
+```python
+from cartellino_parser import PipelineClient
+from cartellino_parser.models import ScanRequest
+from cartellino_parser.sources import DriveAuthConfig
+
+client = PipelineClient(
+    drive_auth=DriveAuthConfig(
+        client_id="...",
+        client_secret="...",
+        token_path="token.json",
+    )
+)
+scan_report = client.scan(ScanRequest(root_id="<DRIVE_ROOT_FOLDER_ID>"))
+```
+
 ## Canonical Pipeline Layout
 
 Use **one shared pipeline root**, for example `output/<pipeline>`.
@@ -31,15 +82,15 @@ The current pipeline supports only **this layout**. **Legacy folders** such as `
 
 ## Architecture Flow
 
-1. **Drive indexing** via `python -m "src.scan_directory"`
-2. **Document extraction** via `python -m "src.extract_documents_from_index"`
-3. **Direct document-to-events extraction** via `python -m "src.extract_events_from_documents"`
-4. **Parser recall audit** via `python -m "src.parser_recall_audit"`
-5. **Midnight cleanup** via `python -m "src.filter_midnight_events"`
-6. **Employee-level pairing** via `python -m "src.pair_employee_events"`
-7. **Shift enrichment** via `python -m "src.turni_enrichment"`
-8. **Yearly aggregation** via `python -m "src.turni_employee_summary"`
-9. **Missing timbrature audit** via `python -m "src.timbrature_missing_report"`
+1. **Drive indexing** via `cartellino-drive-scan`
+2. **Document extraction** via `cartellino-extract-documents`
+3. **Direct document-to-events extraction** via `cartellino-extract-events`
+4. **Parser recall audit** via `cartellino-parser-recall-audit`
+5. **Midnight cleanup** via `cartellino-filter-midnight`
+6. **Employee-level pairing** via `cartellino-pair-employee-events`
+7. **Shift enrichment** via `cartellino-turni-enrichment`
+8. **Yearly aggregation** via `cartellino-turni-summary`
+9. **Missing timbrature audit** via `cartellino-missing-timbrature`
 
 ## Core Outputs
 
@@ -84,15 +135,15 @@ Document extraction writes **one structured JSON per document** under `documents
 
 ```powershell
 python -m pip install -e .[dev]
-python -m "src.scan_directory" --root "<DRIVE_ROOT_FOLDER_ID>" --out "output/<pipeline>/scan" --included "included.index.json" --filtered "filtered.index.json" --report "scan_directory.report.json" --verbose
-python -m "src.extract_documents_from_index" --index "output/<pipeline>/scan/included.index.json" --out "output/<pipeline>/documents" --included "included_documents.index.json" --excluded "excluded_documents.index.json" --verbose
-python -m "src.extract_events_from_documents" --input-dir "output/<pipeline>/documents" --output-dir "output/<pipeline>/events" --verbose
-python -m "src.parser_recall_audit" --root-dir "output" --verbose
-python -m "src.filter_midnight_events" --input-dir "output/<pipeline>/events" --verbose
-python -m "src.pair_employee_events" --input-dir "output/<pipeline>/events" --output-dir "output/<pipeline>/shifts" --verbose
-python -m "src.turni_enrichment" --input-dir "output/<pipeline>/shifts" --out-dir "output/<pipeline>/enrichment" --verbose
-python -m "src.turni_employee_summary" --enriched-dir "output/<pipeline>/enrichment" --out "output/<pipeline>/aggregation/turni_employee_summary.csv" --format "csv" --verbose
-python -m "src.timbrature_missing_report" --pipeline-dir "output/<pipeline>" --verbose
+cartellino-drive-scan --root "<DRIVE_ROOT_FOLDER_ID>" --out "output/<pipeline>/scan" --included "included.index.json" --filtered "filtered.index.json" --report "scan_directory.report.json" --verbose
+cartellino-extract-documents --index "output/<pipeline>/scan/included.index.json" --out "output/<pipeline>/documents" --included "included_documents.index.json" --excluded "excluded_documents.index.json" --verbose
+cartellino-extract-events --input-dir "output/<pipeline>/documents" --output-dir "output/<pipeline>/events" --verbose
+cartellino-parser-recall-audit --root-dir "output" --verbose
+cartellino-filter-midnight --input-dir "output/<pipeline>/events" --verbose
+cartellino-pair-employee-events --input-dir "output/<pipeline>/events" --output-dir "output/<pipeline>/shifts" --verbose
+cartellino-turni-enrichment --input-dir "output/<pipeline>/shifts" --out-dir "output/<pipeline>/enrichment" --verbose
+cartellino-turni-summary --enriched-dir "output/<pipeline>/enrichment" --out "output/<pipeline>/aggregation/turni_employee_summary.csv" --format "csv" --verbose
+cartellino-missing-timbrature --pipeline-dir "output/<pipeline>" --verbose
 python -m pytest -q
 ```
 
@@ -106,7 +157,7 @@ This step walks the **Google Drive root folder** employee by employee, recursive
 
 It also expands **ZIP archives** as virtual folders, so embedded PDFs are indexed as separate source files. The result is a split between **included** files that will move forward and **filtered** files/folders that were skipped with an explicit reason.
 
-**Entry point:** `python -m "src.scan_directory"`
+**Entry point:** `cartellino-drive-scan`
 
 **Outputs:**
 
@@ -128,7 +179,7 @@ This step reads the **included scan index**, downloads each indexed PDF or ZIP m
 
 It is also where the pipeline enforces **text-layer quality**. Documents without a usable text layer are moved to the **excluded** index with reasons such as `missing_text_layer`, while successful files are tracked in per-employee manifest CSVs and resumable included/excluded indexes.
 
-**Entry point:** `python -m "src.extract_documents_from_index"`
+**Entry point:** `cartellino-extract-documents`
 
 **Input:**
 
@@ -157,7 +208,7 @@ This step loads the per-employee manifest CSVs and the canonical `docs/*.json` p
 
 Besides `events.csv`, it also writes **page-level diagnostics** to `pages.csv`. Those page rows capture coverage and parser decisions, which is why later audit steps can reason about suspicious pages and missing month/year resolution.
 
-**Entry point:** `python -m "src.extract_events_from_documents"`
+**Entry point:** `cartellino-extract-events`
 
 **Input:**
 
@@ -183,7 +234,7 @@ This step reviews the generated `pages.csv` files across one or more pipeline fo
 
 The audit does not silently "fix" anything. Instead, it ranks suspicious pages, backfills traceability from the manifest files, and writes direct **Drive file links** plus review heuristics so you can inspect the original source document quickly.
 
-**Entry point:** `python -m "src.parser_recall_audit"`
+**Entry point:** `cartellino-parser-recall-audit`
 
 **Input:**
 
@@ -209,7 +260,7 @@ This step removes **synthetic or non-informative midnight punches** from the raw
 
 The cleanup is **auditable** because removed rows are written to a separate CSV with a filter reason. That gives you a cleaner event stream for pairing without losing visibility into what was discarded.
 
-**Entry point:** `python -m "src.filter_midnight_events"`
+**Entry point:** `cartellino-filter-midnight`
 
 **Input:**
 
@@ -228,7 +279,7 @@ This step groups cleaned events by **employee**, orders them chronologically, an
 
 The pairing logic includes a **max-gap guard** and **overnight support**, which helps reject implausible matches while still allowing shifts that cross midnight. The report file is the main place to look for pairing errors or employees whose outputs could not be generated.
 
-**Entry point:** `python -m "src.pair_employee_events"`
+**Entry point:** `cartellino-pair-employee-events`
 
 **Inputs:**
 
@@ -254,7 +305,7 @@ This step takes each employee's paired shifts and computes the classification fi
 
 The main outputs added here are `turno_code`, `turno_bucket`, and `year`. Those fields are what the final aggregation step uses to count shifts consistently across employees and years.
 
-**Entry point:** `python -m "src.turni_enrichment"`
+**Entry point:** `cartellino-turni-enrichment`
 
 **Inputs:**
 
@@ -273,7 +324,7 @@ This step reads the enriched per-employee CSVs and converts them into a compact 
 
 It is a **reporting** step, not a reconstruction step. By the time data reaches aggregation, pairing and enrichment should already be settled; this stage just totals the classified shifts into a format that is easier to analyze.
 
-**Entry point:** `python -m "src.turni_employee_summary"`
+**Entry point:** `cartellino-turni-summary`
 
 **Inputs:**
 
@@ -291,7 +342,7 @@ This step cross-checks the whole canonical pipeline for **employee coverage gaps
 
 It produces both **operational findings** such as `missing_text_layer`, missing page month/year, or pairing failures, and **coverage gaps** for months in the required `2014-01..2025-12` range that do not appear in relevant pages. This makes it the main exception-reporting step for "who is missing what, and why?"
 
-**Entry point:** `python -m "src.timbrature_missing_report"`
+**Entry point:** `cartellino-missing-timbrature`
 
 **Input:**
 
@@ -316,7 +367,7 @@ It produces both **operational findings** such as `missing_text_layer`, missing 
 Use this helper when you already have a map index and want local PDF samples.
 
 ```powershell
-python -m "src.download_from_index" --index "output/<pipeline>/scan/samples.index.scan.map.json" --out "samples/from_index" --random-sample 20 --seed 42 --verbose
+cartellino-download-from-index --index "output/<pipeline>/scan/samples.index.scan.map.json" --out "samples/from_index" --random-sample 20 --seed 42 --verbose
 ```
 
 **Notes:**
@@ -329,7 +380,7 @@ python -m "src.download_from_index" --index "output/<pipeline>/scan/samples.inde
 Use the notebooks in `src/notebooks` to demonstrate the same canonical pipeline layout.
 
 - `src/notebooks/shared_config.json`: shared notebook root settings (`root_id`, optional `root_prefix`, optional `base_output`) and notebook-specific non-path config
-- `src/notebooks/shared_config.py`: resolves notebook context, canonical stage paths, and per-step artifact names from `src.pipeline_paths`
+- `src/notebooks/shared_config.py`: resolves notebook context, canonical stage paths, and per-step artifact names from `cartellino_parser.pipeline_paths`
 - `src/notebooks/run_pipeline.ipynb`: end-to-end notebook that runs scan, document extraction, event extraction, midnight cleanup, pairing, enrichment, summary, and missing-timbrature audit from the shared config
 - `src/notebooks/scan.ipynb`: scan stage
 - `src/notebooks/extract_documents.ipynb`: document extraction stage
@@ -344,7 +395,7 @@ Expected scan artifacts from the scan notebook:
 Next command after the scan notebook:
 
 ```powershell
-python -m "src.extract_documents_from_index" --index "<shared_output_root>/scan/included.index.json" --out "<shared_output_root>/documents" --included "included_documents.index.json" --excluded "excluded_documents.index.json" --verbose
+cartellino-extract-documents --index "<shared_output_root>/scan/included.index.json" --out "<shared_output_root>/documents" --included "included_documents.index.json" --excluded "excluded_documents.index.json" --verbose
 ```
 
 ## Documentation Map

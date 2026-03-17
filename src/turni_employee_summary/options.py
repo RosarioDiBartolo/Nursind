@@ -1,10 +1,10 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass, field
 from typing import Literal, Sequence
 
-from src.pipeline_paths import build_pipeline_paths, with_turni_employee_summary_overrides
+from cartellino_parser.pipeline_paths import build_pipeline_paths, with_turni_employee_summary_overrides
 
 DEFAULT_YEAR_START = 2014
 DEFAULT_YEAR_END = 2025
@@ -105,3 +105,4 @@ def parse_options(argv: Sequence[str] | None = None) -> TurniEmployeeSummaryOpti
         min_hours=float(args.min_hours) if args.min_hours is not None else None,
         verbose=bool(args.verbose),
     )
+

@@ -4,15 +4,24 @@ import zipfile
 from pathlib import Path
 import sys
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from src.drive_service.archive_utils import build_archive_member_id  # noqa: E402
-import src.drive_service.index_downloads as index_downloads  # noqa: E402
-import src.pdf_text_extraction as pdf_text_extraction  # noqa: E402
-from src.drive_service.io_json import load_json  # noqa: E402
-from src.extract_documents_from_index.planning import collect_docs  # noqa: E402
-import src.extract_documents_from_index.workers as workers  # noqa: E402
+from cartellino_parser.drive_service.archive_utils import build_archive_member_id  # noqa: E402
+import cartellino_parser.drive_service.index_downloads as index_downloads  # noqa: E402
+from cartellino_parser.drive_service.io_json import load_json  # noqa: E402
+import cartellino_parser.extract_documents_from_index.workers as workers  # noqa: E402
+from cartellino_parser.extract_documents_from_index.planning import collect_docs  # noqa: E402
+import cartellino_parser.pdf_text_extraction as pdf_text_extraction  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def reset_worker_thread_local_state():
+    workers._reset_thread_local_state()
+    yield
+    workers._reset_thread_local_state()
 
 
 def _make_zip_bytes(entries: dict[str, bytes]) -> bytes:
@@ -78,8 +87,6 @@ def test_download_pdf_bytes_from_zip_member_uses_cache(monkeypatch):
 
     monkeypatch.setattr(workers, "_get_drive", lambda _creds: object())
     monkeypatch.setattr(index_downloads, "download_file_bytes", fake_download_file_bytes)
-    workers._thread_local.zip_cache = {}
-    workers._thread_local.zip_cache_order = []
 
     doc_a = {
         "file_id": build_archive_member_id("archive-1", "folder/a.pdf"),
@@ -129,8 +136,6 @@ def test_download_pdf_bytes_zip_member_not_found(monkeypatch):
     zip_bytes = _make_zip_bytes({"folder/a.pdf": b"%PDF-1.4-a"})
     monkeypatch.setattr(workers, "_get_drive", lambda _creds: object())
     monkeypatch.setattr(index_downloads, "download_file_bytes", lambda *_args, **_kwargs: zip_bytes)
-    workers._thread_local.zip_cache = {}
-    workers._thread_local.zip_cache_order = []
 
     doc = {
         "file_id": build_archive_member_id("archive-1", "folder/missing.pdf"),

@@ -1,9 +1,9 @@
-import csv
+﻿import csv
 import json
 from pathlib import Path
 
-from src.drive_service.text_extraction_csv import TEXT_EXTRACTION_COLUMNS
-from src.timbrature_missing_report.service import (
+from cartellino_parser.drive_service.text_extraction_csv import TEXT_EXTRACTION_COLUMNS
+from cartellino_parser.timbrature_missing_report.service import (
     audit_missing_timbrature_pipeline,
     build_missing_timbrature_report,
 )
@@ -351,6 +351,38 @@ def test_audit_missing_timbrature_counts_valid_month_pages_without_events_as_cov
     )
 
 
+def test_audit_missing_timbrature_reads_pairing_stage_report_items(tmp_path: Path) -> None:
+    pipeline_dir = _build_pipeline_dir(tmp_path)
+    missing_output = pipeline_dir / "shifts" / "missing-output.csv"
+    _write_json(
+        pipeline_dir / "shifts" / "pair_employee_events.report.json",
+        {
+            "stage": "pair_employee_events",
+            "status": "ok",
+            "items": [
+                {
+                    "status": "error",
+                    "source_employee": "Mario Rossi",
+                    "employee_id": "emp-1",
+                    "error_code": "processing_error",
+                    "error": "simulated failure",
+                    "output_csv": str(missing_output),
+                }
+            ],
+        },
+    )
+
+    report = audit_missing_timbrature_pipeline(pipeline_dir)
+    mario_findings = [
+        row for row in report["finding_rows"] if row["employee"] == "Mario Rossi"
+    ]
+    finding_types = {row["finding_type"] for row in mario_findings}
+
+    assert "pairing_failed" in finding_types
+    assert "pair_output_missing" in finding_types
+    assert any("simulated failure" in str(row["detail"]) for row in mario_findings)
+
+
 def test_audit_missing_timbrature_rejects_legacy_layout(tmp_path: Path) -> None:
     legacy_pipeline_dir = tmp_path / "legacy-pipeline"
     (legacy_pipeline_dir / "text_extracted").mkdir(parents=True)
@@ -362,3 +394,4 @@ def test_audit_missing_timbrature_rejects_legacy_layout(tmp_path: Path) -> None:
         assert "Legacy pipeline layout is no longer supported" in str(exc)
     else:  # pragma: no cover - defensive assertion
         raise AssertionError("Expected legacy-only pipeline layouts to be rejected")
+

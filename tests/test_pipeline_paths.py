@@ -1,12 +1,12 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from pathlib import Path
 from typing import cast
 
 import pytest
 
-from src.pipeline_path_types import PipelineStage
-from src.pipeline_paths import (
+from cartellino_parser.pipeline_path_types import PipelineStage
+from cartellino_parser.pipeline_paths import (
     build_pipeline_paths,
     with_extract_events_overrides,
     with_scan_overrides,
@@ -135,3 +135,4 @@ def test_overrides_do_not_persist_between_independent_builds(tmp_path: Path) -> 
 
     assert overridden.extract_events.dir == tmp_path / "custom-events"
     assert fresh.extract_events.dir == tmp_path / "unit-test" / "events"
+

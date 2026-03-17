@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from src.extract_events_from_documents.parsers import load_parsers
+from cartellino_parser.extract_events_from_documents.parsers import load_parsers
 
 FIXTURES_ROOT = Path(__file__).parent / "fixtures" / "days_parsers"
 
@@ -26,4 +26,5 @@ def test_discovered_parser_contract_shape() -> None:
         assert isinstance(parser.priority, int)
         assert callable(parser.score_document)
         assert callable(parser.parse_document)
+
 

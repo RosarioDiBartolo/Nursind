@@ -1,4 +1,4 @@
-from src.drive_service.names import normalize_term
+﻿from cartellino_parser.drive_service.names import normalize_term
 
 
 EXCLUDE_TERMS = [
@@ -11,3 +11,4 @@ EXCLUDE_TERMS = [
     "buste paga",
 ]
 exclude_terms_normalized = [normalize_term(term) for term in EXCLUDE_TERMS]
+

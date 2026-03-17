@@ -1,8 +1,8 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import re
 
-from src.raw_text_parsing import normalize_text, parse_day_header
+from cartellino_parser.raw_text_parsing import normalize_text, parse_day_header
 
 from ..models import ParsedEvent
 from .base import BaseFormatParser
@@ -122,3 +122,4 @@ class CartellinoUnicoParser(BaseFormatParser):
                 events.extend(explicit_events_for_line(line, day=day, dow=dow))
             rows.append(to_row_result(day, dow, line, events))
         return tuple(rows)
+

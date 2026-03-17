@@ -1,14 +1,14 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
 
-from src.drive_service.drive_client import list_children
-from src.drive_service.index import MapIndex
-from src.drive_service.io_json import write_json
-from src.drive_service.logging_utils import get_logger
-from src.drive_service.schema import IndexFile
+from cartellino_parser.drive_service.drive_client import list_children
+from cartellino_parser.drive_service.index import MapIndex
+from cartellino_parser.drive_service.io_json import write_json
+from cartellino_parser.drive_service.logging_utils import get_logger
+from cartellino_parser.drive_service.schema import IndexFile
 
 from .config import exclude_terms_normalized
 from .scan_service import FOLDER_MIME, build_folder_report
@@ -225,3 +225,4 @@ def run_scan(
         log.warning("Employee scan errors: %s", len(scan_errors))
 
     return report
+

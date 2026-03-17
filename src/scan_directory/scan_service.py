@@ -1,17 +1,17 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import os
 from typing import Iterable, List, Tuple
 
-from src.drive_service.archive_utils import (
+from cartellino_parser.drive_service.archive_utils import (
     BadZipFile,
     build_archive_member_id,
     list_pdf_members,
 )
-from src.drive_service.downloads import download_file_bytes
-from src.drive_service.drive_client import get_drive_service, list_children
-from src.drive_service.logging_utils import get_logger
-from src.drive_service.names import normalize_term
+from cartellino_parser.drive_service.downloads import download_file_bytes
+from cartellino_parser.drive_service.drive_client import get_drive_service, list_children
+from cartellino_parser.drive_service.logging_utils import get_logger
+from cartellino_parser.drive_service.names import normalize_term
 
 logger = get_logger()
 
@@ -224,3 +224,4 @@ def build_folder_report(
         "included": included,
         "filtered": filtered,
     }
+

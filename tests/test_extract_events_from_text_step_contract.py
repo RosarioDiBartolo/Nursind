@@ -1,6 +1,6 @@
 ﻿from pathlib import Path
 
-from src.extract_events_from_documents.service import process_many_text_rows, process_one_text_row
+from cartellino_parser.extract_events_from_documents.service import process_many_text_rows, process_one_text_row
 from tests.extract_events_manifest_fixtures import build_manifest_row
 from tests.step_contract import assert_process_many_contract, assert_process_one_contract
 
@@ -65,4 +65,5 @@ def test_extract_events_from_text_process_many_contract(tmp_path: Path) -> None:
     )
 
     assert_process_many_contract(report)
+
 

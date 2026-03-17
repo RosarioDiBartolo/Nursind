@@ -1,10 +1,10 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass, field
 from typing import Sequence
 
-from src.pipeline_paths import build_pipeline_paths, with_turni_enrichment_overrides
+from cartellino_parser.pipeline_paths import build_pipeline_paths, with_turni_enrichment_overrides
 
 from .artifacts import TURNI_ENRICHMENT_ARTIFACTS
 
@@ -92,3 +92,4 @@ def parse_options(argv: Sequence[str] | None = None) -> TurniEnrichmentOptions:
         report_json=str(resolved.report_json),
         verbose=bool(args.verbose),
     )
+

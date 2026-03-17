@@ -1,12 +1,20 @@
 import threading
 
-from googleapiclient.discovery import build
+from cartellino_parser.exceptions import OptionalDependencyError
 
 
 _thread_local = threading.local()
 
 
 def get_drive_service(creds):
+    try:
+        from googleapiclient.discovery import build
+    except ModuleNotFoundError as exc:
+        raise OptionalDependencyError(
+            "Google Drive support requires optional Google client dependencies. "
+            "Install the 'google' extra to create Drive services."
+        ) from exc
+
     if not hasattr(_thread_local, "drive"):
         _thread_local.drive = build(
             "drive", "v3", credentials=creds, cache_discovery=False
