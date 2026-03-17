@@ -8,12 +8,34 @@ version = "0.1.0"
 description = "Parser for Cartellino mensile configurabile PDFs"
 readme = "README.md"
 requires-python = ">=3.11"
+authors = [{ name = "Rosario" }]
+keywords = [
+  "cartellino",
+  "healthcare",
+  "pdf",
+  "pipeline",
+  "shift-processing",
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+]
 dependencies = [
   "pdfplumber>=0.10.4",
   "pandas>=2.1.0,<2.3",
   "holidays>=0.41",
   "pydantic>=2.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/RosarioDiBartolo/Nursind"
+Repository = "https://github.com/RosarioDiBartolo/Nursind"
+Issues = "https://github.com/RosarioDiBartolo/Nursind/issues"
 
 [project.scripts]
 drive-scan = "cartellino_parser.scan_directory.cli:main"
@@ -31,6 +53,7 @@ cartellino-index-convert = "cartellino_parser.drive_service.index.cli:main"
 
 [project.optional-dependencies]
 dev = [
+  "build>=1.2",
   "pytest>=7.4",
   "ruff>=0.6",
   "mypy>=1.11",

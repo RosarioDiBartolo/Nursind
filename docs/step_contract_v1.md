@@ -70,9 +70,10 @@ Audit-oriented steps must expose:
 - explicit output metadata when a report writer persists files
 
 ## Import Rules
-- Keep `python -m "src.<step_name>"` working.
-- Do not treat `src.<step_name>` package roots as stable public APIs.
-- Import concrete modules such as `src.<step_name>.service` or `src.<step_name>.options` in tests, notebooks, and docs.
+- Keep `python -m "src.<step_name>"` working for implementation compatibility.
+- Public package consumers should import the documented `cartellino_parser.*` surface instead of `src.*`.
+- Concrete modules such as `src.<step_name>.service` or `src.<step_name>.options` are appropriate only for internal tests, repo notebooks, and step-contract validation.
+- README and integration docs should not teach `src.*` as the package-facing API.
 - Prefer adapting the contract doc to the real supported step shape over adding fake wrappers or compatibility aliases.
 
 ## Test Contract

@@ -160,6 +160,8 @@ activemq-data/
 .env
 .envrc
 .venv
+.pkg-test-venv/
+.pkg-smoke-venv/
 env/
 venv/
 ENV/

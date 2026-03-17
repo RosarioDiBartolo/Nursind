@@ -16,19 +16,33 @@ The active workflow is intentionally narrow and explicit:
 
 ## Install and Package Shape
 
-Install the project with:
+Install the project with one of these entrypoints:
 
 ```powershell
+python -m pip install .
 python -m pip install -e .[dev]
+python -m pip install -e .[google]
 ```
 
-Supported imports use the public `cartellino_parser.*` namespace, for example:
+### Supported Public API
+
+Supported imports use the public `cartellino_parser.*` namespace. External modules should treat only these entrypoints as stable:
+
+- `cartellino_parser.PipelineClient`
+- `cartellino_parser.models`
+- `cartellino_parser.sources`
+- `cartellino_parser.exceptions`
+- `cartellino_parser.pipeline_paths`
+
+Everything else, including the on-disk `src/` implementation layout and direct `src.*` imports, is internal or compatibility-oriented and should not be the default integration path for a reusable consumer module.
+
+Example import:
 
 ```python
 from cartellino_parser.pipeline_paths import build_pipeline_paths
 ```
 
-Installed console scripts are thin wrappers around the same modules. The on-disk `src/` tree remains the implementation layout, but `src.*` is no longer the supported public import surface.
+Installed console scripts are thin wrappers around the same public package layer.
 
 For external modules, prefer the public client API:
 
@@ -63,6 +77,18 @@ client = PipelineClient(
     )
 )
 scan_report = client.scan(ScanRequest(root_id="<DRIVE_ROOT_FOLDER_ID>"))
+```
+
+### Wheel Smoke Test
+
+Use this when validating a release artifact from a clean environment:
+
+```powershell
+python -m pip install build
+python -m build
+python -m venv .pkg-venv
+.\.pkg-venv\Scripts\python -m pip install .\dist\*.whl
+.\.pkg-venv\Scripts\python -c "from cartellino_parser import PipelineClient; from cartellino_parser.models import ExtractEventsRequest; from cartellino_parser.pipeline_paths import build_pipeline_paths; print(PipelineClient, ExtractEventsRequest, type(build_pipeline_paths('output/demo')).__name__)"
 ```
 
 ## Canonical Pipeline Layout
