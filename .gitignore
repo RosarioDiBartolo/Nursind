@@ -10,7 +10,7 @@ token.json
 *.so
 .tmp
 *.json
-!src/notebooks/shared_config.json
+!src/notebooks/pipeline_config.json
 *.csv
 data/*
 output

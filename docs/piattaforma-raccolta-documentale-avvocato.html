@@ -1,0 +1,1227 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Piattaforma documentale per studi legali</title>
+  <style>
+    :root {
+      --paper: rgba(255, 252, 247, 0.86);
+      --paper-strong: #fffdf8;
+      --ink: #1f2230;
+      --muted: #656c7e;
+      --line: rgba(33, 37, 52, 0.12);
+      --plum: #4f3c50;
+      --forest: #29483b;
+      --rose: #bc6f63;
+      --shadow: 0 22px 60px rgba(42, 35, 28, 0.12);
+      --radius-xl: 28px;
+      --radius-lg: 22px;
+      --radius-md: 16px;
+      --max: 1180px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Aptos", "Segoe UI", Candara, Calibri, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(188, 111, 99, 0.16), transparent 28%),
+        radial-gradient(circle at 85% 15%, rgba(183, 138, 68, 0.16), transparent 26%),
+        linear-gradient(180deg, #f8f4ee 0%, #f2ece4 52%, #efe7dd 100%);
+      line-height: 1.55;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.18) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.18) 1px, transparent 1px);
+      background-size: 48px 48px;
+      mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.35), transparent 70%);
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .container {
+      width: min(var(--max), calc(100% - 40px));
+      margin: 0 auto;
+    }
+
+    .site-header {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      backdrop-filter: blur(18px);
+      background: rgba(245, 241, 234, 0.72);
+      border-bottom: 1px solid rgba(33, 37, 52, 0.08);
+    }
+
+    .site-header .container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 16px 0;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-width: 0;
+    }
+
+    .brand-mark {
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, #3d3240, #7f5d4b);
+      color: #fff;
+      box-shadow: 0 10px 22px rgba(61, 50, 64, 0.25);
+    }
+
+    .brand-text strong,
+    h1,
+    h2,
+    h3,
+    .stat-number,
+    .step-number {
+      font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Baskerville, Georgia, serif;
+      letter-spacing: -0.02em;
+    }
+
+    .brand-text strong {
+      display: block;
+      font-size: 1rem;
+    }
+
+    .brand-text span {
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .nav-links a {
+      padding: 10px 14px;
+      border-radius: 999px;
+      color: var(--muted);
+      transition: 180ms ease;
+    }
+
+    .nav-links a:hover {
+      background: rgba(255, 255, 255, 0.65);
+      color: var(--ink);
+    }
+
+    .button-primary,
+    .button-secondary {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 20px;
+      border-radius: 999px;
+      font-weight: 700;
+      transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease;
+    }
+
+    .button-primary {
+      background: linear-gradient(135deg, #3f3342, #7c5b49);
+      color: #fff;
+      box-shadow: 0 14px 30px rgba(63, 51, 66, 0.28);
+    }
+
+    .button-secondary {
+      background: rgba(255, 255, 255, 0.76);
+      color: var(--ink);
+      border: 1px solid rgba(33, 37, 52, 0.1);
+    }
+
+    .button-primary:hover,
+    .button-secondary:hover {
+      transform: translateY(-2px);
+    }
+
+    main {
+      overflow: hidden;
+    }
+
+    section {
+      padding: 72px 0;
+      position: relative;
+    }
+
+    .hero {
+      padding-top: 72px;
+      padding-bottom: 40px;
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.05fr 0.95fr;
+      gap: 42px;
+      align-items: center;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.75);
+      border: 1px solid rgba(33, 37, 52, 0.1);
+      color: var(--plum);
+      font-size: 0.92rem;
+      font-weight: 700;
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      font-size: clamp(2.8rem, 7vw, 5.4rem);
+      line-height: 0.96;
+      margin: 0 0 20px;
+      max-width: 11ch;
+    }
+
+    .hero p {
+      margin: 0 0 18px;
+      font-size: 1.1rem;
+      color: var(--muted);
+      max-width: 61ch;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-top: 28px;
+    }
+
+    .hero-points {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 34px;
+    }
+
+    .hero-point {
+      padding: 16px 18px;
+      background: rgba(255, 255, 255, 0.68);
+      border: 1px solid rgba(33, 37, 52, 0.08);
+      border-radius: var(--radius-md);
+      box-shadow: 0 8px 30px rgba(42, 35, 28, 0.06);
+    }
+
+    .hero-point strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 1rem;
+    }
+
+    .hero-point span {
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .hero-visual {
+      position: relative;
+      min-height: 640px;
+    }
+
+    .glass-card {
+      position: absolute;
+      border-radius: var(--radius-xl);
+      background: var(--paper);
+      border: 1px solid rgba(255, 255, 255, 0.62);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+    }
+
+    .dashboard-card {
+      inset: 0 0 auto 40px;
+      padding: 26px;
+      min-height: 440px;
+      overflow: hidden;
+    }
+
+    .dashboard-card::after {
+      content: "";
+      position: absolute;
+      inset: auto -40px -70px auto;
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(183, 138, 68, 0.25), transparent 68%);
+    }
+
+    .card-topline {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .card-topline span {
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .chip {
+      padding: 7px 12px;
+      border-radius: 999px;
+      background: rgba(41, 72, 59, 0.11);
+      color: var(--forest);
+      font-size: 0.84rem;
+      font-weight: 700;
+    }
+
+    .chart-area {
+      display: grid;
+      grid-template-columns: 1fr 0.92fr;
+      gap: 18px;
+      align-items: stretch;
+      margin-bottom: 18px;
+    }
+
+    .chart-box,
+    .mini-panel,
+    .floating-note,
+    .floating-alert {
+      background: var(--paper-strong);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+    }
+
+    .chart-box {
+      padding: 18px;
+    }
+
+    .bars {
+      height: 210px;
+      display: flex;
+      align-items: end;
+      gap: 14px;
+      padding-top: 24px;
+    }
+
+    .bar {
+      flex: 1;
+      border-radius: 16px 16px 6px 6px;
+      background: linear-gradient(180deg, rgba(124, 91, 73, 0.2), rgba(124, 91, 73, 0.86));
+      position: relative;
+      animation: rise 1s ease both;
+      transform-origin: bottom;
+    }
+
+    .bar:nth-child(2) { animation-delay: 90ms; }
+    .bar:nth-child(3) { animation-delay: 180ms; }
+    .bar:nth-child(4) { animation-delay: 270ms; }
+    .bar:nth-child(5) { animation-delay: 360ms; }
+
+    .bar::before {
+      content: attr(data-label);
+      position: absolute;
+      inset: auto 50% -28px auto;
+      transform: translateX(50%);
+      color: var(--muted);
+      font-size: 0.8rem;
+      white-space: nowrap;
+    }
+
+    .mini-panel {
+      padding: 18px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .mini-stat {
+      padding: 14px;
+      border-radius: 16px;
+      background: rgba(247, 243, 237, 0.95);
+      border: 1px solid rgba(33, 37, 52, 0.07);
+    }
+
+    .mini-stat strong {
+      display: block;
+      font-size: 1.35rem;
+      margin-bottom: 2px;
+    }
+
+    .mini-stat span {
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .doc-list {
+      display: grid;
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .doc-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      padding: 14px 16px;
+      background: rgba(255, 255, 255, 0.92);
+      border-radius: 16px;
+      border: 1px solid rgba(33, 37, 52, 0.07);
+    }
+
+    .doc-row span {
+      color: var(--muted);
+      font-size: 0.93rem;
+    }
+
+    .status-ok,
+    .status-warn,
+    .status-missing {
+      padding: 7px 12px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .status-ok {
+      color: #1c5d47;
+      background: rgba(28, 93, 71, 0.12);
+    }
+
+    .status-warn {
+      color: #8a551b;
+      background: rgba(183, 138, 68, 0.18);
+    }
+
+    .status-missing {
+      color: #8b3745;
+      background: rgba(188, 111, 99, 0.18);
+    }
+
+    .floating-note {
+      top: 26px;
+      right: 0;
+      width: 220px;
+      padding: 18px;
+      position: absolute;
+      animation: float 4.8s ease-in-out infinite;
+    }
+
+    .floating-alert {
+      left: 0;
+      bottom: 30px;
+      width: 250px;
+      padding: 18px;
+      position: absolute;
+      animation: float 5.6s ease-in-out infinite;
+      animation-delay: 0.8s;
+    }
+
+    .floating-note strong,
+    .floating-alert strong {
+      display: block;
+      margin-bottom: 8px;
+    }
+
+    .floating-note p,
+    .floating-alert p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .section-title {
+      max-width: 720px;
+      margin-bottom: 26px;
+    }
+
+    .section-title h2 {
+      font-size: clamp(2rem, 4vw, 3.5rem);
+      line-height: 1.02;
+      margin: 0 0 14px;
+    }
+
+    .section-title p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 1.06rem;
+    }
+
+    .problem-grid,
+    .uses-grid,
+    .benefit-grid,
+    .stats-grid {
+      display: grid;
+      gap: 18px;
+    }
+
+    .problem-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .problem-card,
+    .use-card,
+    .benefit-card,
+    .stat-card {
+      background: rgba(255, 255, 255, 0.75);
+      border: 1px solid rgba(33, 37, 52, 0.08);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      box-shadow: 0 10px 36px rgba(42, 35, 28, 0.07);
+    }
+
+    .icon-badge {
+      width: 52px;
+      height: 52px;
+      border-radius: 16px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, rgba(79, 60, 80, 0.12), rgba(183, 138, 68, 0.14));
+      color: var(--plum);
+      margin-bottom: 18px;
+    }
+
+    .problem-card h3,
+    .use-card h3,
+    .benefit-card h3 {
+      margin: 0 0 10px;
+      font-size: 1.28rem;
+    }
+
+    .problem-card p,
+    .use-card p,
+    .benefit-card p,
+    .workflow-copy p,
+    .closing-card p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .workflow {
+      display: grid;
+      grid-template-columns: 0.95fr 1.05fr;
+      gap: 28px;
+      align-items: start;
+    }
+
+    .workflow-copy {
+      position: sticky;
+      top: 94px;
+      padding: 28px;
+      background: rgba(255, 255, 255, 0.72);
+      border: 1px solid rgba(33, 37, 52, 0.08);
+      border-radius: var(--radius-xl);
+      box-shadow: 0 10px 36px rgba(42, 35, 28, 0.07);
+    }
+
+    .workflow-steps {
+      display: grid;
+      gap: 18px;
+    }
+
+    .step-card {
+      display: grid;
+      grid-template-columns: 74px 1fr;
+      gap: 18px;
+      padding: 22px;
+      background: rgba(255, 255, 255, 0.78);
+      border: 1px solid rgba(33, 37, 52, 0.08);
+      border-radius: var(--radius-lg);
+      box-shadow: 0 10px 36px rgba(42, 35, 28, 0.06);
+    }
+
+    .step-number {
+      width: 56px;
+      height: 56px;
+      display: grid;
+      place-items: center;
+      border-radius: 18px;
+      background: linear-gradient(135deg, #3f3342, #7c5b49);
+      color: #fff;
+      font-size: 1.5rem;
+    }
+
+    .step-card h3 {
+      margin: 2px 0 8px;
+      font-size: 1.24rem;
+    }
+
+    .step-card p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .step-card ul {
+      margin: 14px 0 0;
+      padding-left: 18px;
+      color: var(--ink);
+    }
+
+    .step-card li + li {
+      margin-top: 8px;
+    }
+
+    .uses-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .use-card {
+      position: relative;
+      overflow: hidden;
+      min-height: 280px;
+    }
+
+    .use-art {
+      margin-top: 18px;
+      border-radius: 20px;
+      padding: 18px;
+      min-height: 124px;
+      background: linear-gradient(135deg, rgba(79, 60, 80, 0.08), rgba(183, 138, 68, 0.1));
+      border: 1px solid rgba(33, 37, 52, 0.08);
+    }
+
+    .use-art svg {
+      width: 100%;
+      height: 120px;
+      display: block;
+    }
+
+    .benefit-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .benefit-card {
+      display: grid;
+      grid-template-columns: 68px 1fr;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .stats-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      margin-top: 28px;
+    }
+
+    .stat-card {
+      text-align: center;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(255, 248, 239, 0.8));
+    }
+
+    .stat-number {
+      display: block;
+      font-size: clamp(2.1rem, 4vw, 3rem);
+      margin-bottom: 8px;
+    }
+
+    .stat-card p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .closing-card {
+      padding: 34px;
+      border-radius: 32px;
+      background:
+        radial-gradient(circle at 85% 20%, rgba(183, 138, 68, 0.2), transparent 28%),
+        linear-gradient(135deg, rgba(63, 51, 66, 0.98), rgba(113, 83, 67, 0.96));
+      color: #fff;
+      box-shadow: 0 24px 70px rgba(63, 51, 66, 0.25);
+    }
+
+    .closing-card p {
+      color: rgba(255, 255, 255, 0.82);
+      max-width: 64ch;
+    }
+
+    .closing-card .hero-actions {
+      margin-top: 24px;
+    }
+
+    .closing-card .button-secondary {
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    footer {
+      padding: 22px 0 44px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    @keyframes rise {
+      from {
+        transform: scaleY(0.1);
+        opacity: 0.35;
+      }
+      to {
+        transform: scaleY(1);
+        opacity: 1;
+      }
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+
+    @media (max-width: 1100px) {
+      .hero-grid,
+      .workflow,
+      .chart-area {
+        grid-template-columns: 1fr;
+      }
+
+      .hero-visual {
+        min-height: 680px;
+      }
+
+      .workflow-copy {
+        position: static;
+      }
+
+      .problem-grid,
+      .uses-grid,
+      .stats-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 760px) {
+      .site-header .container,
+      .hero-points,
+      .problem-grid,
+      .uses-grid,
+      .benefit-grid,
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .site-header .container {
+        display: grid;
+      }
+
+      .nav-links {
+        justify-content: flex-start;
+      }
+
+      .hero {
+        padding-top: 44px;
+      }
+
+      section {
+        padding: 54px 0;
+      }
+
+      h1 {
+        max-width: none;
+      }
+
+      .hero-visual {
+        min-height: 720px;
+      }
+
+      .dashboard-card {
+        left: 0;
+      }
+
+      .floating-note,
+      .floating-alert {
+        position: relative;
+        width: auto;
+        top: auto;
+        right: auto;
+        left: auto;
+        bottom: auto;
+        margin-top: 16px;
+        animation: none;
+      }
+
+      .step-card,
+      .benefit-card {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M7 3h10l4 4v11a3 3 0 0 1-3 3H7a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4Z"/>
+            <path d="M14 3v4h4"/>
+            <path d="M8 12h8"/>
+            <path d="M8 16h6"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <strong>Piattaforma documentale intelligente</strong>
+          <span>Per studi legali che gestiscono raccolte massive di PDF</span>
+        </div>
+      </div>
+      <nav class="nav-links">
+        <a href="#problema">Problema</a>
+        <a href="#flusso">Flusso</a>
+        <a href="#casi-uso">Casi d'uso</a>
+        <a href="#vantaggi">Vantaggi</a>
+        <a class="button-primary" href="#contatto">Proposta</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="container hero-grid">
+        <div>
+          <div class="eyebrow">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 3l7 4v5c0 4.5-3 7.9-7 9-4-1.1-7-4.5-7-9V7l7-4Z"/>
+              <path d="m9.5 12 1.7 1.7 3.8-4.2"/>
+            </svg>
+            Raccolta documenti affidabile, verificabile e pronta per audit
+          </div>
+          <h1>Una piattaforma che chiede, controlla e ordina i documenti al posto vostro.</h1>
+          <p>La proposta è una one-stop platform dedicata a uno studio legale che deve raccogliere PDF da più dipendenti o collaboratori, verificarne la correttezza formale, estrarne i dati utili e conservarli in modo strutturato.</p>
+          <p>Non solo archiviazione: il sistema intercetta mesi mancanti, documenti incoerenti, sovrapposizioni temporali e anomalie documentali, così il controllo non resta affidato a email, cartelle disordinate o verifiche manuali lente.</p>
+          <div class="hero-actions">
+            <a class="button-primary" href="#contatto">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M4 12h16"/>
+                <path d="m13 5 7 7-7 7"/>
+              </svg>
+              Vedere la proposta operativa
+            </a>
+            <a class="button-secondary" href="#casi-uso">Esplorare i casi d'uso</a>
+          </div>
+          <div class="hero-points">
+            <div class="hero-point">
+              <strong>Upload guidato</strong>
+              <span>Ogni dipendente carica il proprio PDF in un percorso chiaro e controllato.</span>
+            </div>
+            <div class="hero-point">
+              <strong>Controllo automatico</strong>
+              <span>Il sistema valida formato, mese, leggibilità e coerenza minima del contenuto.</span>
+            </div>
+            <div class="hero-point">
+              <strong>Visione legale</strong>
+              <span>Lo studio vede subito ciò che manca, ciò che confligge e ciò che richiede verifica.</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="hero-visual" aria-label="Illustrazione dashboard piattaforma">
+          <div class="glass-card dashboard-card">
+            <div class="card-topline">
+              <div>
+                <strong>Cruscotto pratiche documentali</strong><br>
+                <span>Monitoraggio raccolta PDF per dipendenti e mesi</span>
+              </div>
+              <div class="chip">Controllo attivo</div>
+            </div>
+
+            <div class="chart-area">
+              <div class="chart-box">
+                <strong>Copertura mensile</strong>
+                <div class="bars" aria-hidden="true">
+                  <div class="bar" data-label="Gen" style="height: 78%;"></div>
+                  <div class="bar" data-label="Feb" style="height: 92%;"></div>
+                  <div class="bar" data-label="Mar" style="height: 56%;"></div>
+                  <div class="bar" data-label="Apr" style="height: 88%;"></div>
+                  <div class="bar" data-label="Mag" style="height: 34%;"></div>
+                </div>
+              </div>
+              <div class="mini-panel">
+                <div class="mini-stat">
+                  <strong>218</strong>
+                  <span>PDF validati e archiviati</span>
+                </div>
+                <div class="mini-stat">
+                  <strong>14</strong>
+                  <span>Mesi mancanti rilevati</span>
+                </div>
+                <div class="mini-stat">
+                  <strong>7</strong>
+                  <span>Conflitti da verificare</span>
+                </div>
+              </div>
+            </div>
+
+            <strong>Controlli recenti</strong>
+            <div class="doc-list">
+              <div class="doc-row">
+                <div>
+                  <strong>Maria Rossi · Marzo 2026</strong><br>
+                  <span>PDF acquisito, testo letto, dati estratti</span>
+                </div>
+                <div class="status-ok">Confermato</div>
+              </div>
+              <div class="doc-row">
+                <div>
+                  <strong>Luca Bianchi · Aprile 2026</strong><br>
+                  <span>Periodo rilevato, ma mese precedente assente</span>
+                </div>
+                <div class="status-warn">Verifica mese</div>
+              </div>
+              <div class="doc-row">
+                <div>
+                  <strong>Giulia Verdi · Maggio 2026</strong><br>
+                  <span>Documento non ancora caricato dall'interessata</span>
+                </div>
+                <div class="status-missing">Mancante</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="glass-card floating-note">
+            <strong>Validazione PDF</strong>
+            <p>Controllo di presenza, formato, leggibilità del testo e corretto abbinamento al dipendente e al mese.</p>
+          </div>
+
+          <div class="glass-card floating-alert">
+            <strong>Rilevazione anomalie</strong>
+            <p>Il sistema segnala mesi saltati, duplicati, documenti sovrapposti o cronologie incoerenti prima che diventino un problema istruttorio.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="problema">
+      <div class="container">
+        <div class="section-title">
+          <h2>Il problema non è solo raccogliere file. È fidarsi del processo.</h2>
+          <p>Quando i documenti arrivano via email, chat o cartelle condivise, il rischio non è soltanto perdere tempo. Il rischio è non accorgersi subito di buchi documentali, mesi mancanti o incongruenze che emergono troppo tardi.</p>
+        </div>
+
+        <div class="problem-grid">
+          <article class="problem-card">
+            <div class="icon-badge" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 4h16v12H4z"/>
+                <path d="M22 7l-10 7L2 7"/>
+              </svg>
+            </div>
+            <h3>Materiale disperso</h3>
+            <p>I documenti arrivano da canali diversi, con nomi incoerenti e nessuna certezza su cosa sia effettivamente stato consegnato.</p>
+          </article>
+
+          <article class="problem-card">
+            <div class="icon-badge" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M8 3h8"/>
+                <path d="M9 3v4"/>
+                <path d="M15 3v4"/>
+                <rect x="4" y="7" width="16" height="14" rx="2"/>
+                <path d="M8 11h8M8 15h5"/>
+              </svg>
+            </div>
+            <h3>Mesi assenti o duplicati</h3>
+            <p>Senza un controllo di sequenza temporale, è facile non vedere un mese mancante o una mensilità caricata due volte.</p>
+          </article>
+
+          <article class="problem-card">
+            <div class="icon-badge" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6 3h9l5 5v13H6z"/>
+                <path d="M15 3v5h5"/>
+                <circle cx="11" cy="14" r="2.5"/>
+                <path d="m13 16 3 3"/>
+              </svg>
+            </div>
+            <h3>Verifica manuale lenta</h3>
+            <p>Aprire ogni PDF, controllare il mese, leggere il contenuto e ricostruire le assenze richiede tempo qualificato dello studio.</p>
+          </article>
+
+          <article class="problem-card">
+            <div class="icon-badge" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 3 4 7v5c0 4.6 3.1 7.8 8 9 4.9-1.2 8-4.4 8-9V7l-8-4Z"/>
+                <path d="M12 8v5"/>
+                <path d="M12 16h.01"/>
+              </svg>
+            </div>
+            <h3>Tracciabilità debole</h3>
+            <p>Quando serve dimostrare chi ha inviato cosa, quando e con quale esito, i file isolati non bastano. Serve una storia documentale verificabile.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="flusso">
+      <div class="container workflow">
+        <div class="workflow-copy">
+          <div class="section-title">
+            <h2>Come funziona la piattaforma proposta</h2>
+            <p>Il valore non è nel semplice caricamento, ma nel fatto che ogni documento entra in un flusso strutturato: ricezione, verifica, lettura, salvataggio e rilevazione automatica delle anomalie.</p>
+          </div>
+          <p>La piattaforma può essere presentata come uno spazio sicuro dove ogni dipendente consegna i propri documenti periodici, mentre lo studio legale mantiene una vista centralizzata e riceve allarmi utili, non rumore.</p>
+        </div>
+
+        <div class="workflow-steps">
+          <article class="step-card">
+            <div class="step-number">1</div>
+            <div>
+              <h3>Raccolta guidata dei PDF</h3>
+              <p>Ogni dipendente o referente carica i documenti in un'area dedicata, con percorsi e istruzioni chiare per evitare invii incompleti o fuori standard.</p>
+              <ul>
+                <li>Portale o area riservata per upload sicuro</li>
+                <li>Richiesta per mese, tipologia o pratica</li>
+                <li>Riduzione di email, WhatsApp e allegati sparsi</li>
+              </ul>
+            </div>
+          </article>
+
+          <article class="step-card">
+            <div class="step-number">2</div>
+            <div>
+              <h3>Validazione automatica del documento</h3>
+              <p>Il sistema controlla subito se il file è un PDF corretto, leggibile e associabile al soggetto giusto e al periodo atteso.</p>
+              <ul>
+                <li>Verifica formato e presenza del testo leggibile</li>
+                <li>Controllo naming, periodo e metadati rilevabili</li>
+                <li>Scarto o segnalazione immediata dei file problematici</li>
+              </ul>
+            </div>
+          </article>
+
+          <article class="step-card">
+            <div class="step-number">3</div>
+            <div>
+              <h3>Parsing e lettura dei contenuti</h3>
+              <p>Dopo la validazione, i PDF vengono letti per estrarre dati strutturati: nomi, mesi, riferimenti temporali e altri elementi utili alla verifica.</p>
+              <ul>
+                <li>Estrazione dei dati dal contenuto del PDF</li>
+                <li>Normalizzazione in formato uniforme</li>
+                <li>Base dati pronta per ricerca, audit e confronti</li>
+              </ul>
+            </div>
+          </article>
+
+          <article class="step-card">
+            <div class="step-number">4</div>
+            <div>
+              <h3>Archiviazione ordinata e reperibile</h3>
+              <p>Ogni documento validato viene conservato in uno storage strutturato, con collegamento ai dati estratti e storico delle elaborazioni.</p>
+              <ul>
+                <li>Archiviazione centralizzata e ricercabile</li>
+                <li>Storico degli upload e degli esiti</li>
+                <li>Pronta reperibilità per fascicolo o dipendente</li>
+              </ul>
+            </div>
+          </article>
+
+          <article class="step-card">
+            <div class="step-number">5</div>
+            <div>
+              <h3>Rilevazione di buchi e conflitti</h3>
+              <p>La piattaforma confronta i periodi attesi con quelli presenti e segnala mesi mancanti, duplicazioni, sovrapposizioni o incongruenze cronologiche.</p>
+              <ul>
+                <li>Individuazione automatica dei mesi assenti</li>
+                <li>Segnalazione di conflitti tra documenti o periodi</li>
+                <li>Priorità operative per il recupero documentale</li>
+              </ul>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="casi-uso">
+      <div class="container">
+        <div class="section-title">
+          <h2>Casi d'uso pensati per una professionista legale</h2>
+          <p>La piattaforma non è un archivio generico. È uno strumento per chi deve raccogliere, verificare e far emergere criticità documentali prima che pesino su una pratica, una negoziazione o un contenzioso.</p>
+        </div>
+
+        <div class="uses-grid">
+          <article class="use-card">
+            <h3>Recupero documenti da dipendenti o assistiti</h3>
+            <p>Lo studio apre una raccolta documentale periodica. Ogni interessato vede cosa caricare, entro quando e con quale formato, riducendo ambiguità e solleciti manuali.</p>
+            <div class="use-art" aria-hidden="true">
+              <svg viewBox="0 0 320 120" fill="none">
+                <rect x="12" y="18" width="92" height="86" rx="18" fill="rgba(79,60,80,0.14)"/>
+                <rect x="114" y="28" width="92" height="66" rx="16" fill="rgba(183,138,68,0.18)"/>
+                <rect x="216" y="12" width="92" height="92" rx="20" fill="rgba(41,72,59,0.13)"/>
+                <path d="M57 44h34M57 58h24M57 72h28" stroke="#4f3c50" stroke-width="4" stroke-linecap="round"/>
+                <path d="M146 48h28M146 62h40" stroke="#9a7336" stroke-width="4" stroke-linecap="round"/>
+                <path d="M247 38h28M247 53h36M247 68h22" stroke="#29483b" stroke-width="4" stroke-linecap="round"/>
+              </svg>
+            </div>
+          </article>
+
+          <article class="use-card">
+            <h3>Controllo di completezza per mese</h3>
+            <p>Per ciascun soggetto, il sistema evidenzia con immediatezza i mesi presenti, quelli mancanti e quelli che richiedono un controllo umano per possibili conflitti.</p>
+            <div class="use-art" aria-hidden="true">
+              <svg viewBox="0 0 320 120" fill="none">
+                <rect x="18" y="18" width="284" height="84" rx="22" fill="rgba(255,255,255,0.72)" stroke="rgba(33,37,52,0.09)"/>
+                <rect x="38" y="50" width="34" height="24" rx="12" fill="rgba(41,72,59,0.22)"/>
+                <rect x="82" y="50" width="34" height="24" rx="12" fill="rgba(41,72,59,0.22)"/>
+                <rect x="126" y="50" width="34" height="24" rx="12" fill="rgba(188,111,99,0.28)"/>
+                <rect x="170" y="50" width="34" height="24" rx="12" fill="rgba(41,72,59,0.22)"/>
+                <rect x="214" y="50" width="34" height="24" rx="12" fill="rgba(183,138,68,0.28)"/>
+                <rect x="258" y="50" width="24" height="24" rx="12" fill="rgba(188,111,99,0.28)"/>
+                <path d="M47 62l7 7 10-14" stroke="#29483b" stroke-width="3.8" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M91 62l7 7 10-14" stroke="#29483b" stroke-width="3.8" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M136 62h14" stroke="#8b3745" stroke-width="4" stroke-linecap="round"/>
+                <path d="M224 62h14" stroke="#8a551b" stroke-width="4" stroke-linecap="round"/>
+                <path d="M263 55l14 14M277 55l-14 14" stroke="#8b3745" stroke-width="3.8" stroke-linecap="round"/>
+              </svg>
+            </div>
+          </article>
+
+          <article class="use-card">
+            <h3>Preparazione istruttoria e audit documentale</h3>
+            <p>Quando serve ricostruire una sequenza, verificare la continuità o dimostrare una lacuna, lo studio ha un archivio già ordinato e un quadro immediato delle anomalie.</p>
+            <div class="use-art" aria-hidden="true">
+              <svg viewBox="0 0 320 120" fill="none">
+                <rect x="24" y="18" width="126" height="84" rx="20" fill="rgba(79,60,80,0.11)"/>
+                <rect x="170" y="18" width="126" height="84" rx="20" fill="rgba(183,138,68,0.13)"/>
+                <path d="M54 42h66M54 58h48M54 74h56" stroke="#4f3c50" stroke-width="4" stroke-linecap="round"/>
+                <circle cx="234" cy="56" r="20" stroke="#9a7336" stroke-width="4"/>
+                <path d="m248 70 22 22" stroke="#9a7336" stroke-width="4" stroke-linecap="round"/>
+              </svg>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="vantaggi">
+      <div class="container">
+        <div class="section-title">
+          <h2>Perché questa soluzione è convincente per uno studio legale</h2>
+          <p>Il vantaggio competitivo non è solo tecnologico. È organizzativo, probatorio e commerciale: meno lavoro dispersivo, più controllo, più affidabilità percepita dal cliente finale.</p>
+        </div>
+
+        <div class="benefit-grid">
+          <article class="benefit-card">
+            <div class="icon-badge" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 7h16"/>
+                <path d="M7 3v8"/>
+                <path d="M17 3v8"/>
+                <path d="M5 11h14v8a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z"/>
+              </svg>
+            </div>
+            <div>
+              <h3>Riduce il tempo amministrativo</h3>
+              <p>La professionista e il team non devono più aprire file uno a uno per capire se il materiale è arrivato, se il mese è corretto o se manca qualcosa.</p>
+            </div>
+          </article>
+
+          <article class="benefit-card">
+            <div class="icon-badge" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 3 4 7v5c0 4.6 3.1 7.8 8 9 4.9-1.2 8-4.4 8-9V7l-8-4Z"/>
+                <path d="M9 12h6"/>
+                <path d="M12 9v6"/>
+              </svg>
+            </div>
+            <div>
+              <h3>Aumenta il presidio del rischio</h3>
+              <p>La rilevazione preventiva di mesi mancanti, conflitti o documenti dubbi riduce il rischio di lavorare su dossier incompleti o difettosi.</p>
+            </div>
+          </article>
+
+          <article class="benefit-card">
+            <div class="icon-badge" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M7 3h10l4 4v11a3 3 0 0 1-3 3H7a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4Z"/>
+                <path d="M14 3v4h4"/>
+                <path d="M8 12h8M8 16h6"/>
+              </svg>
+            </div>
+            <div>
+              <h3>Rende ogni pratica più ordinata</h3>
+              <p>Ogni PDF resta collegato ai propri dati, al soggetto di riferimento e all'esito dei controlli, con una consultazione molto più rapida per fascicolo o annualità.</p>
+            </div>
+          </article>
+
+          <article class="benefit-card">
+            <div class="icon-badge" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 12h18"/>
+                <path d="M12 3v18"/>
+                <circle cx="12" cy="12" r="9"/>
+              </svg>
+            </div>
+            <div>
+              <h3>Eleva il valore percepito del servizio</h3>
+              <p>Proporre una piattaforma di raccolta e verifica documentale comunica metodo, controllo e attenzione al dettaglio, aspetti decisivi nel rapporto fiduciario con il cliente.</p>
+            </div>
+          </article>
+        </div>
+
+        <div class="stats-grid">
+          <article class="stat-card">
+            <span class="stat-number">1</span>
+            <p>Portale unico per upload, verifica e archivio</p>
+          </article>
+          <article class="stat-card">
+            <span class="stat-number">3</span>
+            <p>Controlli chiave: validità PDF, parsing e coerenza temporale</p>
+          </article>
+          <article class="stat-card">
+            <span class="stat-number">24/7</span>
+            <p>Monitoraggio continuo delle consegne e delle anomalie</p>
+          </article>
+          <article class="stat-card">
+            <span class="stat-number">0</span>
+            <p>Dipendenza da cartelle disordinate o invii informali come processo principale</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="contatto">
+      <div class="container">
+        <div class="closing-card">
+          <div class="section-title">
+            <h2>La proposta in una frase</h2>
+            <p>Costruire una piattaforma elegante e semplice per raccogliere documenti dai dipendenti, validare i PDF, leggerne i dati, archiviarli in modo ordinato e segnalare automaticamente mesi mancanti o conflitti da approfondire.</p>
+          </div>
+          <p>Per una professionista legale, questo significa trasformare una raccolta documentale frammentata in un processo strutturato, ripetibile e difendibile. Non un semplice contenitore di file, ma un sistema che aiuta davvero a lavorare meglio.</p>
+          <div class="hero-actions">
+            <a class="button-primary" href="mailto:contatto@example.com">Richiedere demo o mockup operativo</a>
+            <a class="button-secondary" href="#flusso">Rivedere il flusso della piattaforma</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container">
+      Concept page in italiano per presentazione commerciale della soluzione documentale. Contenuto e stile sono pensati per uno scenario di raccolta PDF, controllo mensile e gestione anomalie in contesto legale.
+    </div>
+  </footer>
+</body>
+</html>

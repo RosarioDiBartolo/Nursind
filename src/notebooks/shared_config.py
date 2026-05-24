@@ -8,7 +8,7 @@ from typing import Any
 from cartellino_parser.pipeline_paths import PipelinePaths, _resolve_root_prefix_from_drive, build_pipeline_paths
 
 ROOT_ID_PLACEHOLDER = "<drive_root_id>"
-DEFAULT_CONFIG_NAME = "shared_config.json"
+DEFAULT_CONFIG_NAME = "pipeline_config.json"
 
 
 @dataclass(slots=True)

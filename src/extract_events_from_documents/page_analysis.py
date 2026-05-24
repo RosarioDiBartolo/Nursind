@@ -179,13 +179,13 @@ def resolve_page_year_month(
     if year is not None and month is not None:
         return year, month, "header"
 
-    year, month = infer_year_month_from_header_date(page_text)
-    if year is not None and month is not None:
-        return year, month, "header_date"
-
     year, month = infer_year_month_from_filename(source_path)
     if year is not None and month is not None:
         return year, month, "filename"
+
+    year, month = infer_year_month_from_header_date(page_text)
+    if year is not None and month is not None:
+        return year, month, "header_date"
 
     return None, None, "none"
 

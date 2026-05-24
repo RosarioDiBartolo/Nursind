@@ -1,6 +1,8 @@
 ﻿from __future__ import annotations
 
-from cartellino_parser.raw_text_parsing import DAY_HEADER_RE
+import re
+
+from cartellino_parser.raw_text_parsing import ALT_DAY_HEADER_RE, DAY_HEADER_RE
 from cartellino_parser.raw_text_parsing import normalize_text, parse_day_header
 
 from .base import BaseFormatParser
@@ -23,15 +25,19 @@ class CartellinoClassicParser(BaseFormatParser):
         score = -40
         if "riepilogo presenze/assenze" in norm:
             score += 120
+        if "rilevazione del mese di" in norm:
+            score += 80
         if "totali fine mese" in norm:
             score += 40
         if "data t i m b r a t u r e o r e" in norm:
             score += 20
+        if re.search(r"\b[eu]\d{3,4}(?:-[a-z])?\b", norm):
+            score += 30
         short_dow = 0
         long_dow = 0
         for line in text.splitlines():
             norm_line = normalize_text(line)
-            match = DAY_HEADER_RE.match(norm_line)
+            match = DAY_HEADER_RE.match(norm_line) or ALT_DAY_HEADER_RE.match(norm_line)
             if not match:
                 continue
             token = match.group("dow")

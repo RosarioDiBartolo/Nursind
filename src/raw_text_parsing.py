@@ -67,6 +67,9 @@ MONTH_WORDS = {
 DAY_HEADER_RE = re.compile(
     r"^\s*(?P<day>0?[1-9]|[12]\d|3[01])\s*(?P<dow>[a-z\.]{2,}?)(?=\s|e\s|u\s|e\d|u\d|$)"
 )
+ALT_DAY_HEADER_RE = re.compile(
+    r"^\s*(?P<dow>[a-z\.]{2,}?)\*?\s*(?P<day>0?[1-9]|[12]\d|3[01])(?=\s|e\s|u\s|e\d|u\d|$)"
+)
 DAY_PREFIX_RE = re.compile(r"^\s*\d{1,2}\s*[a-z\.]+")
 QTA_RE = re.compile(r"qta\s*:?\s*\d{1,3}[.,:]\d{2}", re.IGNORECASE)
 
@@ -74,6 +77,8 @@ EVENT_CANDIDATE_RE = re.compile(
     r"""
     (?:
         \b[eu]\s*(?:\(|-)?\s*[0-2]?\d:[0-5]\d\s*(?:\)|-)?[a-z]?\b
+        |
+        \b[eu]\s*(?:\(|-)?\s*\d{3,4}\s*(?:\)|-)?[a-z]?\b
         |
         \d{1,2}:\d{2}\s*[eu]\s*(?:\(|-)?\s*[0-2]?\d:[0-5]\d
     )
@@ -109,6 +114,10 @@ EVENT_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
         re.compile(r"(?<!\w)(?P<kind>[EU])(?P<time>[0-2]?\d:[0-5]\d)(?:[A-DF-TV-Z])?"),
     ),
     (
+        "compact_digits",
+        re.compile(r"(?<!\w)(?P<kind>[EU])(?P<time>\d{3,4})(?:-[A-Z])?(?!\d)", flags=re.IGNORECASE),
+    ),
+    (
         "glued_trailing",
         re.compile(
             r"(?:(?<=\d:[0-5]\d)|(?<=\d\d:[0-5]\d))(?P<kind>[EU])\s*(?P<time>[0-2]?\d:[0-5]\d)"
@@ -128,6 +137,10 @@ HEADER_MESI_PATTERN = re.compile(
 )
 HEADER_DATE_PATTERN = re.compile(
     r"\b(?P<day>\d{1,2})[/-](?P<month>\d{1,2})[/-](?P<year>\d{2,4})\b"
+)
+HEADER_DATE_CONTEXT_RE = re.compile(
+    r"(?:elaborazione|stampa(?:\s+del)?|data\s+e\s+ora\s+stampa)",
+    flags=re.IGNORECASE,
 )
 
 
@@ -175,9 +188,71 @@ def _normalize_ocr_day_prefix(line: str) -> str:
     return f"{collapsed}{match.group('tail')}"
 
 
-def parse_day_header(line: str) -> tuple[int, str] | None:
-    norm = _normalize_ocr_day_prefix(normalize_text(line))
-    match = DAY_HEADER_RE.match(norm)
+def _coerce_day_prefix(value: str) -> int | None:
+    candidates = [value]
+    collapsed = _collapse_ocr_doubled_token(value)
+    if collapsed != value:
+        candidates.append(collapsed)
+    for candidate in candidates:
+        normalized = candidate.lstrip("0") or "0"
+        try:
+            day = int(normalized)
+        except Exception:
+            continue
+        if 1 <= day <= 31:
+            return day
+    return None
+
+
+def _parse_tokenized_day_header(line: str) -> tuple[int, str] | None:
+    tokens = normalize_text(line).split()
+    if not tokens:
+        return None
+
+    day_chunks: list[str] = []
+    idx = 0
+    while idx < len(tokens):
+        token = tokens[idx]
+        digits = re.sub(r"\D", "", token)
+        letters = re.sub(r"[^a-z]", "", token)
+        if not digits or letters:
+            break
+        day_chunks.append(digits)
+        idx += 1
+        if len("".join(day_chunks)) >= 4:
+            break
+
+    if not day_chunks:
+        return None
+
+    day = _coerce_day_prefix("".join(day_chunks))
+    if day is None:
+        return None
+
+    dow_chunks: list[str] = []
+    while idx < len(tokens):
+        token = tokens[idx]
+        letters = re.sub(r"[^a-z]", "", token)
+        digits = re.sub(r"\D", "", token)
+        if not letters or digits:
+            break
+        dow_chunks.append(letters)
+        idx += 1
+        if len("".join(dow_chunks)) >= 8:
+            break
+
+    if not dow_chunks:
+        return None
+
+    dow = to_dow("".join(dow_chunks))
+    if dow not in VALID_DOW:
+        return None
+    return day, dow
+
+
+def _parse_alt_day_header(line: str) -> tuple[int, str] | None:
+    norm = normalize_text(line)
+    match = ALT_DAY_HEADER_RE.match(norm)
     if not match:
         return None
     day = int(match.group("day"))
@@ -185,6 +260,20 @@ def parse_day_header(line: str) -> tuple[int, str] | None:
     if dow not in VALID_DOW:
         return None
     return day, dow
+
+
+def parse_day_header(line: str) -> tuple[int, str] | None:
+    parsed = _parse_tokenized_day_header(line)
+    if parsed is not None:
+        return parsed
+    norm = _normalize_ocr_day_prefix(normalize_text(line))
+    match = DAY_HEADER_RE.match(norm)
+    if match:
+        day = int(match.group("day"))
+        dow = to_dow(match.group("dow"))
+        if dow in VALID_DOW:
+            return day, dow
+    return _parse_alt_day_header(line)
 
 
 def month_from_word(value: str) -> int | None:
@@ -268,6 +357,8 @@ def infer_year_month_from_header(text: str) -> tuple[int | None, int | None]:
 def infer_year_month_from_header_date(text: str) -> tuple[int | None, int | None]:
     for raw_line in text.splitlines()[:8]:
         norm_line = normalize_text(raw_line)
+        if not HEADER_DATE_CONTEXT_RE.search(norm_line):
+            continue
         match = HEADER_DATE_PATTERN.search(norm_line)
         if not match:
             continue
@@ -310,6 +401,7 @@ def infer_year_month_from_text(text: str) -> tuple[int | None, int | None]:
     strong_patterns = (
         r"riepilogo presenze/assenze\s*-\s*(?P<month>[a-z]+)\s+(?P<year>\d{4})",
         r"elenco timbrature\s*-\s*(?P<month>[a-z]+)\s+(?P<year>\d{4})",
+        r"rilevazione del mese di\s+(?P<month>[a-z]+)\s+(?P<year>\d{4})",
         r"totali mensili nel mese di[^\n\r]{0,60}(?P<month>[a-z]+)\s+(?P<year>\d{4})",
     )
     for pattern in strong_patterns:
@@ -395,7 +487,9 @@ def extract_events(raw: str) -> list[EventMatch]:
             if _overlaps(spans, start, end):
                 continue
             kind = str(match.group("kind")).upper()
-            time_str = str(match.group("time"))
+            time_str = _normalize_event_time(str(match.group("time")))
+            if time_str is None:
+                continue
             events.append(
                 EventMatch(
                     kind=kind,
@@ -408,3 +502,27 @@ def extract_events(raw: str) -> list[EventMatch]:
             spans.append((start, end))
     events.sort(key=lambda item: item.start)
     return events
+
+
+def _normalize_event_time(value: str) -> str | None:
+    clean = value.strip()
+    if ":" in clean:
+        parts = clean.split(":")
+        if len(parts) != 2:
+            return None
+        try:
+            hour = int(parts[0])
+            minute = int(parts[1])
+        except Exception:
+            return None
+    else:
+        digits = re.sub(r"\D", "", clean)
+        if len(digits) not in {3, 4}:
+            return None
+        hour = int(digits[:-2])
+        minute = int(digits[-2:])
+    if hour == 24 and minute == 0:
+        return "24:00"
+    if not (0 <= hour <= 23 and 0 <= minute <= 59):
+        return None
+    return f"{hour:02d}:{minute:02d}"

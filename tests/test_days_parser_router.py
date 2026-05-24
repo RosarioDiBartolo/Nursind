@@ -46,3 +46,23 @@ def test_resolve_parser_matches_fixture_expectations() -> None:
         assert parser.parser_id == str(payload["parser_id"])
 
 
+def test_resolve_parser_and_parse_document_for_rilevazione_compact_rows() -> None:
+    text = (
+        "Azienda Ospedaliero Universitaria ''Policlinico - Vittorio Emanuele''\n"
+        "RILEVAZIONE DEL MESE DI OTTOBRE 2021\n"
+        "ve 01 E0650 U1409 07.09 01.09 01.09 2CARD\n"
+        "lu 04 E1258 U2008 07.08 01.08 01.08 2CARD\n"
+        "do*10 GG:RS 2CARD\n"
+    )
+
+    parser = resolve_parser(_document(text))
+
+    assert parser.parser_id == "cartellino_classic"
+    rows = parser.parse_document(_document(text))
+    assert len(rows) == 3
+    assert [(event.event_kind, event.event_time_hhmm) for event in rows[0].events] == [
+        ("E", "06:50"),
+        ("U", "14:09"),
+    ]
+
+

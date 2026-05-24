@@ -21,7 +21,7 @@ class TimbratureWebParser(BaseFormatParser):
     def score_document(self, document: dict[str, object]) -> int:
         text = document_text(document)
         norm = normalize_text(text)
-        score = 0
+        score = -20
         if "elenco timbrature" in norm:
             score += 120
         if "data ent usc" in norm:

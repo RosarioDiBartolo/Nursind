@@ -7,7 +7,7 @@ from cartellino_parser.notebooks.shared_config import load_notebook_context
 
 
 def test_load_notebook_context_resolves_canonical_pipeline_paths(tmp_path: Path) -> None:
-    config_path = tmp_path / "shared_config.json"
+    config_path = tmp_path / "pipeline_config.json"
     config_path.write_text(
         json.dumps(
             {

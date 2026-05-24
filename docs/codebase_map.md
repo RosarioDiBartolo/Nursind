@@ -32,7 +32,7 @@ Purpose: this file is the code-navigation map for Codex and other LLM sessions. 
 | Enrich shifts | `src/turni_enrichment/service.py` | `src/shift_services.py`, `src/reporting.py` | `tests/test_turni_enrichment_step_contract.py` | Uses shared holiday and shift classification helpers. |
 | Aggregate yearly summary | `src/turni_employee_summary/service.py` | `src/shift_services.py`, `src/reporting.py` | `tests/test_turni_employee_summary_step_contract.py` | Output-focused package. |
 | Missing timbrature audit | `src/timbrature_missing_report/service.py` | `src/timbrature_missing_report/inputs.py`, `src/timbrature_missing_report/accumulator.py`, `src/timbrature_missing_report/issues.py`, `src/drive_service/text_extraction_csv.py`, `src/reporting.py` | `tests/test_timbrature_missing_report.py` | Read `inputs.py` first for layout assumptions. |
-| Notebook configuration | `src/notebooks/shared_config.py`, `src/notebooks/shared_config.json` | `src/pipeline_paths.py` | `tests/test_notebook_shared_config.py`, `tests/test_run_pipeline_notebook.py` | Ignore notebooks unless the task explicitly mentions them. |
+| Notebook configuration | `src/notebooks/shared_config.py`, `src/notebooks/pipeline_config.json` | `src/pipeline_paths.py` | `tests/test_notebook_shared_config.py`, `tests/test_run_pipeline_notebook.py` | Ignore notebooks unless the task explicitly mentions them. |
 
 ## Shared Logic First
 

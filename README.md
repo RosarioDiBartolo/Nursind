@@ -405,7 +405,7 @@ cartellino-download-from-index --index "output/<pipeline>/scan/samples.index.sca
 
 Use the notebooks in `src/notebooks` to demonstrate the same canonical pipeline layout.
 
-- `src/notebooks/shared_config.json`: shared notebook root settings (`root_id`, optional `root_prefix`, optional `base_output`) and notebook-specific non-path config
+- `src/notebooks/pipeline_config.json`: shared notebook root settings (`root_id`, optional `root_prefix`, optional `base_output`) and notebook-specific non-path config
 - `src/notebooks/shared_config.py`: resolves notebook context, canonical stage paths, and per-step artifact names from `cartellino_parser.pipeline_paths`
 - `src/notebooks/run_pipeline.ipynb`: end-to-end notebook that runs scan, document extraction, event extraction, midnight cleanup, pairing, enrichment, summary, and missing-timbrature audit from the shared config
 - `src/notebooks/scan.ipynb`: scan stage

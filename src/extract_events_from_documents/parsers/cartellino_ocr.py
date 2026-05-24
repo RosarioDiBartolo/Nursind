@@ -158,8 +158,8 @@ class CartellinoOcrParser(BaseFormatParser):
         dow: str,
         bands: dict[str, tuple[float, float]],
     ) -> tuple[ParsedEvent, ...]:
-        values_by_slot: dict[str, tuple[str, str, dict[str, Any]]] = {}
-        for word in line.words:
+        slot_words: dict[str, list[tuple[int, dict[str, Any]]]] = defaultdict(list)
+        for index, word in enumerate(line.words):
             token = str(word.get("text") or "").strip()
             if not token:
                 continue
@@ -168,41 +168,115 @@ class CartellinoOcrParser(BaseFormatParser):
             except Exception:
                 continue
             slot = self._slot_from_x(x_center, bands)
-            if slot is None or slot in values_by_slot:
+            if slot is None:
                 continue
-            time_hhmm = self._normalize_layout_time(token)
-            if time_hhmm is None:
-                continue
-            values_by_slot[slot] = (time_hhmm, token, word)
+            slot_words[slot].append((index, word))
 
         events: list[ParsedEvent] = []
         for slot, kind in self._SLOT_ORDER:
-            parsed = values_by_slot.get(slot)
+            parsed = self._extract_slot_time(slot_words.get(slot, ()))
             if parsed is None:
                 continue
-            time_hhmm, raw_token, source_word = parsed
             events.append(
                 ParsedEvent(
                     line=line,
                     day=day,
                     dow=dow,
                     event_kind=kind,
-                    event_time_hhmm=time_hhmm,
-                    event_raw=raw_token,
+                    event_time_hhmm=str(parsed["time_hhmm"]),
+                    event_raw=str(parsed["raw_token"]),
                     event_pattern=f"{self.parser_id}:pdf_column:{slot}",
                     source_origin="layout_slot",
                     source_slot=slot,
-                    source_word_start=self._word_index_for(line, raw_token),
-                    source_word_end=self._word_index_for(line, raw_token),
-                    source_bbox_x0=self._float_or_none(source_word.get("x0")),
-                    source_bbox_y0=self._float_or_none(source_word.get("y0")),
-                    source_bbox_x1=self._float_or_none(source_word.get("x1")),
-                    source_bbox_y1=self._float_or_none(source_word.get("y1")),
-                    normalized_from=raw_token,
-                    normalization_kind="layout_time_cleanup",
+                    source_word_start=self._int_or_none(parsed.get("word_start")),
+                    source_word_end=self._int_or_none(parsed.get("word_end")),
+                    source_bbox_x0=self._float_or_none(parsed.get("bbox_x0")),
+                    source_bbox_y0=self._float_or_none(parsed.get("bbox_y0")),
+                    source_bbox_x1=self._float_or_none(parsed.get("bbox_x1")),
+                    source_bbox_y1=self._float_or_none(parsed.get("bbox_y1")),
+                    normalized_from=str(parsed["raw_token"]),
+                    normalization_kind=str(parsed.get("normalization_kind") or "layout_time_cleanup"),
                 )
             )
         return tuple(events)
+
+    def _extract_slot_time(
+        self,
+        words: list[tuple[int, dict[str, Any]]] | tuple[tuple[int, dict[str, Any]], ...],
+    ) -> dict[str, Any] | None:
+        if not words:
+            return None
+
+        for segment in self._segment_slot_words(words):
+            combined = "".join(str(word.get("text") or "").strip() for _, word in segment)
+            if not combined:
+                continue
+            time_hhmm = self._normalize_layout_time(combined)
+            if time_hhmm is None:
+                continue
+            bbox_x0, bbox_y0, bbox_x1, bbox_y1 = self._segment_bbox(segment)
+            return {
+                "time_hhmm": time_hhmm,
+                "raw_token": combined,
+                "word_start": segment[0][0],
+                "word_end": segment[-1][0],
+                "bbox_x0": bbox_x0,
+                "bbox_y0": bbox_y0,
+                "bbox_x1": bbox_x1,
+                "bbox_y1": bbox_y1,
+                "normalization_kind": (
+                    "layout_segment_cleanup" if len(segment) > 1 else "layout_time_cleanup"
+                ),
+            }
+        return None
+
+    def _segment_slot_words(
+        self,
+        words: list[tuple[int, dict[str, Any]]] | tuple[tuple[int, dict[str, Any]], ...],
+    ) -> list[list[tuple[int, dict[str, Any]]]]:
+        segments: list[list[tuple[int, dict[str, Any]]]] = []
+        current: list[tuple[int, dict[str, Any]]] = []
+        previous_x1: float | None = None
+        for item in words:
+            word = item[1]
+            x0 = self._float_or_none(word.get("x0"))
+            x1 = self._float_or_none(word.get("x1"))
+            if current and previous_x1 is not None and x0 is not None and (x0 - previous_x1) > 8.0:
+                segments.append(current)
+                current = []
+            current.append(item)
+            previous_x1 = x1 if x1 is not None else previous_x1
+        if current:
+            segments.append(current)
+        return segments
+
+    def _segment_bbox(
+        self,
+        segment: list[tuple[int, dict[str, Any]]],
+    ) -> tuple[float | None, float | None, float | None, float | None]:
+        x0_values: list[float] = []
+        y0_values: list[float] = []
+        x1_values: list[float] = []
+        y1_values: list[float] = []
+        for _, word in segment:
+            x0 = self._float_or_none(word.get("x0"))
+            y0 = self._float_or_none(word.get("y0"))
+            x1 = self._float_or_none(word.get("x1"))
+            y1 = self._float_or_none(word.get("y1"))
+            if x0 is not None:
+                x0_values.append(x0)
+            if y0 is not None:
+                y0_values.append(y0)
+            if x1 is not None:
+                x1_values.append(x1)
+            if y1 is not None:
+                y1_values.append(y1)
+        return (
+            min(x0_values) if x0_values else None,
+            min(y0_values) if y0_values else None,
+            max(x1_values) if x1_values else None,
+            max(y1_values) if y1_values else None,
+        )
 
     def _slot_from_x(
         self,
@@ -301,6 +375,12 @@ class CartellinoOcrParser(BaseFormatParser):
     def _float_or_none(self, value: object) -> float | None:
         try:
             return float(str(value))
+        except Exception:
+            return None
+
+    def _int_or_none(self, value: object) -> int | None:
+        try:
+            return int(str(value))
         except Exception:
             return None
 
