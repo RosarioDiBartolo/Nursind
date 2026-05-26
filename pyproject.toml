@@ -46,6 +46,7 @@ cartellino-parser-recall-audit = "cartellino_parser.parser_recall_audit.cli:main
 cartellino-filter-midnight = "cartellino_parser.filter_midnight_events.cli:main"
 cartellino-pair-employee-events = "cartellino_parser.pair_employee_events.cli:main"
 cartellino-turni-enrichment = "cartellino_parser.turni_enrichment.cli:main"
+cartellino-turni-afternoon-long = "cartellino_parser.turni_afternoon_long_export.cli:main"
 cartellino-turni-summary = "cartellino_parser.turni_employee_summary.cli:main"
 cartellino-missing-timbrature = "cartellino_parser.timbrature_missing_report.cli:main"
 cartellino-download-from-index = "cartellino_parser.download_from_index:main"
@@ -78,6 +79,7 @@ packages = [
   "cartellino_parser.pair_employee_events",
   "cartellino_parser.parser_recall_audit",
   "cartellino_parser.scan_directory",
+  "cartellino_parser.turni_afternoon_long_export",
   "cartellino_parser.timbrature_missing_report",
   "cartellino_parser.turni_employee_summary",
   "cartellino_parser.turni_enrichment",
@@ -105,6 +107,7 @@ include-package-data = false
 "cartellino_parser.pair_employee_events" = "src/pair_employee_events"
 "cartellino_parser.parser_recall_audit" = "src/parser_recall_audit"
 "cartellino_parser.scan_directory" = "src/scan_directory"
+"cartellino_parser.turni_afternoon_long_export" = "src/turni_afternoon_long_export"
 "cartellino_parser.timbrature_missing_report" = "src/timbrature_missing_report"
 "cartellino_parser.turni_employee_summary" = "src/turni_employee_summary"
 "cartellino_parser.turni_enrichment" = "src/turni_enrichment"

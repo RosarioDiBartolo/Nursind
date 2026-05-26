@@ -136,6 +136,13 @@ class TurniEnrichmentRequest(PublicModel):
     verbose: bool = False
 
 
+class TurniAfternoonLongExportRequest(PublicModel):
+    enriched_dir: Path | str | None = None
+    output_dir: Path | str | None = None
+    report_json: Path | str | None = None
+    verbose: bool = False
+
+
 class TurniEmployeeSummaryRequest(PublicModel):
     enriched_dir: Path | str | None = None
     out: Path | str | None = None
@@ -180,4 +187,3 @@ def _coerce_list_of_mappings(value: Any) -> list[dict[str, Any]]:
         if isinstance(item, Mapping):
             rows.append({str(key): value for key, value in item.items()})
     return rows
-

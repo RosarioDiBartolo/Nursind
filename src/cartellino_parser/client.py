@@ -14,6 +14,7 @@ from .models import (
     PipelineRunResult,
     ScanRequest,
     StageReport,
+    TurniAfternoonLongExportRequest,
     TurniEmployeeSummaryRequest,
     TurniEnrichmentRequest,
 )
@@ -257,6 +258,28 @@ class PipelineClient:
                 year_end=resolved.year_end,
                 output_format=resolved.output_format,
                 min_hours=resolved.min_hours,
+                verbose=resolved.verbose,
+            )
+        )
+        return StageReport.from_payload(payload)
+
+    def export_afternoon_long_shifts(
+        self,
+        request: TurniAfternoonLongExportRequest | None = None,
+        **kwargs: Any,
+    ) -> StageReport:
+        from cartellino_parser.turni_afternoon_long_export.options import (
+            TurniAfternoonLongExportOptions,
+        )
+        from cartellino_parser.turni_afternoon_long_export.service import run_from_options
+
+        resolved = self._coerce_request(TurniAfternoonLongExportRequest, request, kwargs)
+        defaults = TurniAfternoonLongExportOptions()
+        payload = run_from_options(
+            TurniAfternoonLongExportOptions(
+                enriched_dir=self._path_value(resolved.enriched_dir, defaults.enriched_dir),
+                output_dir=self._path_value(resolved.output_dir, defaults.output_dir),
+                report_json=self._path_value(resolved.report_json, defaults.report_json),
                 verbose=resolved.verbose,
             )
         )

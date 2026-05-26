@@ -36,12 +36,17 @@ Canonical pipeline root example:
 
 ```powershell
 python -m "src.turni_enrichment" --input-dir "output/default/shifts" --out-dir "output/default/enrichment" --min-hours 6 --verbose
+python -m "src.turni_afternoon_long_export" --enriched-dir "output/default/enrichment" --out-dir "output/afternoon_long_export" --verbose
 python -m pytest -q
 ```
 
 Optional flags:
 - `--no-holidays`: classify `F` using Sundays only
 - `--stats-json "<PATH>"`: write enrichment run stats as JSON
+
+## Post-enrichment export
+
+Use `python -m "src.turni_afternoon_long_export"` when you want one CSV per employee containing only the enriched rows where both `is_afternoon` and `is_long` are true.
 
 ## Function-level testing (`turni_enrichment`)
 

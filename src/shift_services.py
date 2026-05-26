@@ -15,7 +15,7 @@ def to_datetime_series(values: pd.Series) -> pd.Series:
         return pd.to_datetime(values, errors="coerce")
 
 
-def _to_bool_series(values: pd.Series) -> pd.Series:
+def to_bool_series(values: pd.Series) -> pd.Series:
     if values.dtype == bool:
         return values.fillna(False)
     normalized = values.astype(str).str.strip().str.lower()
@@ -27,9 +27,9 @@ def assign_turno_code(df: pd.DataFrame) -> pd.Series:
     if not required_cols.issubset(set(df.columns)):
         return pd.Series(index=df.index, dtype="object")
 
-    is_holiday = _to_bool_series(df["is_holiday"])
-    is_afternoon = _to_bool_series(df["is_afternoon"])
-    is_night = _to_bool_series(df["is_night"])
+    is_holiday = to_bool_series(df["is_holiday"])
+    is_afternoon = to_bool_series(df["is_afternoon"])
+    is_night = to_bool_series(df["is_night"])
 
     turno_code = pd.Series("D", index=df.index, dtype="object")
     turno_code = turno_code.mask(is_afternoon, "P")
@@ -44,9 +44,9 @@ def assign_turno_bucket(df: pd.DataFrame, *, min_hours: float = 6.0) -> pd.Serie
         return pd.Series(index=df.index, dtype="object")
 
     duration_hours = pd.to_numeric(df["duration_hours"], errors="coerce")
-    is_holiday = _to_bool_series(df["is_holiday"])
-    is_afternoon = _to_bool_series(df["is_afternoon"])
-    is_night = _to_bool_series(df["is_night"])
+    is_holiday = to_bool_series(df["is_holiday"])
+    is_afternoon = to_bool_series(df["is_afternoon"])
+    is_night = to_bool_series(df["is_night"])
     is_long = duration_hours > float(min_hours)
 
     bucket = pd.Series("S", index=df.index, dtype="object")
@@ -191,4 +191,5 @@ __all__ = [
     "assign_turno_code",
     "compute_turno",
     "to_datetime_series",
+    "to_bool_series",
 ]
