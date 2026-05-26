@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+import shutil
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -17,6 +18,7 @@ from .options import (
     TurniAfternoonLongExportOptions,
     default_enriched_dir,
     default_output_dir,
+    default_pairs_dir,
     default_report_json_path,
 )
 
@@ -41,10 +43,19 @@ def _employee_from_path(path: Path) -> str:
 
 
 def _output_csv_path(*, output_dir: str | Path, employee: str) -> str:
-    filename = (
-        f"{safe_name(employee)}{TURNI_AFTERNOON_LONG_EXPORT_ARTIFACTS.file_suffix}"
-    )
-    return str(Path(output_dir) / filename)
+    safe_employee = safe_name(employee)
+    filename = f"{safe_employee}{TURNI_AFTERNOON_LONG_EXPORT_ARTIFACTS.filtered_file_suffix}"
+    return str(Path(output_dir) / safe_employee / filename)
+
+
+def _output_pairs_csv_path(*, output_dir: str | Path, employee: str) -> str:
+    safe_employee = safe_name(employee)
+    filename = f"{safe_employee}{TURNI_AFTERNOON_LONG_EXPORT_ARTIFACTS.pairs_file_suffix}"
+    return str(Path(output_dir) / safe_employee / filename)
+
+
+def _source_pairs_csv_path(*, pairs_dir: str | Path, employee: str) -> Path:
+    return Path(pairs_dir) / f"{safe_name(employee)}.pairs.csv"
 
 
 def _empty_like(df: pd.DataFrame) -> pd.DataFrame:
@@ -141,18 +152,25 @@ def process_one_enriched_file(
     enriched_file: str | Path,
     *,
     output_dir: str | None = None,
+    pairs_dir: str | None = None,
 ) -> dict[str, Any]:
     output_dir = output_dir or default_output_dir()
+    pairs_dir = pairs_dir or default_pairs_dir()
     source_path = Path(enriched_file)
     employee = _employee_from_path(source_path)
     out_path = _output_csv_path(output_dir=output_dir, employee=employee)
+    source_pairs_path = _source_pairs_csv_path(pairs_dir=pairs_dir, employee=employee)
+    output_pairs_path = _output_pairs_csv_path(output_dir=output_dir, employee=employee)
     result: dict[str, Any] = {
         "status": "error",
         "source_enriched_csv": str(source_path),
+        "source_pairs_csv": str(source_pairs_path),
         "output_filtered_csv": os.path.abspath(out_path),
+        "output_pairs_csv": os.path.abspath(output_pairs_path),
         "employee": employee,
         "rows_total": 0,
         "rows_selected": 0,
+        "pairs_rows": 0,
         "error_code": None,
         "error": None,
     }
@@ -179,6 +197,22 @@ def process_one_enriched_file(
         _empty_like(df).to_csv(out_path, index=False)
     else:
         formatted.to_csv(out_path, index=False)
+
+    if not source_pairs_path.exists():
+        result["error_code"] = "missing_pairs"
+        result["error"] = f"Missing pairs file: {source_pairs_path}"
+        return result
+
+    try:
+        pairs_df = pd.read_csv(source_pairs_path)
+    except Exception as exc:
+        result["error_code"] = "pairs_read_error"
+        result["error"] = f"{type(exc).__name__}: {exc}"
+        return result
+
+    result["pairs_rows"] = int(len(pairs_df))
+    ensure_parent_dir(output_pairs_path)
+    shutil.copyfile(source_pairs_path, output_pairs_path)
     result["status"] = "ok"
     return result
 
@@ -188,9 +222,11 @@ def process_many_enriched_files(
     *,
     output_dir: str | None = None,
     enriched_dir: str | None = None,
+    pairs_dir: str | None = None,
 ) -> dict[str, Any]:
     output_dir = output_dir or default_output_dir()
     enriched_dir = enriched_dir or default_enriched_dir()
+    pairs_dir = pairs_dir or default_pairs_dir()
     normalized_files = sorted(Path(path) for path in enriched_files)
 
     stats: dict[str, Any] = {
@@ -200,6 +236,7 @@ def process_many_enriched_files(
         "employees_total": len(normalized_files),
         "rows_total": 0,
         "rows_selected": 0,
+        "pairs_rows": 0,
         "files_with_selected_rows": 0,
         "files_without_selected_rows": 0,
     }
@@ -210,7 +247,11 @@ def process_many_enriched_files(
         employee_name = _employee_from_path(enriched_file)
         logger.info("Employee %s/%s: %s", file_index, len(normalized_files), employee_name)
 
-        item = process_one_enriched_file(enriched_file, output_dir=output_dir)
+        item = process_one_enriched_file(
+            enriched_file,
+            output_dir=output_dir,
+            pairs_dir=pairs_dir,
+        )
         items.append(item)
 
         if item["status"] != "ok":
@@ -219,6 +260,7 @@ def process_many_enriched_files(
                 {
                     "code": str(item.get("error_code") or "processing_error"),
                     "enriched_csv": str(item.get("source_enriched_csv") or ""),
+                    "pairs_csv": str(item.get("source_pairs_csv") or ""),
                     "message": str(item.get("error") or "processing_error"),
                 }
             )
@@ -227,6 +269,7 @@ def process_many_enriched_files(
         stats["files_processed"] += 1
         stats["rows_total"] += int(item["rows_total"])
         stats["rows_selected"] += int(item["rows_selected"])
+        stats["pairs_rows"] += int(item["pairs_rows"])
         if int(item["rows_selected"]) > 0:
             stats["files_with_selected_rows"] += 1
         else:
@@ -236,6 +279,7 @@ def process_many_enriched_files(
         stage=TURNI_AFTERNOON_LONG_EXPORT_ARTIFACTS.step,
         inputs={
             "enriched_dir": os.path.abspath(enriched_dir) if enriched_dir else None,
+            "pairs_dir": os.path.abspath(pairs_dir) if pairs_dir else None,
             "output_dir": os.path.abspath(output_dir),
             "filter": {"is_afternoon": True, "is_long": True},
         },
@@ -254,10 +298,12 @@ def process_many_enriched_files(
 def export_afternoon_long_from_dir(
     *,
     enriched_dir: str | None = None,
+    pairs_dir: str | None = None,
     output_dir: str | None = None,
     report_json: str | None = None,
 ) -> dict[str, Any]:
     enriched_dir = enriched_dir or default_enriched_dir()
+    pairs_dir = pairs_dir or default_pairs_dir()
     output_dir = output_dir or default_output_dir()
     report_json = report_json or default_report_json_path()
     ensure_dir(output_dir)
@@ -267,6 +313,7 @@ def export_afternoon_long_from_dir(
         enriched_files,
         output_dir=output_dir,
         enriched_dir=enriched_dir,
+        pairs_dir=pairs_dir,
     )
     report["outputs"]["report_json"] = str(Path(report_json).resolve())
     write_json_report(report_json, compact_stage_report(report))
@@ -276,6 +323,7 @@ def export_afternoon_long_from_dir(
 def run_from_options(options: TurniAfternoonLongExportOptions) -> dict[str, Any]:
     return export_afternoon_long_from_dir(
         enriched_dir=options.enriched_dir,
+        pairs_dir=options.pairs_dir,
         output_dir=options.output_dir,
         report_json=options.report_json,
     )

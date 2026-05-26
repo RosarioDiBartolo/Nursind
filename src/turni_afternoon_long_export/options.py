@@ -14,6 +14,10 @@ def default_enriched_dir() -> str:
     return str(build_pipeline_paths().turni_enrichment.dir)
 
 
+def default_pairs_dir() -> str:
+    return str(build_pipeline_paths().pair_employee.dir)
+
+
 def default_output_dir() -> str:
     return str(
         build_pipeline_paths().layout.output_root
@@ -28,6 +32,7 @@ def default_report_json_path() -> str:
 @dataclass(slots=True)
 class TurniAfternoonLongExportOptions:
     enriched_dir: str = field(default_factory=default_enriched_dir)
+    pairs_dir: str = field(default_factory=default_pairs_dir)
     output_dir: str = field(default_factory=default_output_dir)
     report_json: str = field(default_factory=default_report_json_path)
     verbose: bool = False
@@ -44,6 +49,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--enriched-dir",
         default=default_enriched_dir(),
         help=f"Directory dei CSV arricchiti (default: {default_enriched_dir()})",
+    )
+    parser.add_argument(
+        "--pairs-dir",
+        default=default_pairs_dir(),
+        help=f"Directory dei CSV pairs per dipendente (default: {default_pairs_dir()})",
     )
     parser.add_argument(
         "--out-dir",
@@ -63,6 +73,7 @@ def parse_options(argv: Sequence[str] | None = None) -> TurniAfternoonLongExport
     args = build_parser().parse_args(argv)
     return TurniAfternoonLongExportOptions(
         enriched_dir=str(Path(args.enriched_dir)),
+        pairs_dir=str(Path(args.pairs_dir)),
         output_dir=str(Path(args.out_dir)),
         report_json=str(Path(args.report_json)),
         verbose=bool(args.verbose),

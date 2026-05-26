@@ -36,7 +36,7 @@ Canonical pipeline root example:
 
 ```powershell
 python -m "src.turni_enrichment" --input-dir "output/default/shifts" --out-dir "output/default/enrichment" --min-hours 6 --verbose
-python -m "src.turni_afternoon_long_export" --enriched-dir "output/default/enrichment" --out-dir "output/afternoon_long_export" --verbose
+python -m "src.turni_afternoon_long_export" --enriched-dir "output/default/enrichment" --pairs-dir "output/default/shifts" --out-dir "output/afternoon_long_export" --verbose
 python -m pytest -q
 ```
 
@@ -46,7 +46,10 @@ Optional flags:
 
 ## Post-enrichment export
 
-Use `python -m "src.turni_afternoon_long_export"` when you want one CSV per employee containing only the enriched rows where both `is_afternoon` and `is_long` are true.
+Use `python -m "src.turni_afternoon_long_export"` when you want one folder per employee containing:
+
+- `<employee>.pomeriggi.csv`: filtered enriched rows where `is_afternoon`, `is_long`, and rounded entry target `14:00` are true
+- `<employee>.csv`: the matching result file from the pairs step
 
 ## Function-level testing (`turni_enrichment`)
 

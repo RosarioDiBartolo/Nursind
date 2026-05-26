@@ -7,7 +7,8 @@ from dataclasses import dataclass
 class TurniAfternoonLongExportArtifactsSpec:
     step: str = "turni_afternoon_long_export"
     report_json: str = "turni_afternoon_long_export.report.json"
-    file_suffix: str = ".afternoon_long.csv"
+    filtered_file_suffix: str = ".pomeriggi.csv"
+    pairs_file_suffix: str = ".csv"
     output_dir_name: str = "afternoon_long_export"
 
 

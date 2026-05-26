@@ -77,6 +77,17 @@ Columns:
 
 Produced by: `src.turni_enrichment`
 
+## afternoon long export (`<employee>/<employee>.pomeriggi.csv`)
+
+Columns:
+- `dipendente`
+- `entrata`, `uscita`, `durata turno`
+- `Festivo`, `Turno`, `Data`
+
+The same employee folder also contains `<employee>.csv`, copied from the matching `*.pairs.csv` produced by `src.pair_employee_events`.
+
+Produced by: `src.turni_afternoon_long_export`
+
 ## turni_employee_summary.csv
 
 Columns:

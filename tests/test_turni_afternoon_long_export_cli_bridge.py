@@ -39,6 +39,8 @@ def test_turni_afternoon_long_export_cli_delegates_to_public_pipeline_client(
         [
             "--enriched-dir",
             str(tmp_path / "enrichment"),
+            "--pairs-dir",
+            str(tmp_path / "shifts"),
             "--out-dir",
             str(tmp_path / "afternoon_long"),
             "--report-json",
@@ -50,6 +52,7 @@ def test_turni_afternoon_long_export_cli_delegates_to_public_pipeline_client(
     request = captured["request"]
     assert isinstance(request, TurniAfternoonLongExportRequest)
     assert request.enriched_dir == str(tmp_path / "enrichment")
+    assert request.pairs_dir == str(tmp_path / "shifts")
     assert request.output_dir == str(tmp_path / "afternoon_long")
     assert request.report_json == str(
         tmp_path / "afternoon_long" / "turni_afternoon_long_export.report.json"

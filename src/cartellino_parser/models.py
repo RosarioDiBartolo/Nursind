@@ -138,6 +138,7 @@ class TurniEnrichmentRequest(PublicModel):
 
 class TurniAfternoonLongExportRequest(PublicModel):
     enriched_dir: Path | str | None = None
+    pairs_dir: Path | str | None = None
     output_dir: Path | str | None = None
     report_json: Path | str | None = None
     verbose: bool = False
