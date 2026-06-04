@@ -29,6 +29,7 @@ def test_load_notebook_context_resolves_canonical_pipeline_paths(tmp_path: Path)
     assert ctx.paths.layout.enrichment_dir.name == "enrichment"
     assert ctx.paths.layout.aggregation_dir.name == "aggregation"
     assert Path(ctx.base_output_dir).name == "custom-output"
+    assert not ctx.paths.layout.pipeline_root.exists()
 
     scan_cfg = ctx.step("scan")
     assert scan_cfg["included_name"] == "included.index.json"

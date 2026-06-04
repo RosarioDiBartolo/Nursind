@@ -115,7 +115,7 @@ def load_notebook_context(config_path: str | Path | None = None) -> NotebookCont
         root_id=root_id,
         root_prefix=root_prefix,
         base_output=base_output_dir,
-        create_dirs=True,
+        create_dirs=False,
     )
 
     return NotebookContext(
@@ -136,4 +136,3 @@ __all__ = [
     "ROOT_ID_PLACEHOLDER",
     "load_notebook_context",
 ]
-
