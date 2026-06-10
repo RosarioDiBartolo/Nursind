@@ -9,6 +9,7 @@ class TurniAfternoonLongExportArtifactsSpec:
     report_json: str = "turni_afternoon_long_export.report.json"
     filtered_file_suffix: str = ".pomeriggi.csv"
     pairs_file_suffix: str = ".csv"
+    pdf_file_suffix: str = ".pdf"
     output_dir_name: str = "afternoon_long_export"
 
 

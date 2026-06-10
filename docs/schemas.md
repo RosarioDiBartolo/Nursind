@@ -84,7 +84,9 @@ Columns:
 - `entrata`, `uscita`, `durata turno`
 - `Festivo`, `Turno`, `Data`
 
-The same employee folder also contains `<employee>.csv`, copied from the matching `*.pairs.csv` produced by `src.pair_employee_events`.
+The same employee folder also contains:
+- `<employee>.csv`, copied from the matching `*.pairs.csv` produced by `src.pair_employee_events`
+- `<employee>.pdf`, a per-employee report with the title `Report Pomeriggi oltre le 6 ore`, summary metrics, and the filtered table
 
 Produced by: `src.turni_afternoon_long_export`
 

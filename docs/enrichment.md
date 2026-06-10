@@ -44,13 +44,6 @@ Optional flags:
 - `--no-holidays`: classify `F` using Sundays only
 - `--stats-json "<PATH>"`: write enrichment run stats as JSON
 
-## Post-enrichment export
-
-Use `python -m "src.turni_afternoon_long_export"` when you want one folder per employee containing:
-
-- `<employee>.pomeriggi.csv`: filtered enriched rows where `is_afternoon`, `is_long`, and rounded entry target `14:00` are true
-- `<employee>.csv`: the matching result file from the pairs step
-
 ## Function-level testing (`turni_enrichment`)
 
 ```python

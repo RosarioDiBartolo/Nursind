@@ -21,6 +21,7 @@ from .options import (
     default_pairs_dir,
     default_report_json_path,
 )
+from .pdf_report import write_employee_pdf_report
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +52,12 @@ def _output_csv_path(*, output_dir: str | Path, employee: str) -> str:
 def _output_pairs_csv_path(*, output_dir: str | Path, employee: str) -> str:
     safe_employee = safe_name(employee)
     filename = f"{safe_employee}{TURNI_AFTERNOON_LONG_EXPORT_ARTIFACTS.pairs_file_suffix}"
+    return str(Path(output_dir) / safe_employee / filename)
+
+
+def _output_pdf_path(*, output_dir: str | Path, employee: str) -> str:
+    safe_employee = safe_name(employee)
+    filename = f"{safe_employee}{TURNI_AFTERNOON_LONG_EXPORT_ARTIFACTS.pdf_file_suffix}"
     return str(Path(output_dir) / safe_employee / filename)
 
 
@@ -161,16 +168,19 @@ def process_one_enriched_file(
     out_path = _output_csv_path(output_dir=output_dir, employee=employee)
     source_pairs_path = _source_pairs_csv_path(pairs_dir=pairs_dir, employee=employee)
     output_pairs_path = _output_pairs_csv_path(output_dir=output_dir, employee=employee)
+    output_pdf_path = _output_pdf_path(output_dir=output_dir, employee=employee)
     result: dict[str, Any] = {
         "status": "error",
         "source_enriched_csv": str(source_path),
         "source_pairs_csv": str(source_pairs_path),
         "output_filtered_csv": os.path.abspath(out_path),
         "output_pairs_csv": os.path.abspath(output_pairs_path),
+        "output_pdf": os.path.abspath(output_pdf_path),
         "employee": employee,
         "rows_total": 0,
         "rows_selected": 0,
         "pairs_rows": 0,
+        "pdf_written": False,
         "error_code": None,
         "error": None,
     }
@@ -213,6 +223,12 @@ def process_one_enriched_file(
     result["pairs_rows"] = int(len(pairs_df))
     ensure_parent_dir(output_pairs_path)
     shutil.copyfile(source_pairs_path, output_pairs_path)
+    write_employee_pdf_report(
+        employee=employee,
+        rows=formatted,
+        output_path=output_pdf_path,
+    )
+    result["pdf_written"] = True
     result["status"] = "ok"
     return result
 
@@ -237,6 +253,7 @@ def process_many_enriched_files(
         "rows_total": 0,
         "rows_selected": 0,
         "pairs_rows": 0,
+        "pdf_files": 0,
         "files_with_selected_rows": 0,
         "files_without_selected_rows": 0,
     }
@@ -270,6 +287,8 @@ def process_many_enriched_files(
         stats["rows_total"] += int(item["rows_total"])
         stats["rows_selected"] += int(item["rows_selected"])
         stats["pairs_rows"] += int(item["pairs_rows"])
+        if item.get("pdf_written"):
+            stats["pdf_files"] += 1
         if int(item["rows_selected"]) > 0:
             stats["files_with_selected_rows"] += 1
         else:

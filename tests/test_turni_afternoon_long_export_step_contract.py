@@ -1,12 +1,14 @@
 from pathlib import Path
 
 import pandas as pd
+from reportlab.lib.styles import getSampleStyleSheet
 
 from cartellino_parser.turni_afternoon_long_export.service import (
     export_afternoon_long_from_dir,
     process_many_enriched_files,
     process_one_enriched_file,
 )
+from cartellino_parser.turni_afternoon_long_export.pdf_report import _data_table
 
 
 def _write_enriched_csv(path: Path, rows: list[dict[str, object]]) -> None:
@@ -17,6 +19,27 @@ def _write_enriched_csv(path: Path, rows: list[dict[str, object]]) -> None:
 def _write_pairs_csv(path: Path, rows: list[dict[str, object]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     pd.DataFrame(rows).to_csv(path, index=False)
+
+
+def test_turni_afternoon_long_export_pdf_table_is_centered() -> None:
+    table = _data_table(
+        pd.DataFrame(
+            [
+                {
+                    "dipendente": "Mario Rossi",
+                    "entrata": "2025-05-10 13:40:00",
+                    "uscita": "2025-05-10 21:40:00",
+                    "durata turno": "08:00",
+                    "Festivo": "Festivo",
+                    "Turno": "Pomeriggio",
+                    "Data": "2025-05-10",
+                }
+            ]
+        ),
+        body_style=getSampleStyleSheet()["BodyText"],
+    )
+
+    assert table.hAlign == "CENTER"
 
 
 def test_turni_afternoon_long_export_process_one_contract(tmp_path: Path) -> None:
@@ -68,6 +91,7 @@ def test_turni_afternoon_long_export_process_one_contract(tmp_path: Path) -> Non
     assert int(result["rows_total"]) == 4
     assert int(result["rows_selected"]) == 1
     assert int(result["pairs_rows"]) == 1
+    assert result["pdf_written"] is True
 
     out_csv = Path(str(result["output_filtered_csv"]))
     assert out_csv.exists()
@@ -97,6 +121,11 @@ def test_turni_afternoon_long_export_process_one_contract(tmp_path: Path) -> Non
     copied_pairs = pd.read_csv(pairs_csv)
     assert len(copied_pairs) == 1
     assert str(copied_pairs.loc[0, "duration_hhmm"]) == "08:00"
+
+    pdf_path = Path(str(result["output_pdf"]))
+    assert pdf_path == output_dir / "Mario Rossi" / "Mario Rossi.pdf"
+    assert pdf_path.exists()
+    assert pdf_path.read_bytes().startswith(b"%PDF")
 
 
 def test_turni_afternoon_long_export_process_many_contract(tmp_path: Path) -> None:
@@ -136,6 +165,7 @@ def test_turni_afternoon_long_export_process_many_contract(tmp_path: Path) -> No
     assert int(stats["rows_total"]) == 4
     assert int(stats["rows_selected"]) == 1
     assert int(stats["pairs_rows"]) == 2
+    assert int(stats["pdf_files"]) == 2
     assert int(stats["files_with_selected_rows"]) == 1
     assert int(stats["files_without_selected_rows"]) == 1
     assert len(report["items"]) == 2
@@ -166,3 +196,4 @@ def test_turni_afternoon_long_export_from_dir_writes_report(tmp_path: Path) -> N
     assert report_json.exists()
     assert (output_dir / "Mario Rossi" / "Mario Rossi.pomeriggi.csv").exists()
     assert (output_dir / "Mario Rossi" / "Mario Rossi.csv").exists()
+    assert (output_dir / "Mario Rossi" / "Mario Rossi.pdf").exists()

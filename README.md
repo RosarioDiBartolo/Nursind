@@ -432,6 +432,7 @@ cartellino-extract-documents --index "<shared_output_root>/scan/included.index.j
 - `docs/ingestion.md`
 - `docs/preparation.md`
 - `docs/enrichment.md`
+- `docs/afternoon_long_export.md`
 - `docs/aggregation.md`
 - `docs/schemas.md`
 - `docs/shared_logic_registry.md`
