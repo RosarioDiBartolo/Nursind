@@ -6,10 +6,13 @@ __pycache__/
 downloads_out
 cartellini_out
 token.json
+*.out_dir
+pipeline.json
 # C extensions
 *.so
 .tmp
 *.json
+!pipeline.json
 !src/notebooks/pipeline_config.json
 *.csv
 data/*

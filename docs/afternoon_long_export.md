@@ -1,42 +1,19 @@
-# Afternoon Long Export
+# Afternoon Long-Shift Export
 
-This step exports per-employee files for long afternoon shifts.
-
-## Entry point
-
-- `python -m "src.turni_afternoon_long_export"`
-- Console script: `cartellino-turni-afternoon-long`
-
-## Input
-
-- Enriched CSVs: `<pipeline>/enrichment/*.enriched.csv`
-- Pairs CSVs: `<pipeline>/shifts/*.pairs.csv`
-
-## Output
-
-One folder per employee under the selected output directory:
-
-- `<employee>/<employee>.pomeriggi.csv`: filtered enriched rows where `is_afternoon`, `is_long`, and rounded entry target `14:00` are true
-- `<employee>/<employee>.csv`: copied from the matching pairs-step result
-- `<employee>/<employee>.pdf`: employee report titled `Report Pomeriggi oltre le 6 ore`, with summary metrics and the filtered table
-
-## Run
+Optional utility:
 
 ```powershell
-cartellino-turni-afternoon-long --enriched-dir "gruppi/GRUPPO 2/enrichment" --pairs-dir "gruppi/GRUPPO 2/shifts" --out-dir "gruppi/GRUPPO 2/afternoon_long_export" --verbose
+.\.venv\Scripts\python.exe src\scripts\enrich_shifts.py
+.\.venv\Scripts\python.exe src\scripts\tools\afternoon_export.py
 ```
 
-Equivalent module command:
+The export requires `enrichment/*.enriched.csv`. It exits with an error and
+writes an explanatory report when the enrichment step has not been run.
 
-```powershell
-.\.venv\Scripts\python.exe -m cartellino_parser.turni_afternoon_long_export --enriched-dir "gruppi/GRUPPO 2/enrichment" --pairs-dir "gruppi/GRUPPO 2/shifts" --out-dir "gruppi/GRUPPO 2/afternoon_long_export" --verbose
-```
+For each employee it writes:
 
-## PDF contents
+- `<employee>/<employee>.pomeriggi.csv`
+- `<employee>/<employee>.csv`
+- `<employee>/<employee>.pdf`
 
-Each employee PDF includes:
-
-- employee name and surname
-- title: `Report Pomeriggi oltre le 6 ore`
-- summary metrics: number of rows, total duration, date period, holiday count
-- table with the filtered employee rows
+Implementation: `core.tools.afternoon_export`.

@@ -1,4 +1,4 @@
-﻿import io
+import io
 from pathlib import Path
 import sys
 import zipfile
@@ -6,9 +6,9 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from cartellino_parser.drive_service.names import normalize_term  # noqa: E402
-import cartellino_parser.scan_directory.scan_service as scan_service  # noqa: E402
-from cartellino_parser.scan_directory.scan_service import file_excluded, folder_excluded  # noqa: E402
+from core.drive.names import normalize_term  # noqa: E402
+import core.drive.scan.scan_service as scan_service  # noqa: E402
+from core.drive.scan.scan_service import file_excluded, folder_excluded  # noqa: E402
 
 
 def test_folder_excluded_normalizes_name():

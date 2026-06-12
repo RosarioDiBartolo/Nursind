@@ -9,7 +9,7 @@ Top-level sections:
 - `document`
 - `layout`
 
-Produced by: `src.extract_documents_from_index`
+Produced by: `core.documents`
 
 ## extracted text employee CSV (`<employee>.csv`)
 
@@ -21,7 +21,7 @@ Columns:
 - `source_text_ref`, `doc_json`, `has_text_layer`
 - `selected_mode`, `tried_vertical`, `normal_quality`, `vertical_quality`
 
-Produced by: `src.extract_documents_from_index`
+Produced by: `core.documents`
 
 ## events.csv
 
@@ -34,7 +34,7 @@ Columns:
 - `source_page_no`, `source_line_id`, `source_line_no`, `source_slot`
 - `source_event_ref`
 
-Produced by: `src.extract_events_from_documents`
+Produced by: `core.events.extraction`
 
 ## pages.csv
 
@@ -48,13 +48,13 @@ Columns:
 - `events_extracted`, `events_dropped_missing_year_month`
 - `coverage_ratio_page`, `header_preview`, `parse_error`
 
-Produced by: `src.extract_events_from_documents`
+Produced by: `core.events.extraction`
 
 ## events.cleaned.csv
 
 Same schema as `events.csv`, but with fake-midnight events removed.
 
-Produced by: `src.filter_midnight_events`
+Produced by: `core.events.filtering`
 
 ## employee pairs (`*.pairs.csv`)
 
@@ -65,7 +65,7 @@ Columns:
 - `file_id`, `file_name`, `source_csv`
 - Optional: `closed_inferred` (only when pairing is run with `--keep-inferred-column`)
 
-Produced by: `src.pair_employee_events`
+Produced by: `core.shifts.pairing`
 
 ## enriched employee pairs (`*.enriched.csv`)
 
@@ -75,7 +75,7 @@ Columns:
 - `is_holiday`, `is_afternoon`, `is_night`, `turno_code`, `turno_bucket`, `year`
 - `turno`, `file_id`, `file_name`, `source_csv`
 
-Produced by: `src.turni_enrichment`
+Produced by: `core.shifts.enrichment`
 
 ## afternoon long export (`<employee>/<employee>.pomeriggi.csv`)
 
@@ -85,10 +85,10 @@ Columns:
 - `Festivo`, `Turno`, `Data`
 
 The same employee folder also contains:
-- `<employee>.csv`, copied from the matching `*.pairs.csv` produced by `src.pair_employee_events`
+- `<employee>.csv`, copied from the matching `*.pairs.csv` produced by `core.shifts.pairing`
 - `<employee>.pdf`, a per-employee report with the title `Report Pomeriggi oltre le 6 ore`, summary metrics, and the filtered table
 
-Produced by: `src.turni_afternoon_long_export`
+Produced by: `core.tools.afternoon_export`
 
 ## turni_employee_summary.csv
 
@@ -96,7 +96,7 @@ Columns:
 - `employee`, `turno`
 - One column per year in the selected range (`--year-start`..`--year-end`)
 
-Produced by: `src.turni_employee_summary`
+Produced by: `core.shifts.summary`
 
 ## missing_timbrature.summary.csv
 
@@ -107,7 +107,7 @@ Columns:
 - `scan_without_included_files`, `missing_text_layer_files`, `pages_missing_year_month`
 - `finding_count`, `coverage_gap_count`
 
-Produced by: `src.timbrature_missing_report`
+Produced by: `core.tools.missing_report`
 
 ## missing_timbrature.findings.csv
 
@@ -117,7 +117,7 @@ Columns:
 - `page_no`, `year`, `month`, `year_month`
 - `detail`, `events_dropped`
 
-Produced by: `src.timbrature_missing_report`
+Produced by: `core.tools.missing_report`
 
 ## missing_timbrature.coverage.csv
 
@@ -127,7 +127,7 @@ Columns:
 - `year`, `month`, `year_month`
 - `detail`
 
-Produced by: `src.timbrature_missing_report`
+Produced by: `core.tools.missing_report`
 
 ## suspicious_pages.csv
 
@@ -144,5 +144,5 @@ Columns:
 - `time_token_count`, `time_line_count`, `event_candidate_line_count`
 - `page_text_found`, `header_preview`, `detail`
 
-Produced by: `src.parser_recall_audit`
+Produced by: `core.tools.parser_recall`
 

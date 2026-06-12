@@ -30,6 +30,6 @@ Keep this file **generic**. Project-specific context should live in `README.md` 
 - Split code by functional boundaries (business logic vs I/O vs orchestration), not by file size alone.
 - Limit each file/module to at most 3 responsibilities; split when a 4th responsibility appears.
 - Prefer explicit, readable control flow over cleverness.
-- Use relative imports within a package; use absolute imports for third-party deps.
+- Use absolute `core.*` imports for shared project code and absolute imports for third-party deps.
 - Use `logging.getLogger(__name__)` and configurable log levels for CLIs.
-- Keep installed console scripts and `python -m "cartellino_parser.<step>"` stable, but prefer concrete imports like `cartellino_parser.<step>.service` and `cartellino_parser.<step>.options` in tests, notebooks, and docs instead of package-root re-export APIs.
+- Keep `src/scripts/*.py` thin and directly runnable. The project has no public package API or installed console scripts.

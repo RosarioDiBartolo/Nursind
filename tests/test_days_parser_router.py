@@ -1,9 +1,9 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import json
 from pathlib import Path
 
-from cartellino_parser.extract_events_from_documents.parsers import load_parsers, resolve_parser
+from core.events.extraction.parsers import load_parsers, resolve_parser
 
 FIXTURES_ROOT = Path(__file__).parent / "fixtures" / "days_parsers"
 

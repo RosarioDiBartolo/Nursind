@@ -9,12 +9,12 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from cartellino_parser.drive_service.archive_utils import build_archive_member_id  # noqa: E402
-import cartellino_parser.drive_service.index_downloads as index_downloads  # noqa: E402
-from cartellino_parser.drive_service.io_json import load_json  # noqa: E402
-import cartellino_parser.extract_documents_from_index.workers as workers  # noqa: E402
-from cartellino_parser.extract_documents_from_index.planning import collect_docs  # noqa: E402
-import cartellino_parser.pdf_text_extraction as pdf_text_extraction  # noqa: E402
+from core.drive.archive_utils import build_archive_member_id  # noqa: E402
+import core.drive.index_downloads as index_downloads  # noqa: E402
+from core.drive.io_json import load_json  # noqa: E402
+import core.documents.workers as workers  # noqa: E402
+from core.documents.planning import collect_docs  # noqa: E402
+import core.pdf as pdf_text_extraction  # noqa: E402
 
 
 @pytest.fixture(autouse=True)

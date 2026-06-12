@@ -1,0 +1,1 @@
+{"pipeline": {"name": "demo", "base_output_dir": "runs"}, "drive": {"root_id": "drive-root"}, "steps": {"scan": {"workers": 3}}}

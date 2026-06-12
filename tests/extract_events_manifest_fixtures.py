@@ -1,9 +1,9 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import csv
 from pathlib import Path
 
-from cartellino_parser.drive_service.text_extraction_csv import (
+from core.drive.text_extraction_csv import (
     TEXT_EXTRACTION_COLUMNS,
     TEXT_EXTRACTION_DOC_SCHEMA_VERSION,
     write_text_extraction_doc,

@@ -1,8 +1,8 @@
-﻿from pathlib import Path
+from pathlib import Path
 
 import pandas as pd
 
-from cartellino_parser.extract_events_from_documents.service import process_one_text_row
+from core.events.extraction.service import process_one_text_row
 from tests.extract_events_manifest_fixtures import build_manifest_row
 
 

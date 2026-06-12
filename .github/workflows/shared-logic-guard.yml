@@ -25,7 +25,7 @@ jobs:
           echo "Changed files:"
           echo "$CHANGED_FILES"
 
-          SHARED_PATTERN='^(src/drive_service/|src/raw_text_parsing\.py$|src/pdf_text_extraction\.py$|src/shift_services\.py$)'
+          SHARED_PATTERN='^src/core/'
           REGISTRY_FILE='docs/shared_logic_registry.md'
 
           if echo "$CHANGED_FILES" | grep -Eq "$SHARED_PATTERN"; then
