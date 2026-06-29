@@ -9,7 +9,7 @@ import pandas as pd
 
 from core.drive.fs_utils import ensure_parent_dir
 from core.reporting import build_stage_report, compact_stage_report, write_json_report
-from core.shift_logic import assign_turno_bucket, to_datetime_series
+from core.shift_logic import ShiftClassifier, assign_turno_bucket, to_datetime_series
 
 from .options import (
     DEFAULT_OUTPUT_FORMAT,
@@ -70,13 +70,50 @@ def _ensure_year_column(df: pd.DataFrame) -> pd.DataFrame:
     return working
 
 
+def _duration_hhmm_to_hours(values: pd.Series) -> pd.Series:
+    parts = values.astype(str).str.strip().str.extract(r"^(?P<hours>\d+):(?P<minutes>\d{1,2})$")
+    hours = pd.to_numeric(parts["hours"], errors="coerce")
+    minutes = pd.to_numeric(parts["minutes"], errors="coerce")
+    return hours + (minutes / 60.0)
+
+
+def _ensure_duration_hours(df: pd.DataFrame) -> pd.DataFrame:
+    if "duration_hours" in df.columns:
+        return df
+    working = df.copy()
+    if "entry_ts" in working.columns and "exit_ts" in working.columns:
+        working = working.assign(
+            entry_ts=to_datetime_series(working["entry_ts"]),
+            exit_ts=to_datetime_series(working["exit_ts"]),
+        )
+        overnight = working["exit_ts"] < working["entry_ts"]
+        if overnight.any():
+            working.loc[overnight, "exit_ts"] = working.loc[overnight, "exit_ts"] + pd.Timedelta(
+                days=1
+            )
+        duration_hours = (working["exit_ts"] - working["entry_ts"]).dt.total_seconds() / 3600.0
+        working = working.assign(duration_hours=duration_hours)
+        return working
+    if "duration_hhmm" in working.columns:
+        working = working.assign(duration_hours=_duration_hhmm_to_hours(working["duration_hhmm"]))
+    return working
+
+
+def _ensure_turno_flags(df: pd.DataFrame) -> pd.DataFrame:
+    required_cols = {"is_holiday", "is_afternoon", "is_night"}
+    if required_cols.issubset(set(df.columns)):
+        return df
+    if "entry_ts" not in df.columns or "exit_ts" not in df.columns:
+        return df
+    return ShiftClassifier(include_holidays=False).classify(df)
+
+
 def _ensure_turno_bucket(df: pd.DataFrame, *, min_hours: float | None) -> pd.DataFrame:
-    if "turno_bucket" in df.columns:
+    if "turno_bucket" in df.columns and df["turno_bucket"].notna().any():
         return df
     threshold = 6.0 if min_hours is None else float(min_hours)
-    working = df.copy()
-    working["turno_bucket"] = assign_turno_bucket(working, min_hours=threshold)
-    return working
+    working = _ensure_turno_flags(_ensure_duration_hours(df.copy()))
+    return working.assign(turno_bucket=assign_turno_bucket(working, min_hours=threshold))
 
 
 def _write_csv(out_path: str, rows: list[dict[str, Any]]) -> None:
