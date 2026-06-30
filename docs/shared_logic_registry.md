@@ -18,6 +18,7 @@ Read this file before adding helpers. Logic used by multiple steps belongs in
 | `core.parsing` | Shared text/date/event parsing primitives |
 | `core.reporting` | Stage report construction and persistence |
 | `core.shift_logic` | Pair closing, datetime normalization, and shift classification |
+| `core.tools.turni_custom_counts` | Custom yearly category counts for afternoons, nights, Saturday mornings, and holiday mornings |
 
 Do not add path defaults to individual steps. Do not duplicate JSON, ZIP,
 filename, report, parser, or shift-classification helpers.

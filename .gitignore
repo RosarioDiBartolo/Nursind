@@ -12,7 +12,6 @@ pipeline.json
 *.so
 .tmp
 *.json
-!pipeline.json
 !src/notebooks/pipeline_config.json
 *.csv
 data/*

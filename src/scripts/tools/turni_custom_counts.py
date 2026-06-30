@@ -12,18 +12,21 @@ from _bootstrap import bootstrap
 bootstrap()
 
 from _common import run_script
-from core.tools.afternoon_export.options import TurniAfternoonLongExportOptions
-from core.tools.afternoon_export.service import run_from_options
+from core.tools.turni_custom_counts.options import TurniCustomCountsOptions
+from core.tools.turni_custom_counts.service import run_from_options
 
 
 def run(config, verbose: bool) -> None:
-    output_dir = config.paths.pipeline_root / "afternoon_long_export"
+    output_dir = config.paths.pipeline_root / "turni_custom_counts"
+    settings = config.step("turni_custom_counts")
     report = run_from_options(
-        TurniAfternoonLongExportOptions(
+        TurniCustomCountsOptions(
             enriched_dir=str(config.paths.enrichment_dir),
-            pairs_dir=str(config.paths.shifts_dir),
             output_dir=str(output_dir),
-            report_json=str(output_dir / "turni_afternoon_long_export.report.json"),
+            summary_csv=str(settings.get("summary_csv", "turni_custom_counts.csv")),
+            report_json=str(settings.get("report_json", "turni_custom_counts.report.json")),
+            year_start=int(settings.get("year_start", 2014)),
+            year_end=int(settings.get("year_end", 2025)),
             verbose=verbose,
         )
     )
@@ -35,7 +38,7 @@ def run(config, verbose: bool) -> None:
 if __name__ == "__main__":
     raise SystemExit(
         run_script(
-            "Export long afternoon shifts to per-employee CSV and PDF files.",
+            "Count custom shift categories from enriched shifts.",
             run,
         )
     )

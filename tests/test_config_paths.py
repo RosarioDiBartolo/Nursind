@@ -25,8 +25,11 @@ def test_config_resolves_relative_output_from_repository_root(tmp_path: Path) ->
 
     config = load_pipeline_config(config_path)
 
-    assert config.paths.pipeline_root == tmp_path / "runs" / "demo"
-    assert config.paths.scan_included_index == tmp_path / "runs" / "demo" / "scan" / "included.index.json"
+    assert config.paths.pipeline_root == tmp_path / "runs.out_dir" / "demo"
+    assert (
+        config.paths.scan_included_index
+        == tmp_path / "runs.out_dir" / "demo" / "scan" / "included.index.json"
+    )
     assert config.step("scan") == {"workers": 3}
 
 

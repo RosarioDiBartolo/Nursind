@@ -14,12 +14,12 @@ from core.tools.parser_recall.service import run_from_options
 def main() -> int:
     config = load_pipeline_config()
     setup_logging(False)
-    root = config.base_output_dir
+    root = config.paths.pipeline_root
     run_from_options(
         ParserRecallAuditOptions(
             root_dir=str(root),
-            report_json=str(Path(root) / "parser_recall_audit.report.json"),
-            suspicious_csv=str(Path(root) / "suspicious_pages.csv"),
+            report_json="parser_recall_audit.report.json",
+            suspicious_csv="suspicious_pages.csv",
         )
     )
     return 0

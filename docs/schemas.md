@@ -98,6 +98,20 @@ Columns:
 
 Produced by: `core.shifts.summary`
 
+## turni_custom_counts.csv
+
+Columns:
+- `employee`, `turno`
+- One column per year in the selected range
+
+Turno rows:
+- `P`: all afternoon shifts
+- `N`: all night shifts
+- `M`: Saturday morning shifts
+- `MF`: holiday or Sunday morning shifts
+
+Produced by: `core.tools.turni_custom_counts`
+
 ## missing_timbrature.summary.csv
 
 Columns:

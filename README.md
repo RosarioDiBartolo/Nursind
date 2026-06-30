@@ -62,10 +62,11 @@ Run these commands from the repository root:
 
 Each script accepts `--config <path>` and `--verbose`.
 
-The canonical output layout is:
+The canonical output layout appends `.out_dir` to `base_output_dir`, so generated
+artifacts stay ignored by git:
 
 ```text
-<base_output_dir>/<pipeline.name>/
+<base_output_dir>.out_dir/<pipeline.name>/
   scan/
   documents/
   events/
