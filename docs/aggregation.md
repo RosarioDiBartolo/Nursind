@@ -5,6 +5,8 @@
 ```
 
 Reads enriched employee CSV files and writes the canonical yearly summary
-under `aggregation/`. Settings come from `steps.summarize_shifts`.
+under `aggregation/` as both CSV and Excel workbook files. By default, year
+columns are discovered from the enriched rows; `steps.summarize_shifts.year_start`
+and `year_end` can constrain an explicit range.
 
 Implementation: `core.shifts.summary`.

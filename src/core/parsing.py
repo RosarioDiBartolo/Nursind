@@ -5,8 +5,10 @@ from __future__ import annotations
 import re
 import unicodedata
 from dataclasses import dataclass
+from datetime import date, datetime
 from pathlib import Path
 
+DOW_BY_WEEKDAY: tuple[str, ...] = ("LU", "MA", "ME", "GI", "VE", "SA", "DO")
 DOW_PREFIXES: tuple[tuple[str, str], ...] = (
     ("luned", "LU"),
     ("lun", "LU"),
@@ -169,6 +171,12 @@ def to_dow(value: str) -> str | None:
             if candidate.startswith(prefix):
                 return code
     return None
+
+
+def calendar_dow(value: date | datetime | None) -> str | None:
+    if value is None:
+        return None
+    return DOW_BY_WEEKDAY[value.weekday()]
 
 
 def _normalize_ocr_day_prefix(line: str) -> str:

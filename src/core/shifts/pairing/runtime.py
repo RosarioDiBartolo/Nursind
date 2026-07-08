@@ -7,6 +7,7 @@ from typing import Any
 
 import pandas as pd
 
+from core.csv_validation import MissingColumnsError
 from core.drive.fs_utils import ensure_dir, ensure_parent_dir
 
 from .options import (
@@ -61,6 +62,14 @@ def _register_grouped_file(
 def _discover_employees_from_aggregated_file(event_path: Path) -> list[str]:
     try:
         frame = pd.read_csv(event_path, usecols=["source_employee"])
+    except ValueError as exc:
+        if "Usecols do not match columns" in str(exc):
+            raise MissingColumnsError(
+                "pair_employee_events: "
+                f"{event_path} is missing required column(s): source_employee. "
+                "Required for root-level aggregated event files."
+            ) from exc
+        raise
     except Exception:
         return []
     if "source_employee" not in frame.columns:

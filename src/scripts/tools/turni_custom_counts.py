@@ -12,7 +12,14 @@ from _bootstrap import bootstrap
 bootstrap()
 
 from _common import run_script
-from core.tools.turni_custom_counts.options import TurniCustomCountsOptions
+from core.config_values import optional_int
+from core.tools.turni_custom_counts.options import (
+    DEFAULT_REPORT_JSON,
+    DEFAULT_SUMMARY_CSV,
+    DEFAULT_YEAR_END,
+    DEFAULT_YEAR_START,
+    TurniCustomCountsOptions,
+)
 from core.tools.turni_custom_counts.service import run_from_options
 
 
@@ -23,10 +30,10 @@ def run(config, verbose: bool) -> None:
         TurniCustomCountsOptions(
             enriched_dir=str(config.paths.enrichment_dir),
             output_dir=str(output_dir),
-            summary_csv=str(settings.get("summary_csv", "turni_custom_counts.csv")),
-            report_json=str(settings.get("report_json", "turni_custom_counts.report.json")),
-            year_start=int(settings.get("year_start", 2014)),
-            year_end=int(settings.get("year_end", 2025)),
+            summary_csv=str(settings.get("summary_csv", DEFAULT_SUMMARY_CSV)),
+            report_json=str(settings.get("report_json", DEFAULT_REPORT_JSON)),
+            year_start=optional_int(settings.get("year_start", DEFAULT_YEAR_START)),
+            year_end=optional_int(settings.get("year_end", DEFAULT_YEAR_END)),
             verbose=verbose,
         )
     )

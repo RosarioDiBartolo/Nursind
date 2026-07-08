@@ -4,8 +4,8 @@ from dataclasses import dataclass
 
 DEFAULT_REPORT_JSON = "turni_custom_counts.report.json"
 DEFAULT_SUMMARY_CSV = "turni_custom_counts.csv"
-DEFAULT_YEAR_START = 2014
-DEFAULT_YEAR_END = 2025
+DEFAULT_YEAR_START: int | None = None
+DEFAULT_YEAR_END: int | None = None
 
 
 def default_enriched_dir() -> str:
@@ -25,4 +25,3 @@ class TurniCustomCountsOptions:
     year_start: int | None = DEFAULT_YEAR_START
     year_end: int | None = DEFAULT_YEAR_END
     verbose: bool = False
-

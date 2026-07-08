@@ -1,7 +1,10 @@
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
+from core.csv_validation import MissingColumnsError
+from core.events.extraction.service import extract_events_from_documents_dir
 from core.events.extraction.service import process_one_text_row
 from tests.extract_events_manifest_fixtures import build_manifest_row
 
@@ -36,6 +39,7 @@ def test_traceability_columns_include_source_refs(tmp_path: Path) -> None:
     assert str(df.loc[0, "source_file_name"]) == "giugno23.pdf"
     assert str(df.loc[0, "source_drive_path"]) == "/Root/Mario Rossi/giugno23.pdf"
     assert str(df.loc[0, "source_file_link"]) == "https://drive.google.com/file/d/pdf-201/view"
+    assert str(df.loc[0, "dow"]) == "GI"
     assert "line_no=2" in str(df.loc[0, "source_event_ref"])
 
 
@@ -80,7 +84,29 @@ def test_page_and_event_refs_are_root_relative_when_doc_json_is_absolute(
     assert "/docs/" in f"/{source_doc_json}"
     assert "/docs/" in f"/{source_event_ref_path}"
     assert "/docs/" in f"/{page_ref_path}"
+    assert str(events_df.loc[0, "dow"]) == "SA"
     assert str(events_df.loc[0, "source_file_link"]) == "https://drive.google.com/file/d/pdf-202/view"
     assert str(pages_df.loc[0, "source_drive_path"]) == "/Root/Mario Rossi/luglio23.pdf"
+
+
+def test_extract_events_requires_manifest_columns(tmp_path: Path, write_csv) -> None:
+    input_dir = tmp_path / "input"
+    write_csv(
+        input_dir / "Mario.csv",
+        [
+            {
+                "employee": "Mario Rossi",
+                "file_id": "pdf-203",
+                "file_name": "agosto23.pdf",
+            }
+        ],
+    )
+
+    with pytest.raises(MissingColumnsError, match="doc_json"):
+        extract_events_from_documents_dir(
+            input_dir=str(input_dir),
+            output_dir=str(tmp_path / "events"),
+            report_json=str(tmp_path / "events" / "report.json"),
+        )
 
 

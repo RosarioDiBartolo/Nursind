@@ -3,8 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-DEFAULT_YEAR_START = 2014
-DEFAULT_YEAR_END = 2025
+DEFAULT_YEAR_START: int | None = None
+DEFAULT_YEAR_END: int | None = None
 DEFAULT_OUTPUT_FORMAT: Literal["csv", "json"] = "csv"
 
 

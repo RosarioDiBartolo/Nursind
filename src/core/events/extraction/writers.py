@@ -9,6 +9,7 @@ from core.drive.fs_utils import ensure_parent_dir
 EVENT_COLUMNS = [
     "event_id",
     "event_ts",
+    "dow",
     "event_kind",
     "event_time_hhmm",
     "event_raw",

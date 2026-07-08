@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import pandas as pd
 
+from core.csv_validation import require_columns
+from core.parsing import DOW_BY_WEEKDAY
 from core.shift_logic import to_datetime_series
 
 
@@ -47,9 +49,12 @@ def normalize_events_file(
     }
     if scoped_df.empty:
         return pd.DataFrame(), stats
-    if "event_kind" not in scoped_df.columns or "event_ts" not in scoped_df.columns:
-        stats["events_invalid_kind"] = int(len(scoped_df))
-        return pd.DataFrame(), stats
+    require_columns(
+        scoped_df,
+        ("event_kind", "event_ts"),
+        source=source_events_csv,
+        stage="pair_employee_events",
+    )
 
     kind = scoped_df["event_kind"].fillna("").astype(str).str.strip().str.upper()
     ts = to_datetime_series(scoped_df["event_ts"])
@@ -143,7 +148,9 @@ def events_to_partial_pairs(events_df: pd.DataFrame) -> pd.DataFrame:
     out.loc[:, "year"] = out["_sort_ts"].dt.year
     out.loc[:, "month"] = out["_sort_ts"].dt.month
     out.loc[:, "day"] = out["_sort_ts"].dt.day
-    out.loc[:, "dow"] = None
+    out.loc[:, "dow"] = out["_sort_ts"].dt.dayofweek.map(
+        {index: dow for index, dow in enumerate(DOW_BY_WEEKDAY)}
+    )
     out.loc[:, "duration_hhmm"] = None
     out.loc[:, "turno"] = None
     return out[

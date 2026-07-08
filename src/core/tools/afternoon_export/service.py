@@ -8,6 +8,7 @@ from typing import Any, Iterable
 
 import pandas as pd
 
+from core.csv_validation import MissingColumnsError, require_columns
 from core.drive.fs_utils import ensure_dir, ensure_parent_dir
 from core.drive.names import safe_name
 from core.reporting import build_stage_report, compact_stage_report, write_json_report
@@ -34,6 +35,17 @@ OUTPUT_COLUMNS = [
     "Turno",
     "Data",
 ]
+REQUIRED_ENRICHED_COLUMNS = (
+    "employee",
+    "entry_ts",
+    "exit_ts",
+    "duration_hours",
+    "is_holiday",
+    "is_afternoon",
+    "is_long",
+    "turno",
+)
+REQUIRED_PAIRS_COLUMNS = ("entry_ts", "exit_ts", "duration_hhmm")
 
 
 def _employee_from_path(path: Path) -> str:
@@ -71,10 +83,6 @@ def _empty_like(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _filter_afternoon_long(df: pd.DataFrame) -> pd.DataFrame:
-    required_cols = {"is_afternoon", "is_long", "entry_ts"}
-    if not required_cols.issubset(df.columns):
-        return _empty_like(df)
-
     try:
         entry_dt = pd.to_datetime(df["entry_ts"], errors="coerce", format="mixed")
     except TypeError:
@@ -192,6 +200,14 @@ def process_one_enriched_file(
 
     try:
         df = pd.read_csv(source_path)
+        require_columns(
+            df,
+            REQUIRED_ENRICHED_COLUMNS,
+            source=source_path,
+            stage=TURNI_AFTERNOON_LONG_EXPORT_ARTIFACTS.step,
+        )
+    except MissingColumnsError:
+        raise
     except Exception as exc:
         result["error_code"] = "read_error"
         result["error"] = f"{type(exc).__name__}: {exc}"
@@ -215,6 +231,14 @@ def process_one_enriched_file(
 
     try:
         pairs_df = pd.read_csv(source_pairs_path)
+        require_columns(
+            pairs_df,
+            REQUIRED_PAIRS_COLUMNS,
+            source=source_pairs_path,
+            stage=TURNI_AFTERNOON_LONG_EXPORT_ARTIFACTS.step,
+        )
+    except MissingColumnsError:
+        raise
     except Exception as exc:
         result["error_code"] = "pairs_read_error"
         result["error"] = f"{type(exc).__name__}: {exc}"

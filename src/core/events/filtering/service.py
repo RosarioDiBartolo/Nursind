@@ -7,6 +7,7 @@ from typing import Any, Iterable
 
 import pandas as pd
 
+from core.csv_validation import MissingColumnsError, require_columns
 from core.drive.fs_utils import ensure_parent_dir
 from core.reporting import build_stage_report, compact_stage_report, write_json_report
 
@@ -162,6 +163,12 @@ def process_one_events_file(
 
     try:
         df = pd.read_csv(source_path)
+        require_columns(
+            df,
+            ("event_ts", "event_time_hhmm"),
+            source=source_path,
+            stage="filter_midnight_events",
+        )
         cleaned, removed, stats = _clean_events_df(df)
         out_path = _build_cleaned_output_path(
             source_path,
@@ -182,6 +189,8 @@ def process_one_events_file(
         if include_removed_rows_records:
             result["removed_rows_records"] = _removed_export_records(removed, source_path=source_path)
         return result
+    except MissingColumnsError:
+        raise
     except Exception as exc:
         result["error_code"] = "processing_error"
         result["error"] = f"{type(exc).__name__}: {exc}"

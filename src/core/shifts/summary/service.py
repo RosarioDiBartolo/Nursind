@@ -7,9 +7,11 @@ from typing import Any, Iterable, Literal
 
 import pandas as pd
 
-from core.drive.fs_utils import ensure_parent_dir
+from core.csv_validation import MissingColumnsError, require_columns
 from core.reporting import build_stage_report, compact_stage_report, write_json_report
 from core.shift_logic import ShiftClassifier, assign_turno_bucket, to_datetime_series
+from core.shifts.year_columns import rows_with_year_columns, select_year_columns, years_from_frame
+from core.table_outputs import write_csv_and_excel
 
 from .options import (
     DEFAULT_OUTPUT_FORMAT,
@@ -24,6 +26,16 @@ from .options import (
 logger = logging.getLogger(__name__)
 
 TURNI = ("N", "P", "F", "M", "S")
+REQUIRED_ENRICHED_COLUMNS = (
+    "entry_ts",
+    "exit_ts",
+    "duration_hours",
+    "is_holiday",
+    "is_afternoon",
+    "is_night",
+    "turno_bucket",
+    "year",
+)
 
 
 def _employee_from_path(path: Path) -> str:
@@ -31,20 +43,6 @@ def _employee_from_path(path: Path) -> str:
     if name.lower().endswith(".enriched"):
         name = name[: -len(".enriched")]
     return name or "unknown"
-
-
-def _years_range(start: int | None, end: int | None) -> list[int]:
-    if start is None and end is None:
-        return []
-    if start is None:
-        assert end is not None
-        resolved_start = end
-    else:
-        resolved_start = start
-    resolved_end = resolved_start if end is None else end
-    if resolved_start > resolved_end:
-        resolved_start, resolved_end = resolved_end, resolved_start
-    return list(range(resolved_start, resolved_end + 1))
 
 
 def _rows_for_employee(
@@ -116,11 +114,6 @@ def _ensure_turno_bucket(df: pd.DataFrame, *, min_hours: float | None) -> pd.Dat
     return working.assign(turno_bucket=assign_turno_bucket(working, min_hours=threshold))
 
 
-def _write_csv(out_path: str, rows: list[dict[str, Any]]) -> None:
-    ensure_parent_dir(out_path)
-    pd.DataFrame(rows).to_csv(out_path, index=False)
-
-
 def _write_json(out_path: str, rows: list[dict[str, Any]], stats: dict[str, Any]) -> None:
     write_json_report(out_path, {"rows": rows, "stats": stats})
 
@@ -134,7 +127,7 @@ def process_one_enriched_file(
 ) -> dict[str, Any]:
     source_path = Path(enriched_file)
     employee = _employee_from_path(source_path)
-    years = _years_range(year_start, year_end)
+    years = select_year_columns([], year_start=year_start, year_end=year_end)
 
     result: dict[str, Any] = {
         "status": "error",
@@ -150,6 +143,12 @@ def process_one_enriched_file(
 
     try:
         df = pd.read_csv(source_path)
+        require_columns(
+            df,
+            REQUIRED_ENRICHED_COLUMNS,
+            source=source_path,
+            stage="turni_employee_summary",
+        )
         result["rows_total"] = int(len(df))
         if df.empty:
             result["summary_rows"] = _rows_for_employee(employee, {}, years)
@@ -163,6 +162,12 @@ def process_one_enriched_file(
             result["status"] = "ok"
             return result
 
+        years = select_year_columns(
+            years_from_frame(working),
+            year_start=year_start,
+            year_end=year_end,
+        )
+        result["years"] = years
         if years:
             working = working.loc[working["year"].isin(years)].copy()
 
@@ -174,6 +179,8 @@ def process_one_enriched_file(
         result["summary_rows"] = _rows_for_employee(employee, counts, years)
         result["status"] = "ok"
         return result
+    except MissingColumnsError:
+        raise
     except Exception as exc:
         result["error_code"] = "processing_error"
         result["error"] = f"{type(exc).__name__}: {exc}"
@@ -190,7 +197,6 @@ def process_many_enriched_files(
 ) -> dict[str, Any]:
     enriched_dir = enriched_dir or default_enriched_dir()
     normalized_files = sorted(Path(path) for path in enriched_files)
-    years = _years_range(year_start, year_end)
 
     stats: dict[str, Any] = {
         "files_total": len(normalized_files),
@@ -232,7 +238,20 @@ def process_many_enriched_files(
         stats["files_processed"] += 1
         stats["rows_total"] += int(item["rows_total"])
         stats["rows_classified"] += int(item["rows_classified"])
-        rows.extend(list(item["summary_rows"]))
+
+    years = select_year_columns(
+        (
+            int(year)
+            for item in items
+            if item["status"] == "ok"
+            for year in item.get("years", [])
+        ),
+        year_start=year_start,
+        year_end=year_end,
+    )
+    for item in items:
+        if item["status"] == "ok":
+            rows.extend(rows_with_year_columns(item["summary_rows"], years))
 
     report = build_stage_report(
         stage="turni_employee_summary",
@@ -277,11 +296,13 @@ def build_turni_employee_summary_from_dir(
     )
 
     if output_format == "csv":
-        _write_csv(out, report["rows"])
+        csv_path, excel_path = write_csv_and_excel(report["rows"], out, sheet_name="Turni")
+        report["outputs"]["excel_path"] = str(excel_path.resolve())
     else:
         _write_json(out, report["rows"], report["stats"])
+        csv_path = None
 
-    report["outputs"]["output_path"] = os.path.abspath(out)
+    report["outputs"]["output_path"] = os.path.abspath(str(csv_path or out))
     report["outputs"]["output_format"] = output_format
     report["outputs"]["report_json"] = str(Path(report_json).resolve())
     write_json_report(report_json, compact_stage_report(report))

@@ -6,6 +6,8 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Iterable
 
+from core.csv_validation import require_columns_in_header
+
 from .fs_utils import ensure_parent_dir
 from .io_json import load_json, write_json
 from .names import safe_name
@@ -155,6 +157,12 @@ def read_text_extraction_rows(
         base_dir = _base_dir_for_manifest_csv(csv_path)
         with open(csv_path, "r", encoding="utf-8", newline="") as handle:
             reader = csv.DictReader(handle)
+            require_columns_in_header(
+                reader.fieldnames,
+                TEXT_EXTRACTION_COLUMNS,
+                source=csv_path,
+                stage="extract_events_from_documents",
+            )
             for raw_row in reader:
                 row = {column: raw_row.get(column, "") for column in TEXT_EXTRACTION_COLUMNS}
                 extracted_text = str(raw_row.get("extracted_text") or "")

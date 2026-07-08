@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from core.parsing import (
+    calendar_dow,
     infer_year_month_from_filename,
     infer_year_month_from_header,
     infer_year_month_from_header_date,
@@ -233,6 +234,7 @@ def build_event_row(
     return {
         "event_id": event_id,
         "event_ts": event_dt.strftime("%Y-%m-%d %H:%M:%S"),
+        "dow": calendar_dow(event_dt),
         "event_kind": str(event.event_kind).strip().upper(),
         "event_time_hhmm": event.event_time_hhmm,
         "event_raw": event.event_raw,

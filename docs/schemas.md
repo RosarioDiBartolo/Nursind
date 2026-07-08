@@ -26,7 +26,7 @@ Produced by: `core.documents`
 ## events.csv
 
 Columns:
-- `event_id`, `event_ts`
+- `event_id`, `event_ts`, `dow`
 - `event_kind`, `event_time_hhmm`, `event_raw`
 - `parser_id`, `source_origin`
 - `source_doc_json`, `source_file_id`, `source_file_name`, `source_employee`
@@ -90,19 +90,21 @@ The same employee folder also contains:
 
 Produced by: `core.tools.afternoon_export`
 
-## turni_employee_summary.csv
+## turni_employee_summary.csv / turni_employee_summary.xlsx
 
 Columns:
 - `employee`, `turno`
-- One column per year in the selected range (`--year-start`..`--year-end`)
+- One column per discovered enriched year, unless `year_start`/`year_end`
+  constrain an explicit range
 
 Produced by: `core.shifts.summary`
 
-## turni_custom_counts.csv
+## turni_custom_counts.csv / turni_custom_counts.xlsx
 
 Columns:
 - `employee`, `turno`
-- One column per year in the selected range
+- One column per discovered enriched year, unless `year_start`/`year_end`
+  constrain an explicit range
 
 Turno rows:
 - `P`: all afternoon shifts

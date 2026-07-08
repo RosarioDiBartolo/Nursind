@@ -7,6 +7,7 @@ from typing import Any, Iterable
 
 import pandas as pd
 
+from core.csv_validation import MissingColumnsError, require_columns
 from core.drive.fs_utils import ensure_dir, ensure_parent_dir
 from core.drive.names import safe_name
 from core.reporting import build_stage_report, compact_stage_report, write_json_report
@@ -150,6 +151,14 @@ def process_one_pairs_file(
 
     try:
         df = pd.read_csv(source_path)
+        require_columns(
+            df,
+            ("entry_ts", "exit_ts", "turno"),
+            source=source_path,
+            stage="turni_enrichment",
+        )
+    except MissingColumnsError:
+        raise
     except Exception as exc:
         ensure_parent_dir(out_path)
         _empty_enriched_df().to_csv(out_path, index=False)

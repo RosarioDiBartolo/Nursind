@@ -7,7 +7,8 @@ from typing import Any, Iterable
 
 import pandas as pd
 
-from core.drive.fs_utils import ensure_dir, ensure_parent_dir
+from core.csv_validation import MissingColumnsError, require_columns
+from core.drive.fs_utils import ensure_dir
 from core.reporting import (
     build_stage_report,
     compact_stage_report,
@@ -15,6 +16,8 @@ from core.reporting import (
     write_json_report,
 )
 from core.shift_logic import ShiftClassifier, to_bool_series, to_datetime_series
+from core.shifts.year_columns import rows_with_year_columns, select_year_columns, years_from_frame
+from core.table_outputs import write_csv_and_excel
 
 from .options import (
     DEFAULT_REPORT_JSON,
@@ -28,6 +31,14 @@ logger = logging.getLogger(__name__)
 
 COUNT_BUCKETS = ("P", "N", "M", "MF")
 SUMMARY_COLUMNS = ("employee", "turno")
+REQUIRED_ENRICHED_COLUMNS = (
+    "entry_ts",
+    "is_holiday",
+    "is_afternoon",
+    "is_night",
+    "is_long",
+    "year",
+)
 
 
 def _employee_from_path(path: Path) -> str:
@@ -35,20 +46,6 @@ def _employee_from_path(path: Path) -> str:
     if name.lower().endswith(".enriched"):
         name = name[: -len(".enriched")]
     return name or "unknown"
-
-
-def _years_range(start: int | None, end: int | None) -> list[int]:
-    if start is None and end is None:
-        return []
-    if start is None:
-        assert end is not None
-        resolved_start = end
-    else:
-        resolved_start = start
-    resolved_end = resolved_start if end is None else end
-    if resolved_start > resolved_end:
-        resolved_start, resolved_end = resolved_end, resolved_start
-    return list(range(resolved_start, resolved_end + 1))
 
 
 def _rows_for_employee(
@@ -84,7 +81,7 @@ def _ensure_turno_flags(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _count_custom_categories(df: pd.DataFrame) -> dict[tuple[str, int], int]:
-    required_cols = {"entry_ts", "is_holiday", "is_afternoon", "is_night"}
+    required_cols = {"entry_ts", "is_holiday", "is_afternoon", "is_night", "is_long"}
     if not required_cols.issubset(set(df.columns)):
         return {}
 
@@ -92,14 +89,15 @@ def _count_custom_categories(df: pd.DataFrame) -> dict[tuple[str, int], int]:
     is_holiday = to_bool_series(df["is_holiday"])
     is_afternoon = to_bool_series(df["is_afternoon"])
     is_night = to_bool_series(df["is_night"])
+    is_long = to_bool_series(df["is_long"])
     is_morning = ~is_afternoon & ~is_night
     is_saturday = entry_ts.dt.dayofweek == 5
 
     masks = {
-        "P": is_afternoon,
-        "N": is_night,
-        "M": is_morning & is_saturday,
-        "MF": is_morning & is_holiday,
+        "P": is_long & is_afternoon,
+        "N": is_long & is_night,
+        "M": is_long & is_morning & is_saturday,
+        "MF": is_long & is_morning & is_holiday,
     }
 
     counts: dict[tuple[str, int], int] = {}
@@ -120,7 +118,7 @@ def process_one_enriched_file(
 ) -> dict[str, Any]:
     source_path = Path(enriched_file)
     employee = _employee_from_path(source_path)
-    years = _years_range(year_start, year_end)
+    years = select_year_columns([], year_start=year_start, year_end=year_end)
     result: dict[str, Any] = {
         "status": "error",
         "source_enriched_csv": str(source_path),
@@ -135,6 +133,12 @@ def process_one_enriched_file(
 
     try:
         df = pd.read_csv(source_path)
+        require_columns(
+            df,
+            REQUIRED_ENRICHED_COLUMNS,
+            source=source_path,
+            stage="turni_custom_counts",
+        )
         result["rows_total"] = int(len(df))
         if df.empty:
             result["summary_rows"] = _rows_for_employee(employee, {}, years)
@@ -148,6 +152,12 @@ def process_one_enriched_file(
             result["status"] = "ok"
             return result
 
+        years = select_year_columns(
+            years_from_frame(working),
+            year_start=year_start,
+            year_end=year_end,
+        )
+        result["years"] = years
         if years:
             working = working.loc[working["year"].isin(years)].copy()
         counts = _count_custom_categories(working)
@@ -155,6 +165,8 @@ def process_one_enriched_file(
         result["summary_rows"] = _rows_for_employee(employee, counts, years)
         result["status"] = "ok"
         return result
+    except MissingColumnsError:
+        raise
     except Exception as exc:
         result["error_code"] = "processing_error"
         result["error"] = f"{type(exc).__name__}: {exc}"
@@ -170,7 +182,6 @@ def process_many_enriched_files(
 ) -> dict[str, Any]:
     enriched_dir = enriched_dir or default_enriched_dir()
     normalized_files = sorted(Path(path) for path in enriched_files)
-    years = _years_range(year_start, year_end)
     rows: list[dict[str, Any]] = []
     items: list[dict[str, Any]] = []
     issues: list[dict[str, Any]] = []
@@ -208,7 +219,20 @@ def process_many_enriched_files(
         stats["files_processed"] += 1
         stats["rows_total"] += int(item["rows_total"])
         stats["rows_counted"] += int(item["rows_counted"])
-        rows.extend(list(item["summary_rows"]))
+
+    years = select_year_columns(
+        (
+            int(year)
+            for item in items
+            if item["status"] == "ok"
+            for year in item.get("years", [])
+        ),
+        year_start=year_start,
+        year_end=year_end,
+    )
+    for item in items:
+        if item["status"] == "ok":
+            rows.extend(rows_with_year_columns(item["summary_rows"], years))
 
     report = build_stage_report(
         stage="turni_custom_counts",
@@ -255,11 +279,16 @@ def build_turni_custom_counts_from_dir(
         enriched_dir=enriched_dir,
     )
 
-    ensure_parent_dir(str(output_path))
     columns = list(SUMMARY_COLUMNS) + [str(year) for year in report["years"]]
-    pd.DataFrame(report["rows"], columns=columns).to_csv(output_path, index=False)
+    output_path, excel_path = write_csv_and_excel(
+        report["rows"],
+        output_path,
+        columns=columns,
+        sheet_name="Custom Counts",
+    )
 
     report["outputs"]["summary_csv"] = str(output_path.resolve())
+    report["outputs"]["summary_xlsx"] = str(excel_path.resolve())
     report["outputs"]["report_json"] = str(report_path.resolve())
     write_json_report(report_path, compact_stage_report(report))
     return report

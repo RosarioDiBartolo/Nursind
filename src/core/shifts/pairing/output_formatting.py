@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 
+from core.parsing import DOW_BY_WEEKDAY
 from core.shift_logic import compute_turno, to_datetime_series
 
 
@@ -91,7 +92,9 @@ def format_output_pairs(df: pd.DataFrame, *, keep_inferred_column: bool) -> pd.D
     working.loc[:, "year"] = working["entry_ts"].dt.year
     working.loc[:, "month"] = working["entry_ts"].dt.month
     working.loc[:, "day"] = working["entry_ts"].dt.day
-    working.loc[:, "dow"] = working["dow"].where(working["dow"].notna(), None)
+    working.loc[:, "dow"] = working["entry_ts"].dt.dayofweek.map(
+        {index: dow for index, dow in enumerate(DOW_BY_WEEKDAY)}
+    )
     working.loc[:, "pair_index"] = (
         working.groupby(["year", "month", "day"], dropna=False).cumcount().astype(int)
     )

@@ -6,6 +6,7 @@ from typing import Any, Iterable
 
 import pandas as pd
 
+from core.csv_validation import MissingColumnsError
 from core.drive.fs_utils import ensure_parent_dir
 from core.drive.names import safe_name
 from core.reporting import build_stage_report
@@ -84,6 +85,8 @@ def process_one_employee_events(
                     file_name=file_name,
                     source_employee=employee_name,
                 )
+            except MissingColumnsError:
+                raise
             except Exception as exc:
                 result["files_error"] += 1
                 logger.exception("Error reading %s", source_events_csv)
@@ -142,6 +145,8 @@ def process_one_employee_events(
         result["status"] = "ok"
         result["error"] = None
         return result
+    except MissingColumnsError:
+        raise
     except Exception as exc:
         result["error_code"] = "processing_error"
         result["error"] = f"{type(exc).__name__}: {exc}"

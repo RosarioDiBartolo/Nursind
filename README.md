@@ -38,8 +38,6 @@ directory.
     "pair_events": {"max_gap_hours": 16},
     "enrich_shifts": {"min_hours": 6, "include_holidays": true},
     "summarize_shifts": {
-      "year_start": 2014,
-      "year_end": 2025,
       "format": "csv"
     }
   }
@@ -73,6 +71,8 @@ artifacts stay ignored by git:
   shifts/
   enrichment/
   aggregation/
+    turni_employee_summary.csv
+    turni_employee_summary.xlsx
 ```
 
 Existing artifact names and CSV/JSON schemas are documented in
