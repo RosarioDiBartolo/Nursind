@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+
+from core.documents.ocr_options import OcrOptions
 
 
 @dataclass(slots=True)
@@ -24,3 +26,4 @@ class ExtractDocumentsFromIndexOptions:
     min_score_delta: float = 0.08
     report: str = "extract_documents_from_index.report.json"
     verbose: bool = False
+    ocr: OcrOptions = field(default_factory=OcrOptions)

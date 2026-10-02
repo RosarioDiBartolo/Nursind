@@ -90,6 +90,21 @@ The same employee folder also contains:
 
 Produced by: `core.tools.afternoon_export`
 
+## clean shifts export (`clean_shifts/<employee>.xlsx`)
+
+Rows with `turno_bucket` equal to `M` are excluded.
+
+Columns:
+- `Data`
+- `Giorno`
+- `Entrata`
+- `Uscita`
+- `Durata`
+- `Festivo`
+- `Turno`
+
+Produced by: `core.tools.clean_shifts_export`
+
 ## turni_employee_summary.csv / turni_employee_summary.xlsx
 
 Columns:
@@ -162,3 +177,10 @@ Columns:
 
 Produced by: `core.tools.parser_recall`
 
+
+OCR extraction extensions retain `text_layout_v1`. `selected_mode` also supports
+`ocr` and `mixed`; `has_text_layer` describes the original PDF (any native page).
+`extraction.pages` records per-page method, native text-layer presence, selection
+reason, quality scores and optional OCR confidence; `extraction.ocr_pages` counts
+OCR pages. OCR words add `confidence` while keeping existing PDF-point coordinates
+and line identifiers. See [ingestion.md](ingestion.md) for configuration and limits.

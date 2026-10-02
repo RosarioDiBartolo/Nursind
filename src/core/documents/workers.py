@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import os
+import logging
+import time
 import threading
 from io import BytesIO
 
 from core.drive.drive_client import get_drive_service
 from core.drive.index_downloads import download_pdf_bytes_for_index_item
-from core.drive.logging_utils import get_logger
 from core.drive.names import safe_name
 from core.drive.text_extraction_csv import (
     TEXT_EXTRACTION_DOC_SCHEMA_VERSION,
@@ -17,9 +18,11 @@ from core.drive.text_extraction_csv import (
 )
 from core.pdf import extract_layout
 
+from core.documents.ocr_options import OcrOptions
+from core.documents.page_extraction import extract_document_pages
 from .quality import extract_best_text
 
-logger = get_logger()
+logger = logging.getLogger(__name__)
 _thread_local = threading.local()
 _ZIP_CACHE_MAX_ITEMS = 16
 
@@ -78,6 +81,9 @@ def download_pdf_bytes(
             "doc": doc_info,
         }
 
+    started = time.monotonic()
+    label = doc_info.get("file_name") or file_id
+    logger.info("Download/read started: %s [%s]", label, file_id)
     is_local = bool(doc_info.get("local")) or str(file_id).startswith("local::")
 
     try:
@@ -101,6 +107,9 @@ def download_pdf_bytes(
             zip_cache_max_items=_ZIP_CACHE_MAX_ITEMS,
         )
     except Exception as exc:
+        logger.warning(
+            "Download/read failed: %s after %.1fs: %s", label, time.monotonic() - started, exc
+        )
         return {
             "status": "failed",
             "stage": "download",
@@ -109,6 +118,7 @@ def download_pdf_bytes(
         }
 
     if result["status"] != "success":
+        logger.warning("Download/read failed: %s: %s", label, result.get("reason"))
         return {
             "status": "failed",
             "stage": "download",
@@ -116,6 +126,12 @@ def download_pdf_bytes(
             "doc": doc_info,
         }
 
+    logger.info(
+        "Download/read finished: %s | %.2f MiB | %.1fs",
+        label,
+        len(result["data"]) / (1024 * 1024),
+        time.monotonic() - started,
+    )
     return {
         "status": "success",
         "data": result["data"],
@@ -129,6 +145,7 @@ def extract_and_write(
     out_dir: str,
     min_normal_score: float,
     min_score_delta: float,
+    ocr: OcrOptions | None = None,
 ):
     file_id = doc_info.get("file_id")
     file_name = doc_info.get("file_name") or file_id or "unknown.pdf"
@@ -153,16 +170,30 @@ def extract_and_write(
         archive_file_id=archive_file_id,
     )
 
+    started = time.monotonic()
+    logger.info(
+        "Extraction started: %s [%s] | OCR=%s", file_name, file_id, bool(ocr and ocr.enabled)
+    )
     try:
-        extracted = extract_best_text(
-            pdf_bytes,
-            min_normal_score=min_normal_score,
-            min_score_delta=min_score_delta,
-        )
+        if ocr is not None and ocr.enabled:
+            extracted = extract_document_pages(
+                pdf_bytes,
+                min_normal_score=min_normal_score,
+                min_score_delta=min_score_delta,
+                ocr=ocr,
+                document_label=f"{file_name} [{file_id}]",
+            )
+            layout = extracted["layout"]
+        else:
+            extracted = extract_best_text(
+                pdf_bytes,
+                min_normal_score=min_normal_score,
+                min_score_delta=min_score_delta,
+            )
+            layout = extract_layout(BytesIO(pdf_bytes))
         extracted_text = extracted.get("text", "")
         if not extracted_text.strip():
             raise ValueError("Extracted text is empty; skipping output write")
-        layout = extract_layout(BytesIO(pdf_bytes))
         doc_json = write_text_extraction_doc(
             out_dir,
             file_id,
@@ -183,11 +214,13 @@ def extract_and_write(
                     "source_text_ref": source_text_ref,
                 },
                 "extraction": {
-                    "has_text_layer": True,
+                    "has_text_layer": extracted.get("has_text_layer", True),
                     "selected_mode": extracted["mode"],
                     "tried_vertical": extracted["tried_vertical"],
                     "normal_quality": extracted["normal_quality"],
                     "vertical_quality": extracted["vertical_quality"],
+                    "pages": extracted.get("pages", []),
+                    "ocr_pages": extracted.get("ocr_pages", 0),
                 },
                 "document": {
                     "page_count": layout["page_count"],
@@ -203,6 +236,9 @@ def extract_and_write(
             reason = "missing_text_layer"
         else:
             reason = f"{type(exc).__name__}: {exc}"
+        logger.warning(
+            "Extraction failed: %s after %.1fs: %s", file_name, time.monotonic() - started, reason
+        )
         return {
             "status": "failed",
             "stage": "extract",
@@ -210,6 +246,14 @@ def extract_and_write(
             "doc": doc_info,
         }
 
+    logger.info(
+        "Extraction saved: %s | mode=%s pages=%s OCR pages=%s | %.1fs",
+        file_name,
+        extracted["mode"],
+        layout["page_count"],
+        extracted.get("ocr_pages", 0),
+        time.monotonic() - started,
+    )
     return {
         "status": "success",
         "employee": employee,
@@ -223,10 +267,11 @@ def extract_and_write(
         "archive_member_path": archive_member_path,
         "source_text_ref": source_text_ref,
         "doc_json": doc_json,
-        "has_text_layer": True,
+        "has_text_layer": extracted.get("has_text_layer", True),
         "google_drive_file_id": google_drive_file_id,
         "file_link": file_link,
         "selected_mode": extracted["mode"],
+        "ocr_pages": extracted.get("ocr_pages", 0),
         "tried_vertical": extracted["tried_vertical"],
         "normal_quality": extracted["normal_quality"],
         "vertical_quality": extracted["vertical_quality"],
@@ -234,4 +279,3 @@ def extract_and_write(
 
 
 __all__ = ["_reset_thread_local_state", "download_pdf_bytes", "extract_and_write"]
-

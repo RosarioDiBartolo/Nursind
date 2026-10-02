@@ -15,6 +15,7 @@ def test_primary_scripts_start_and_expose_config_flag() -> None:
         "pair_events.py",
         "enrich_shifts.py",
         "summarize_shifts.py",
+        "run_pipeline.py",
     )
 
     for script in scripts:

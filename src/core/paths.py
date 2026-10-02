@@ -74,14 +74,13 @@ class PipelinePaths:
 def build_pipeline_paths(
     *,
     repository_root: str | Path,
-    base_output_dir: str | Path,
-    pipeline_name: str,
+    output_dir_stem: str | Path,
 ) -> PipelinePaths:
     repo = Path(repository_root).resolve()
-    base = Path(f"{base_output_dir}.out_dir")
+    base = Path(f"{output_dir_stem}.out_dir")
     if not base.is_absolute():
         base = repo / base
-    root = base.resolve() / pipeline_name
+    root = base.resolve()
     scan = root / "scan"
     documents = root / "documents"
     events = root / "events"

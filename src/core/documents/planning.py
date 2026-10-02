@@ -23,6 +23,8 @@ def build_initial_stats(source_total: int) -> dict:
         "extract_failed": 0,
         "excluded_missing_text_layer": 0,
         "used_vertical": 0,
+        "used_ocr": 0,
+        "ocr_pages": 0,
         "interrupted": 0,
         "cancelled_downloads": 0,
         "cancelled_extracts": 0,

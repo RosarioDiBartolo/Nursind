@@ -26,10 +26,6 @@ directory.
 
 ```json
 {
-  "pipeline": {
-    "name": "GRUPPO 3",
-    "base_output_dir": "gruppi"
-  },
   "drive": {
     "root_id": "..."
   },
@@ -43,6 +39,11 @@ directory.
   }
 }
 ```
+
+`pipeline` is optional. When `pipeline.name` is omitted, the pipeline name is
+resolved from the Google Drive folder identified by `drive.root_id`. Set
+`pipeline.name` only when you want to override the Drive folder name used for
+local outputs.
 
 ## Pipeline
 
@@ -58,13 +59,20 @@ Run these commands from the repository root:
 .\.venv\Scripts\python.exe src\scripts\summarize_shifts.py
 ```
 
+Or run a selected subset in canonical order:
+
+```powershell
+.\.venv\Scripts\python.exe src\scripts\run_pipeline.py --from extract_events --through summarize_shifts
+.\.venv\Scripts\python.exe src\scripts\run_pipeline.py scan pairing summary
+```
+
 Each script accepts `--config <path>` and `--verbose`.
 
-The canonical output layout appends `.out_dir` to `base_output_dir`, so generated
-artifacts stay ignored by git:
+The canonical output layout appends `.out_dir` to the resolved pipeline name, so
+generated artifacts stay ignored by git:
 
 ```text
-<base_output_dir>.out_dir/<pipeline.name>/
+<pipeline-name>.out_dir/
   scan/
   documents/
   events/
@@ -134,3 +142,7 @@ artifacts.
 The suite is intentionally small and behavior-focused. It runs offline and
 protects configuration, canonical paths, parser fixtures, Drive/index edge
 cases, traceability, and the filesystem shift pipeline.
+
+Scanned PDFs can use an optional CPU-only Tesseract fallback, selected per page.
+Setup, configuration, and retry instructions are in
+[the local OCR guide](docs/ingestion.md#local-ocr-for-scanned-pages).

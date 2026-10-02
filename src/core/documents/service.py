@@ -19,6 +19,8 @@ from core.drive.text_extraction_csv import (
 )
 from core.reporting import build_stage_report
 
+from core.documents.ocr_options import OcrOptions
+
 from .options import ExtractDocumentsFromIndexOptions
 from .planning import build_initial_stats, collect_docs
 from .workers import download_pdf_bytes, extract_and_write
@@ -40,6 +42,7 @@ def _run_one_index_document(
     out_dir: str,
     min_normal_score: float,
     min_score_delta: float,
+    ocr: OcrOptions | None = None,
     stop_event: threading.Event | None = None,
 ) -> dict[str, Any]:
     stop_flag = stop_event or threading.Event()
@@ -53,6 +56,7 @@ def _run_one_index_document(
             out_dir,
             min_normal_score,
             min_score_delta,
+            ocr,
         )
     except Exception as exc:  # pragma: no cover - defensive parity with runtime
         return _normalize_failure(doc_info, exc, stage="extract")
@@ -65,6 +69,7 @@ def process_one_index_document(
     out_dir: str,
     min_normal_score: float,
     min_score_delta: float,
+    ocr: OcrOptions | None = None,
 ) -> dict[str, Any]:
     stop_event = threading.Event()
     result = _run_one_index_document(
@@ -73,6 +78,7 @@ def process_one_index_document(
         out_dir=out_dir,
         min_normal_score=min_normal_score,
         min_score_delta=min_score_delta,
+        ocr=ocr,
         stop_event=stop_event,
     )
     if result.get("status") == "success":
@@ -110,6 +116,7 @@ def process_many_index_documents(
     out_dir: str,
     min_normal_score: float,
     min_score_delta: float,
+    ocr: OcrOptions | None = None,
 ) -> dict[str, Any]:
     normalized_docs = list(docs)
     items: list[dict[str, Any]] = []
@@ -127,6 +134,7 @@ def process_many_index_documents(
             out_dir=out_dir,
             min_normal_score=min_normal_score,
             min_score_delta=min_score_delta,
+            ocr=ocr,
         )
         items.append(dict(result))
         if result.get("status") == "ok":
@@ -234,6 +242,8 @@ def apply_extraction_result(
     items.append(dict(result))
     if result["status"] == "success":
         stats["succeeded"] += 1
+        stats["ocr_pages"] = stats.get("ocr_pages", 0) + int(result.get("ocr_pages", 0))
+        stats["used_ocr"] = stats.get("used_ocr", 0) + int(bool(result.get("ocr_pages")))
         if result.get("selected_mode") == "vertical":
             stats["used_vertical"] += 1
         file_id = result.get("file_id")
@@ -336,6 +346,8 @@ def finalize_extraction_run(
             inputs={
                 "source_index": state["index_path"],
                 "output_dir": options.out,
+                "ocr_enabled": options.ocr.enabled,
+                "ocr_language": options.ocr.language,
                 "skip_included": state["skip_included"],
                 "skip_excluded": state["skip_excluded"],
             },
@@ -365,4 +377,3 @@ __all__ = [
     "process_many_index_documents",
     "process_one_index_document",
 ]
-

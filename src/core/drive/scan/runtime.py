@@ -9,27 +9,13 @@ from core.drive.fs_utils import ensure_parent_dir
 from core.drive.index import MapIndex
 from core.drive.io_json import write_json
 from core.drive.logging_utils import get_logger
+from core.drive.metadata import get_root_name
 from core.drive.schema import IndexFile
 
 from .config import exclude_terms_normalized
 from .scan_service import FOLDER_MIME, build_folder_report
 
 logger = get_logger()
-
-
-def get_root_name(drive, root_id: str | None, logger_obj: Any = None) -> str | None:
-    """Return Drive root display name when available."""
-    log = logger_obj or logger
-    if not root_id:
-        return None
-    try:
-        res = drive.files().get(
-            fileId=root_id, fields="name", supportsAllDrives=True
-        ).execute()
-    except Exception as exc:
-        log.warning("Unable to resolve root folder name: %s", exc)
-        return None
-    return res.get("name") or None
 
 
 def _build_employee_found_entry(

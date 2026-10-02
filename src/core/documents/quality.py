@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from io import BytesIO
+from collections.abc import Callable
 
 from core.pdf import extract_text, extract_text_vertical, has_text_layer
 
@@ -55,6 +56,21 @@ def extract_best_text(pdf_bytes: bytes, min_normal_score: float, min_score_delta
     if not has_text_layer(stream):
         raise ValueError("PDF_HAS_NO_TEXT_LAYER")
     normal_text = extract_text(stream)
+    return select_best_text(
+        normal_text,
+        lambda: extract_text_vertical(stream),
+        min_normal_score,
+        min_score_delta,
+    )
+
+
+def select_best_text(
+    normal_text: str,
+    vertical_text_factory: Callable[[], str],
+    min_normal_score: float,
+    min_score_delta: float,
+) -> dict:
+    """Select native text using the same quality rules for pages and documents."""
     normal_quality = score_text_quality(normal_text)
     normal_score = normal_quality["score"]
 
@@ -65,7 +81,7 @@ def extract_best_text(pdf_bytes: bytes, min_normal_score: float, min_score_delta
 
     if normal_score < min_normal_score or not normal_text.strip():
         tried_vertical = True
-        vertical_text = extract_text_vertical(stream)
+        vertical_text = vertical_text_factory()
         vertical_quality = score_text_quality(vertical_text)
         vertical_score = vertical_quality["score"]
         if vertical_text.strip() and (
@@ -84,4 +100,3 @@ def extract_best_text(pdf_bytes: bytes, min_normal_score: float, min_score_delta
         "normal_quality": normal_quality,
         "vertical_quality": vertical_quality,
     }
-

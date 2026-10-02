@@ -55,41 +55,55 @@ def _extract_layout_from_pdf(
 ) -> dict:
     pages: list[dict] = []
     for page_index, page in enumerate(pdf.pages, start=1):
-        raw_words = page.extract_words(
-            x_tolerance=word_x_tolerance,
-            y_tolerance=word_y_tolerance,
-            keep_blank_chars=False,
-            use_text_flow=False,
-        )
-        words = [
-            {
-                "text": str(word.get("text") or ""),
-                "x0": round(float(word["x0"]), 3),
-                "y0": round(float(word["top"]), 3),
-                "x1": round(float(word["x1"]), 3),
-                "y1": round(float(word["bottom"]), 3),
-                "word_index": word_index,
-            }
-            for word_index, word in enumerate(raw_words)
-            if str(word.get("text") or "").strip()
-        ]
-        lines = _group_words_into_lines(words, page_index=page_index, y_tolerance=line_y_tolerance)
         pages.append(
-            {
-                "page_no": page_index,
-                "width": round(float(page.width), 3),
-                "height": round(float(page.height), 3),
-                "words": words,
-                "lines": lines,
-            }
+            extract_page_layout(
+                page,
+                page_index=page_index,
+                word_x_tolerance=word_x_tolerance,
+                word_y_tolerance=word_y_tolerance,
+                line_y_tolerance=line_y_tolerance,
+            )
         )
+    return {"page_count": len(pages), "pages": pages}
+
+
+def extract_page_layout(
+    page: pdfplumber.page.Page,
+    *,
+    page_index: int,
+    word_x_tolerance: float = 1.0,
+    word_y_tolerance: float = 3.0,
+    line_y_tolerance: float = 3.0,
+) -> dict:
+    raw_words = page.extract_words(
+        x_tolerance=word_x_tolerance,
+        y_tolerance=word_y_tolerance,
+        keep_blank_chars=False,
+        use_text_flow=False,
+    )
+    words = [
+        {
+            "text": str(word.get("text") or ""),
+            "x0": round(float(word["x0"]), 3),
+            "y0": round(float(word["top"]), 3),
+            "x1": round(float(word["x1"]), 3),
+            "y1": round(float(word["bottom"]), 3),
+            "word_index": word_index,
+        }
+        for word_index, word in enumerate(raw_words)
+        if str(word.get("text") or "").strip()
+    ]
+    lines = group_words_into_lines(words, page_index=page_index, y_tolerance=line_y_tolerance)
     return {
-        "page_count": len(pages),
-        "pages": pages,
+        "page_no": page_index,
+        "width": round(float(page.width), 3),
+        "height": round(float(page.height), 3),
+        "words": words,
+        "lines": lines,
     }
 
 
-def _group_words_into_lines(
+def group_words_into_lines(
     words: list[dict],
     *,
     page_index: int,
@@ -131,6 +145,12 @@ def _group_words_into_lines(
     return lines
 
 
+def extract_page_text(page: pdfplumber.page.Page, *, vertical: bool = False) -> str:
+    if vertical:
+        return _extract_vertical_text_from_page(page, x_tolerance=2.0)
+    return page.extract_text() or ""
+
+
 def extract_text(source: Union[str, Path, BinaryIO]) -> str:
     if isinstance(source, (str, Path)):
         path = Path(source)
@@ -162,8 +182,7 @@ def extract_text_vertical(source: Union[str, Path, BinaryIO], x_tolerance: float
     source.seek(0)
     with pdfplumber.open(cast(Any, source)) as pdf:
         return "\n".join(
-            _extract_vertical_text_from_page(page, x_tolerance=x_tolerance)
-            for page in pdf.pages
+            _extract_vertical_text_from_page(page, x_tolerance=x_tolerance) for page in pdf.pages
         )
 
 

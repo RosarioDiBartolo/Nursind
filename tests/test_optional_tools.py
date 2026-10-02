@@ -5,6 +5,7 @@ import pytest
 
 from core.csv_validation import MissingColumnsError
 from core.tools.afternoon_export.service import export_afternoon_long_from_dir
+from core.tools.clean_shifts_export.service import export_clean_shifts_from_dir
 from core.tools.missing_report.options import TimbratureMissingReportOptions
 from core.tools.parser_recall.options import ParserRecallAuditOptions
 from core.tools.turni_custom_counts.options import TurniCustomCountsOptions
@@ -86,6 +87,99 @@ def test_afternoon_export_requires_enrichment_and_writes_employee_artifacts(
     assert (employee_dir / "Mario Rossi.csv").exists()
     assert (employee_dir / "Mario Rossi.pdf").read_bytes().startswith(b"%PDF")
     assert len(pd.read_csv(employee_dir / "Mario Rossi.pomeriggi.csv")) == 1
+
+
+def test_clean_shifts_export_reads_enriched_files_and_writes_employee_workbook(
+    tmp_path, write_csv
+) -> None:
+    enriched_dir = tmp_path / "enrichment"
+    output_dir = tmp_path / "clean_shifts"
+    report_json = output_dir / "report.json"
+
+    missing_report = export_clean_shifts_from_dir(
+        enriched_dir=str(enriched_dir),
+        output_dir=str(output_dir),
+        report_json=str(report_json),
+    )
+
+    assert missing_report["status"] == "error"
+    assert missing_report["issues"][0]["code"] == "missing_enriched_inputs"
+
+    write_csv(
+        enriched_dir / "Mario Rossi.enriched.csv",
+        [
+            {
+                "employee": "Mario Rossi",
+                "entry_ts": "2025-05-10 20:00:00",
+                "exit_ts": "2025-05-11 04:30:00",
+                "duration_hours": 8.5,
+                "is_holiday": False,
+                "turno_bucket": "N",
+                "turno": "Notte",
+            },
+            {
+                "employee": "Mario Rossi",
+                "entry_ts": "2025-05-11 08:00:00",
+                "exit_ts": "2025-05-11 14:00:00",
+                "duration_hours": 6.0,
+                "is_holiday": False,
+                "turno_bucket": "M",
+                "turno": "Mattina",
+            },
+            {
+                "employee": "Mario Rossi",
+                "entry_ts": "2025-05-11 08:00:00",
+                "exit_ts": "2025-05-11 14:00:00",
+                "duration_hours": 6.0,
+                "is_holiday": True,
+                "turno_bucket": "MF",
+                "turno": "Mattina",
+            },
+        ],
+    )
+
+    report = export_clean_shifts_from_dir(
+        enriched_dir=str(enriched_dir),
+        output_dir=str(output_dir),
+        report_json=str(report_json),
+    )
+
+    rows = pd.read_excel(output_dir / "Mario Rossi.xlsx")
+    assert report["status"] == "ok"
+    assert report["stats"]["files_processed"] == 1
+    assert report["items"][0]["rows_total"] == 3
+    assert report["items"][0]["rows_written"] == 2
+    assert report["items"][0]["output_xlsx"].endswith("Mario Rossi.xlsx")
+    assert not (output_dir / "Mario Rossi.csv").exists()
+    assert list(rows.columns) == [
+        "Data",
+        "Giorno",
+        "Entrata",
+        "Uscita",
+        "Durata",
+        "Festivo",
+        "Turno",
+    ]
+    assert rows.to_dict("records") == [
+        {
+            "Data": "2025-05-10",
+            "Giorno": "Sabato",
+            "Entrata": "20:00",
+            "Uscita": "04:30",
+            "Durata": "8:30",
+            "Festivo": "non festivo",
+            "Turno": "Notte",
+        },
+        {
+            "Data": "2025-05-11",
+            "Giorno": "Domenica",
+            "Entrata": "08:00",
+            "Uscita": "14:00",
+            "Durata": "6:00",
+            "Festivo": "festivo",
+            "Turno": "Mattina",
+        },
+    ]
 
 
 def test_turni_custom_counts_counts_requested_categories(tmp_path, write_csv) -> None:

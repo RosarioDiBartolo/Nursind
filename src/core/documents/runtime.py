@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import threading
 import time
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from typing import Any
 
 from core.drive.auth_service import load_creds
@@ -10,6 +10,9 @@ from core.drive.index_runtime import maybe_flush_indexes
 from core.drive.logging_utils import get_logger, setup_logging
 from core.drive.schema import IndexFile
 from core.errors import CredentialsError
+
+from core.documents.ocr import check_tesseract
+from core.documents.progress import completed_with_progress
 
 from .options import ExtractDocumentsFromIndexOptions
 from .service import apply_extraction_result, finalize_extraction_run, prepare_extraction_run
@@ -65,6 +68,19 @@ def _record_result(
         excluded_map=state["excluded_map"],
         text_rows_by_file_id=state["text_rows_by_file_id"],
     )
+    doc = result.get("doc") or result
+    log = logger.info if result.get("status") == "success" else logger.warning
+    log(
+        "Documents %s/%s: %s | %s | succeeded=%s failed=%s OCR pages=%s%s",
+        processed,
+        stats["queued"],
+        result.get("status"),
+        doc.get("file_name") or doc.get("file_id") or "unknown",
+        stats["succeeded"],
+        stats["failed"],
+        stats.get("ocr_pages", 0),
+        f" | {result['reason']}" if result.get("reason") else "",
+    )
     _flush_progress(
         processed=processed,
         flush_every=state["flush_every"],
@@ -109,7 +125,7 @@ def _drain_extract_futures(
                 extract_futures.pop(future, None)
                 cancelled += 1
 
-    for done in as_completed(list(extract_futures)):
+    for done in completed_with_progress(list(extract_futures), stage="extraction"):
         doc_info = extract_futures.pop(done, {})
         try:
             result = done.result()
@@ -145,6 +161,8 @@ def run_extraction(
     logger = get_logger()
     logger.info("Starting document extraction pipeline at out=%s", options.out)
 
+    if options.ocr.enabled:
+        check_tesseract(options.ocr)
     state = prepare_extraction_run(options)
     stats = state["stats"]
     docs = state["docs"]
@@ -183,15 +201,19 @@ def run_extraction(
             creds = None
 
         extract_futures: dict = {}
-        with ThreadPoolExecutor(max_workers=state["download_workers"]) as download_pool, ProcessPoolExecutor(
-            max_workers=state["extract_workers"]
-        ) as extract_pool:
+        with (
+            ThreadPoolExecutor(max_workers=state["download_workers"]) as download_pool,
+            ProcessPoolExecutor(
+                max_workers=state["extract_workers"],
+                initializer=setup_logging,
+                initargs=(options.verbose,),
+            ) as extract_pool,
+        ):
             download_futures = [
-                download_pool.submit(download_pdf_bytes, creds, doc, stop_event)
-                for doc in docs
+                download_pool.submit(download_pdf_bytes, creds, doc, stop_event) for doc in docs
             ]
             try:
-                for future in as_completed(download_futures):
+                for future in completed_with_progress(download_futures, stage="downloads"):
                     try:
                         download_result = future.result()
                     except Exception as exc:
@@ -215,7 +237,7 @@ def run_extraction(
                         continue
 
                     while len(extract_futures) >= state["max_in_flight"]:
-                        done = next(as_completed(extract_futures))
+                        done = next(completed_with_progress(extract_futures, stage="extraction"))
                         doc_info = extract_futures.pop(done, {})
                         try:
                             result = done.result()
@@ -237,6 +259,10 @@ def run_extraction(
                         )
 
                     doc_info = download_result["doc"]
+                    logger.info(
+                        "Queued for extraction: %s",
+                        doc_info.get("file_name") or doc_info.get("file_id"),
+                    )
                     extract_future = extract_pool.submit(
                         extract_and_write,
                         download_result["data"],
@@ -244,6 +270,7 @@ def run_extraction(
                         options.out,
                         options.min_normal_score,
                         options.min_score_delta,
+                        options.ocr,
                     )
                     extract_futures[extract_future] = doc_info
 
@@ -288,6 +315,7 @@ def run_extraction(
                     "Interrupted by user, drained in-flight extraction tasks and flushing indexes..."
                 )
 
+    logger.info("Saving extraction indexes, manifests and report...")
     report = finalize_extraction_run(
         options=options,
         state=state,
