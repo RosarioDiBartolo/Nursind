@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from core.drive.names import is_macos_metadata
+
 from hashlib import sha1
 from io import BytesIO
 from urllib.parse import quote, unquote
@@ -45,7 +47,7 @@ def list_pdf_members(zip_bytes: bytes) -> list[str]:
             if info.is_dir():
                 continue
             normalized = normalize_zip_member_path(info.filename)
-            if normalized.lower().endswith(".pdf"):
+            if normalized.lower().endswith(".pdf") and not is_macos_metadata(normalized):
                 members.append(normalized)
     return sorted(set(members))
 

@@ -107,3 +107,7 @@ work every 15 seconds; this is a waiting notice, not proof of worker progress.
 Document text, credentials and tokens are not logged. File names/IDs are logged.
 These logs are independent of `log_every` (the existing index progress setting).
 Changes take effect on the next run; already-running workers keep the old code.
+
+Drive scanning and local/ZIP PDF discovery ignore macOS AppleDouble `._*` sidecars
+and `__MACOSX` containers. Drive sidecars are reported with reason `macos_metadata`;
+ZIP member discovery omits them. Such entries are metadata, not document PDFs.

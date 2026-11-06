@@ -14,6 +14,8 @@ from core.parsing import (
     normalize_text,
 )
 
+from core.events.extraction.workflow_header import workflow_year_month, is_workflow_monthly
+
 from .models import ParsedEvent, ParsedRow
 from .parsers import resolve_parser
 from .parsers.common import document_text, get_layout_pages
@@ -172,6 +174,12 @@ def resolve_page_year_month(
     page_text: str,
     source_path: Path,
 ) -> tuple[int | None, int | None, str]:
+    year, month = workflow_year_month(page_text)
+    if year is not None and month is not None:
+        return year, month, "workflow_header"
+    if is_workflow_monthly(page_text):
+        return None, None, "workflow_missing_header"
+
     year, month = infer_year_month_from_text(page_text)
     if year is not None and month is not None:
         return year, month, "text"
@@ -220,6 +228,7 @@ def build_event_row(
     day_value = _build_day(year=page_year, month=page_month, day_value=event.day)
     if day_value is None:
         return None
+    day_value += timedelta(days=event.day_offset)
     event_dt = _to_dt(day_value, event.event_time_hhmm)
     if event_dt is None:
         return None
@@ -429,9 +438,7 @@ def parse_document_pages(
                 )
                 if events_extracted > 0:
                     event_rows = [
-                        row
-                        for row in event_rows
-                        if int(row.get("source_page_no") or -1) != page_no
+                        row for row in event_rows if int(row.get("source_page_no") or -1) != page_no
                     ]
                     events_extracted = 0
                 rows_with_events = 0
@@ -527,4 +534,3 @@ __all__ = [
     "base_process_result",
     "parse_document_pages",
 ]
-

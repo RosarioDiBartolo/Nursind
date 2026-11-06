@@ -18,3 +18,9 @@ def safe_name(name: str, max_len: int = 120) -> str:
     if len(name) > max_len:
         name = name[:max_len]
     return name or "unnamed"
+
+
+def is_macos_metadata(path: str) -> bool:
+    """Ignore AppleDouble sidecars and __MACOSX containers across input sources."""
+    parts = path.replace("\\", "/").split("/")
+    return any(part.startswith("._") or part == "__MACOSX" for part in parts)

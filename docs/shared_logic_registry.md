@@ -49,3 +49,13 @@ existing native quality scoring and PDF line grouping reused):
 with periodic wait logging, reused for download waits, extraction queue limits,
 and final worker draining. Worker initialization reuses
 `core.drive.logging_utils.setup_logging` to enable INFO logs on Windows.
+
+| Module | Responsibility |
+|---|---|
+| `core.drive.names.is_macos_metadata` | Shared AppleDouble / __MACOSX exclusion for Drive scans, ZIP members and local indexes |
+| `core.events.extraction.workflow_header` | Recognize/decode WORKFLOW monthly headers and resolve padded month/year titles |
+| `core.events.extraction.parsers.workflow_monthly` | Parse the six monthly punch columns with source coordinates and overnight exit offsets |
+
+`ParsedEvent.day_offset` defaults to zero; page event construction applies explicit
+parser offsets before chronological pairing. Native monthly headers reuse existing
+`core.parsing.MONTH_WORDS`; source document text is preserved.

@@ -36,6 +36,7 @@ class ParsedEvent:
     source_bbox_y1: float | None = None
     normalized_from: str | None = None
     normalization_kind: str | None = None
+    day_offset: int = 0
 
 
 @dataclass(frozen=True, slots=True)

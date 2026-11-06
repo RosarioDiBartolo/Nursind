@@ -4,6 +4,7 @@ import argparse
 from pathlib import Path
 from typing import Sequence
 
+from core.drive.names import is_macos_metadata
 from ..fs_utils import ensure_parent_dir
 from ..logging_utils import get_logger, setup_logging
 from .map_index import MapIndex
@@ -24,8 +25,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--name",
         default=DEFAULT_INDEX_NAME,
         help=(
-            "Index filename (or relative path) saved inside the target folder. "
-            "Default: index.json"
+            "Index filename (or relative path) saved inside the target folder. Default: index.json"
         ),
     )
     parser.add_argument(
@@ -113,7 +113,9 @@ def _discover_pdf_files(folder_path: Path, *, recursive: bool) -> list[Path]:
     pdf_files = [
         path.resolve()
         for path in iterator
-        if path.is_file() and path.suffix.lower() == ".pdf"
+        if path.is_file()
+        and path.suffix.lower() == ".pdf"
+        and not is_macos_metadata(path.relative_to(folder_path).as_posix())
     ]
     return sorted(
         pdf_files,

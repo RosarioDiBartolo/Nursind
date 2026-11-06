@@ -11,7 +11,7 @@ from core.drive.archive_utils import (
 from core.drive.downloads import download_file_bytes
 from core.drive.drive_client import get_drive_service, list_children
 from core.drive.logging_utils import get_logger
-from core.drive.names import normalize_term
+from core.drive.names import normalize_term, is_macos_metadata
 
 logger = get_logger()
 
@@ -31,10 +31,12 @@ def find_excluding_term(value: str, exclude_terms: Iterable[str]) -> str | None:
 
 
 def folder_excluded(name: str, exclude_terms: Iterable[str]) -> str | None:
-    return find_excluding_term(name, exclude_terms)
+    return "macos_metadata" if is_macos_metadata(name) else find_excluding_term(name, exclude_terms)
 
 
 def file_excluded(filename: str, exclude_terms: Iterable[str]) -> str | None:
+    if is_macos_metadata(filename):
+        return "macos_metadata"
     if not exclude_terms:
         return None
     n = filename.lower()
@@ -90,7 +92,23 @@ def collect_files_recursive(
             elif _is_pdf_or_zip(item):
                 mime_type = item.get("mimeType")
                 file_path = f"{path}/{item['name']}"
-                is_zip = mime_type in ZIP_MIME_TYPES or (item.get("name") or "").lower().endswith(".zip")
+                if is_macos_metadata(item["name"]):
+                    filtered_files.append(
+                        {
+                            "employee": emp["name"],
+                            "employee_id": emp["id"],
+                            "local": False,
+                            "file_id": item["id"],
+                            "file_name": item["name"],
+                            "drive_path": file_path,
+                            "type": "file",
+                            "reason": "macos_metadata",
+                        }
+                    )
+                    continue
+                is_zip = mime_type in ZIP_MIME_TYPES or (item.get("name") or "").lower().endswith(
+                    ".zip"
+                )
                 if not is_zip:
                     files.append(
                         {
@@ -108,7 +126,7 @@ def collect_files_recursive(
                     logger.warning("[%s] invalid ZIP skipped: %s", emp["name"], file_path)
                     filtered_files.append(
                         {
-                            "employee": emp["name"],   
+                            "employee": emp["name"],
                             "local": False,
                             "file_id": item["id"],
                             "file_name": item["name"],
@@ -122,7 +140,7 @@ def collect_files_recursive(
                     logger.warning("[%s] ZIP read failed for %s: %s", emp["name"], file_path, exc)
                     filtered_files.append(
                         {
-                            "employee": emp["name"],   
+                            "employee": emp["name"],
                             "local": False,
                             "file_id": item["id"],
                             "file_name": item["name"],
@@ -136,7 +154,7 @@ def collect_files_recursive(
                 if not members:
                     filtered_files.append(
                         {
-                            "employee": emp["name"],   
+                            "employee": emp["name"],
                             "local": False,
                             "file_id": item["id"],
                             "file_name": item["name"],
@@ -172,7 +190,7 @@ def build_folder_report(
     )
     included: List[dict] = []
     filtered: List[dict] = list(pre_filtered_files)
-    
+
     for item in files:
         fname = item["file_name"]
         term = file_excluded(fname, exclude_terms)
@@ -224,4 +242,3 @@ def build_folder_report(
         "included": included,
         "filtered": filtered,
     }
-

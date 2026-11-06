@@ -81,7 +81,7 @@ def iter_layout_lines(document: dict[str, Any]) -> list[DocumentLine]:
             if not isinstance(raw_word, dict):
                 continue
             try:
-                word_index = int(str(raw_word.get("word_index") or "").strip())
+                word_index = int(str(raw_word.get("word_index", "")).strip())
             except Exception:
                 continue
             words_by_index[word_index] = raw_word
