@@ -59,3 +59,16 @@ and final worker draining. Worker initialization reuses
 `ParsedEvent.day_offset` defaults to zero; page event construction applies explicit
 parser offsets before chronological pairing. Native monthly headers reuse existing
 `core.parsing.MONTH_WORDS`; source document text is preserved.
+
+## Synthetic portfolio demonstration
+
+Discovery searched demo/synthetic/reportlab/verification implementations, service
+and parser paths, and demo function/class candidates before adding these modules.
+The demo reuses local index building, canonical configuration/paths, JSON I/O and
+the production pipeline runner; it adds no alternative processing pipeline.
+
+| Module | Responsibility |
+|---|---|
+| `core.tools.portfolio_demo.fixtures` | Generate synthetic PDF and isolated local index/configuration |
+| `core.tools.portfolio_demo.verification` | Compare real artifacts against fixed independent expectations and record hashes |
+| `core.tools.portfolio_demo.visuals` | Render evidence cards from verified artifacts and the generated PDF |

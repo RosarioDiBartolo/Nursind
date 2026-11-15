@@ -1,0 +1,4 @@
+-r requirements.txt
+# Direct dependencies of the portfolio evidence renderer.
+Pillow>=10
+pypdfium2>=4

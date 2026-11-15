@@ -3,6 +3,13 @@
 This repository is a set of directly runnable Python scripts backed by shared
 implementation modules. It is not a distributable Python package.
 
+## Synthetic portfolio demo
+
+For an offline PDF-to-CSV/Excel demonstration with fixed expectations, an
+unmatched-punch case, verification commands and presentation materials, see
+[`portfolio/README.md`](portfolio/README.md). This demo uses no operational data
+or Drive credentials and is separate from NursindPayroll.
+
 ## Setup
 
 ```powershell
