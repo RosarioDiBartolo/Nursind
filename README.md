@@ -27,6 +27,11 @@ GOOGLE_TOKEN_PATH=token.json
 
 ## Configuration
 
+The complete configuration contract is [`pipeline.schema.json`](pipeline.schema.json).
+Copy [`pipeline.example.json`](pipeline.example.json) to `pipeline.json` for a
+complete starting point. See [`docs/pipeline_configuration.md`](docs/pipeline_configuration.md)
+for requirements and path behavior.
+
 All scripts load the root [`pipeline.json`](pipeline.json). Relative output
 paths are resolved from the repository root, regardless of the current working
 directory.
@@ -75,11 +80,16 @@ Or run a selected subset in canonical order:
 
 Each script accepts `--config <path>` and `--verbose`.
 
-The canonical output layout appends `.out_dir` to the resolved pipeline name, so
-generated artifacts stay ignored by git:
+The canonical output layout is `output/<pipeline-name>/`, using the resolved
+pipeline name (with filesystem-unsafe characters replaced). Everything under
+`output/` is ignored by Git. Set `pipeline.base_output_dir` to replace the
+`output` base folder; results then go to `<base_output_dir>/<pipeline-name>/`.
+Relative base paths resolve from the repository root; absolute paths are also
+supported. Custom base folders inside the repository need their own Git ignore
+rule:
 
 ```text
-<pipeline-name>.out_dir/
+output/<pipeline-name>/
   scan/
   documents/
   events/
@@ -94,6 +104,11 @@ Existing artifact names and CSV/JSON schemas are documented in
 [`docs/schemas.md`](docs/schemas.md).
 
 ## Architecture
+
+For a read-only, content-based inventory of a Drive folder, run
+`src/scripts/map_drive.py`. It reuses document extraction and event parsers,
+identifies employees per page, and writes isolated mapping artifacts without
+organizing Drive files. See [folder mapping](docs/folder_mapping.md).
 
 ```text
 src/
@@ -110,6 +125,9 @@ src/
 Business logic belongs in `src/core`. Scripts and notebooks must remain thin.
 
 Optional utilities live under `src/scripts/tools/`.
+
+For monthly PDF reports comparing complete post-filter shifts with explicit
+theoretical schedules, see [shift deviation export](docs/deviation_export.md).
 
 ## Notebooks
 

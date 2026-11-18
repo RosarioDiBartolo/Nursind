@@ -10,6 +10,7 @@ from _bootstrap import bootstrap
 bootstrap()
 
 from core.config import load_pipeline_config
+from core.paths import build_pipeline_paths
 from core.tools.portfolio_demo.fixtures import prepare_demo
 from core.tools.portfolio_demo.verification import verify_demo
 
@@ -31,7 +32,10 @@ def main() -> None:
     if args.action == "prepare":
         print(prepare_demo(repository, args.name))
     else:
-        config = load_pipeline_config(repository / f"{args.name}.out_dir" / "demo-config.json")
+        paths = build_pipeline_paths(
+            repository_root=repository, output_dir_stem=Path("output") / args.name
+        )
+        config = load_pipeline_config(paths.pipeline_root / "demo-config.json")
         if args.action == "verify":
             result = verify_demo(config)
             print(

@@ -6,7 +6,6 @@ Keep this file **generic**. Project-specific context should live in `README.md` 
 - Read `README.md` before making changes.
 - Read `llm.md` for low-context navigation and task routing.
 - Read `docs/codebase_map.md` for code ownership, test routing, and default skip paths.
-- Read `docs/shared_logic_registry.md` before introducing or moving shared helpers.
 - Read the relevant step docs in `docs/*` for impacted pipeline stages.
 
 ## Markdown files (purpose + usage)
@@ -21,7 +20,6 @@ Keep this file **generic**. Project-specific context should live in `README.md` 
 - `docs/enrichment.md`: Shift enrichment step docs.
 - `docs/aggregation.md`: Employee summary docs.
 - `docs/schemas.md`: CSV schema reference.
-- `docs/shared_logic_registry.md`: Inventory of shared modules and anti-duplication rules.
 
 ## General code patterns
 - Keep functions small, composable, and focused on a single responsibility.

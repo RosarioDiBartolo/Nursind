@@ -264,9 +264,10 @@ def explicit_events_for_line(
     *,
     day: int,
     dow: str,
+    repair_ocr: bool = False,
 ) -> tuple[ParsedEvent, ...]:
     events: list[ParsedEvent] = []
-    for event in extract_events(line.text):
+    for event in extract_events(line.text, repair_ocr=repair_ocr):
         word_position = _event_word_position(
             line,
             match_start=event.start,

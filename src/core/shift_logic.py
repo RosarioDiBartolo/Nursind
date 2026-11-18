@@ -128,8 +128,26 @@ class PairsCloser:
                 pending_entry = None
                 continue
 
+            if (
+                pending_entry.get("parser_id") == "situazione_mensile"
+                and entry_ts.date() == exit_ts.date()
+                and pending_entry.get("source_line_id")
+                and row.get("source_line_id")
+                and (
+                    pending_entry.get("source_doc_json"),
+                    pending_entry.get("source_page_no"),
+                    pending_entry.get("source_line_id"),
+                ) != (
+                    row.get("source_doc_json"), row.get("source_page_no"), row.get("source_line_id"),
+                )
+            ):
+                pending_entry = None
+                continue
+
             merged = pending_entry.copy()
             merged["exit_ts"] = exit_ts
+            if "exit_event_ref" in row.index:
+                merged["exit_event_ref"] = row.get("exit_event_ref")
             if self.preserve_exit_raw and "exit_raw" in merged.index:
                 merged["exit_raw"] = row.get("exit_raw")
             if self.clear_duration_hhmm and "duration_hhmm" in merged.index:

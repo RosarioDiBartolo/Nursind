@@ -15,6 +15,7 @@
 | Enrichment | `src/core/shifts/enrichment/` | `tests/test_shift_pipeline.py` |
 | Summary | `src/core/shifts/summary/` | `tests/test_shift_pipeline.py` |
 | Optional tools | `src/core/tools/`, `src/scripts/tools/` | `tests/test_optional_tools.py` |
+| Post-filter deviation PDF/CSV export | `src/core/tools/deviation_export/` | `tests/test_deviation_export.py` |
 
 Scripts own argument parsing, configuration loading, logging, and orchestration.
 Core modules own transformations, I/O, validation, and reports.

@@ -13,6 +13,29 @@ Event extraction writes `events.csv` and `pages.csv`. Cleanup writes
 Implementation: `core.events.extraction`, `core.events.filtering`, and
 `core.shifts.pairing`.
 
+## Damaged monthly attendance text
+
+For `situazione_mensile`, month/year recovery uses the title before the daily
+table. Supported OCR substitutions in four-character year tokens and an
+unambiguous month match are allowed; footer print dates are never substitutes
+for missing titles. Future years and unresolved titles are rejected, not guessed
+from neighboring pages. A rejected title appears as `error_missing_year_month`.
+
+OCR time substitutions are restricted to explicitly marked E/U time tokens,
+preserve character offsets, and retain the original raw text. Daily rows whose
+weekday conflicts with their calendar date are excluded and reported as
+`error_day_weekday_mismatch`. Pairing also refuses same-day monthly punches from
+different source lines; overnight pairs across consecutive dates remain allowed.
+
+Extraction and pairing reports use `status=warning` and populated `issues` when
+pages are rejected or punches remain unmatched. Undated event pages contribute
+to the coverage denominator. These warnings require review even when subsequent
+enrichment/summary stages complete successfully; their status describes their
+own computation, not completeness of the input documents.
+
+Pair CSVs retain `entry_event_ref` and `exit_event_ref`, plus original source file
+identity when available, for verification against canonical document JSON.
+
 ## WORKFLOW monthly attendance PDFs
 
 `workflow_monthly` recognizes the WORKFLOW CARTELLINO MENSILE template, including

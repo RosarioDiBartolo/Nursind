@@ -1,5 +1,11 @@
 # Shared Logic Registry
 
+Folder mapping reuses `core.pipeline.steps.run_extract_documents_step`,
+`core.events.extraction.page_analysis.parse_document_pages`, the existing Drive
+listing and `MapIndex`, and canonical manifests/CSV writers. Content-based
+employee recognition lives in `core.events.extraction.identity`; inventory,
+per-page adaptation and orchestration live in `core.folder_mapping`.
+
 Read this file before adding helpers. Logic used by multiple steps belongs in
 `src/core`, not in scripts or notebooks.
 

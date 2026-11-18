@@ -12,10 +12,13 @@ pipeline.json
 *.so
 .tmp
 *.json
+!/pipeline.schema.json
+!/pipeline.example.json
 !src/notebooks/pipeline_config.json
 *.csv
 data/*
-output
+runs/*
+/output/
 old_output
 # Distribution / packaging
 .Python

@@ -40,7 +40,7 @@ class SituazioneMensileParser(BaseFormatParser):
                     day,
                     dow,
                     line,
-                    explicit_events_for_line(line, day=day, dow=dow),
+                    explicit_events_for_line(line, day=day, dow=dow, repair_ocr=True),
                 )
             )
         return tuple(rows)

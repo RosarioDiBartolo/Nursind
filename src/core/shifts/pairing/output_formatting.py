@@ -122,6 +122,9 @@ def format_output_pairs(df: pd.DataFrame, *, keep_inferred_column: bool) -> pd.D
         "file_name",
         "source_csv",
     ]
+    preferred.extend(
+        column for column in ("entry_event_ref", "exit_event_ref") if column in working.columns
+    )
     if keep_inferred_column and "closed_inferred" in working.columns:
         preferred.append("closed_inferred")
     missing = [col for col in preferred if col not in working.columns]

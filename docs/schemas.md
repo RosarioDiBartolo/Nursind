@@ -63,6 +63,7 @@ Columns:
 - `entry_ts`, `exit_ts`, `duration_hhmm`
 - `turno`, `entry_raw`, `exit_raw`
 - `file_id`, `file_name`, `source_csv`
+- `entry_event_ref`, `exit_event_ref` (source anchors when pairing event inputs)
 - Optional: `closed_inferred` (only when pairing is run with `--keep-inferred-column`)
 
 Produced by: `core.shifts.pairing`
@@ -128,6 +129,17 @@ Turno rows:
 - `MF`: holiday or Sunday morning shifts
 
 Produced by: `core.tools.turni_custom_counts`
+
+## Deviation export (`deviation_export/`)
+
+`*.confronti.csv` and `*.scostamenti.csv` contain:
+`entry_ts`, `exit_ts`, `code`, `theoretical_entry`, `theoretical_exit`,
+`diff_entry_minutes`, `diff_exit_minutes`, `over_threshold`, `entry_event_ref`,
+`exit_event_ref`, `file_id`, `file_name`.
+
+`*.esclusi.csv` contains `entry_ts`, `exit_ts`, `reason`, `entry_event_ref`,
+`exit_event_ref`. See [deviation export](deviation_export.md) for the comparison
+rules, schedule source and PDF outputs.
 
 ## missing_timbrature.summary.csv
 

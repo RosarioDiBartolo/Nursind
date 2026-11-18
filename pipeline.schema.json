@@ -1,0 +1,343 @@
+{
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "pipeline": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "base_output_dir": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S",
+          "default": "output"
+        }
+      },
+      "additionalProperties": false
+    },
+    "drive": {
+      "type": "object",
+      "properties": {
+        "root_id": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "folder_name": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "root_name": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "root_id"
+      ]
+    },
+    "steps": {
+      "type": "object",
+      "properties": {
+        "scan": {
+          "type": "object",
+          "properties": {
+            "workers": {
+              "type": "integer",
+              "default": 8,
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "extract_documents": {
+          "type": "object",
+          "properties": {
+            "workers": {
+              "type": "integer",
+              "default": 8,
+              "minimum": 1
+            },
+            "download_workers": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "default": null
+            },
+            "extract_workers": {
+              "type": "integer",
+              "default": 1,
+              "minimum": 1
+            },
+            "max_in_flight": {
+              "type": "integer",
+              "default": 128,
+              "minimum": 1
+            },
+            "flush_every": {
+              "type": "integer",
+              "default": 100,
+              "minimum": 1
+            },
+            "limit": {
+              "type": "integer",
+              "default": 0,
+              "minimum": 0
+            },
+            "log_every": {
+              "type": "integer",
+              "default": 50,
+              "minimum": 1
+            },
+            "reprocess_included": {
+              "type": "boolean",
+              "default": false
+            },
+            "reprocess_excluded": {
+              "type": "boolean",
+              "default": false
+            },
+            "min_normal_score": {
+              "type": "number",
+              "default": 0.72,
+              "minimum": 0,
+              "maximum": 1
+            },
+            "min_score_delta": {
+              "type": "number",
+              "default": 0.08,
+              "minimum": 0,
+              "maximum": 1
+            },
+            "ocr": {
+              "type": "object",
+              "properties": {
+                "enabled": {
+                  "type": "boolean",
+                  "default": false
+                },
+                "executable": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "\\S",
+                  "default": "tesseract"
+                },
+                "language": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "\\S",
+                  "default": "ita+eng"
+                },
+                "dpi": {
+                  "type": "integer",
+                  "default": 300,
+                  "minimum": 72,
+                  "maximum": 600
+                },
+                "psm": {
+                  "type": "integer",
+                  "default": 6,
+                  "minimum": 3,
+                  "maximum": 13
+                },
+                "timeout_seconds": {
+                  "type": "number",
+                  "default": 120,
+                  "minimum": 1,
+                  "maximum": 3600
+                },
+                "min_native_chars": {
+                  "type": "integer",
+                  "default": 100,
+                  "minimum": 1,
+                  "maximum": 10000
+                },
+                "min_native_lines": {
+                  "type": "integer",
+                  "default": 5,
+                  "minimum": 1,
+                  "maximum": 1000
+                },
+                "min_image_area_ratio": {
+                  "type": "number",
+                  "default": 0.25,
+                  "minimum": 0.01,
+                  "maximum": 1
+                },
+                "max_pixels": {
+                  "type": "integer",
+                  "default": 25000000,
+                  "minimum": 1000000,
+                  "maximum": 100000000
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "extract_events": {
+          "type": "object",
+          "properties": {
+            "max_pattern_examples": {
+              "type": "integer",
+              "default": 12,
+              "minimum": 0
+            },
+            "max_unmatched_examples_per_file": {
+              "type": "integer",
+              "default": 5,
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false
+        },
+        "filter_midnight": {
+          "type": "object",
+          "properties": {
+            "max_removed_examples_per_file": {
+              "type": "integer",
+              "default": 10,
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false
+        },
+        "pair_events": {
+          "type": "object",
+          "properties": {
+            "max_gap_hours": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "default": 16
+            },
+            "keep_inferred_column": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "enrich_shifts": {
+          "type": "object",
+          "properties": {
+            "min_hours": {
+              "type": "number",
+              "default": 6,
+              "minimum": 0
+            },
+            "include_holidays": {
+              "type": "boolean",
+              "default": true
+            }
+          },
+          "additionalProperties": false
+        },
+        "summarize_shifts": {
+          "type": "object",
+          "properties": {
+            "format": {
+              "type": "string",
+              "enum": [
+                "csv",
+                "json"
+              ],
+              "default": "csv"
+            },
+            "year_start": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "default": null
+            },
+            "year_end": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "default": null
+            },
+            "min_hours": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0,
+              "default": null
+            }
+          },
+          "additionalProperties": false
+        },
+        "clean_shifts_export": {
+          "type": "object",
+          "properties": {
+            "report_json": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S",
+              "default": "turni_clean_shifts.report.json"
+            }
+          },
+          "additionalProperties": false
+        },
+        "turni_custom_counts": {
+          "type": "object",
+          "properties": {
+            "summary_csv": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S",
+              "default": "turni_custom_counts.csv"
+            },
+            "report_json": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S",
+              "default": "turni_custom_counts.report.json"
+            },
+            "year_start": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "default": null
+            },
+            "year_end": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "default": null
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "drive"
+  ],
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Nursind pipeline configuration",
+  "description": "Configuration accepted by the pipeline runner and optional tools. Defaults describe runtime behavior; they are not inserted by the schema."
+}

@@ -14,6 +14,7 @@ from core.parsing import (
     normalize_text,
 )
 
+from core.events.extraction.monthly_header import monthly_title_year_month
 from core.events.extraction.workflow_header import workflow_year_month, is_workflow_monthly
 
 from .models import ParsedEvent, ParsedRow
@@ -173,7 +174,12 @@ def resolve_page_year_month(
     *,
     page_text: str,
     source_path: Path,
+    parser_id: str | None = None,
 ) -> tuple[int | None, int | None, str]:
+    if parser_id == "situazione_mensile" or "situazione mensile presenze" in normalize_text(page_text):
+        year, month = monthly_title_year_month(page_text)
+        return year, month, "monthly_title" if year is not None else "monthly_missing_title"
+
     year, month = workflow_year_month(page_text)
     if year is not None and month is not None:
         return year, month, "workflow_header"
@@ -360,6 +366,7 @@ def parse_document_pages(
         page_year, page_month, year_month_source = resolve_page_year_month(
             page_text=page_text,
             source_path=source_path,
+            parser_id=parser.parser_id,
         )
         page_kind = classify_page_kind(page_text=page_text, rows_considered=rows_considered)
 
@@ -367,6 +374,7 @@ def parse_document_pages(
         rows_without_events = 0
         events_extracted = 0
         candidate_events = 0
+        date_mismatches = 0
         events_dropped_missing_year_month = 0
 
         if rows_considered <= 0:
@@ -390,7 +398,18 @@ def parse_document_pages(
                     continue
 
                 emitted_for_row = 0
-                if has_page_year_month:
+                row_day = (
+                    _build_day(year=page_year, month=page_month, day_value=parsed_row.day)
+                    if has_page_year_month else None
+                )
+                valid_weekday = not (
+                    parser.parser_id == "situazione_mensile"
+                    and row_day is not None
+                    and calendar_dow(row_day) != parsed_row.dow
+                )
+                if not valid_weekday:
+                    date_mismatches += len(row_events)
+                if has_page_year_month and valid_weekday:
                     for event_index, event in enumerate(row_events):
                         resolved_year = page_year
                         resolved_month = page_month
@@ -419,7 +438,8 @@ def parse_document_pages(
             if candidate_events > 0 and (page_year is None or page_month is None):
                 decision = "error_missing_year_month"
                 decision_reason = "missing_page_year_month"
-                relevant_for_coverage = False
+                relevant_for_coverage = True
+                pages_relevant_total += 1
                 pages_error_total += 1
                 events_dropped_missing_year_month = candidate_events
                 events_dropped_missing_year_month_total += events_dropped_missing_year_month
@@ -449,6 +469,11 @@ def parse_document_pages(
                 relevant_for_coverage = bool(page_kind == "events_table")
                 if relevant_for_coverage:
                     pages_relevant_total += 1
+
+        if date_mismatches:
+            decision = "error_day_weekday_mismatch"
+            decision_reason = f"{date_mismatches} events rejected: day/weekday mismatch"
+            pages_error_total += 1
 
         if decision == "skipped_non_event":
             pages_skipped_non_event_total += 1

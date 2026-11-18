@@ -26,10 +26,10 @@ def test_config_resolves_relative_output_from_repository_root(tmp_path: Path) ->
 
     config = load_pipeline_config(config_path)
 
-    assert config.paths.pipeline_root == tmp_path / "demo.out_dir"
+    assert config.paths.pipeline_root == tmp_path / "output" / "demo"
     assert (
         config.paths.scan_included_index
-        == tmp_path / "demo.out_dir" / "scan" / "included.index.json"
+        == tmp_path / "output" / "demo" / "scan" / "included.index.json"
     )
     assert config.step("scan") == {"workers": 3}
 
@@ -50,7 +50,7 @@ def test_config_defaults_pipeline_name_from_drive_folder(tmp_path: Path) -> None
     config = load_pipeline_config(config_path)
 
     assert config.name == "Drive Folder"
-    assert config.paths.pipeline_root == tmp_path / "Drive Folder.out_dir"
+    assert config.paths.pipeline_root == tmp_path / "output" / "Drive Folder"
 
 
 def test_config_fetches_drive_folder_name_when_pipeline_block_is_missing(
@@ -71,7 +71,7 @@ def test_config_fetches_drive_folder_name_when_pipeline_block_is_missing(
     config = load_pipeline_config(config_path)
 
     assert config.name == "Fetched Drive Folder"
-    assert config.paths.pipeline_root == tmp_path / "Fetched Drive Folder.out_dir"
+    assert config.paths.pipeline_root == tmp_path / "output" / "Fetched Drive Folder"
 
 
 def test_pipeline_name_overrides_drive_folder_name(tmp_path: Path) -> None:
@@ -90,7 +90,7 @@ def test_pipeline_name_overrides_drive_folder_name(tmp_path: Path) -> None:
     config = load_pipeline_config(config_path)
 
     assert config.name == "manual name"
-    assert config.paths.pipeline_root == tmp_path / "manual name.out_dir"
+    assert config.paths.pipeline_root == tmp_path / "output" / "manual name"
 
 
 def test_config_rejects_missing_required_values(tmp_path: Path) -> None:
@@ -121,3 +121,23 @@ def test_paths_create_only_canonical_stage_directories(tmp_path: Path) -> None:
         "enrichment",
         "aggregation",
     }
+
+
+@pytest.mark.parametrize("absolute", [False, True])
+def test_base_output_dir_overrides_output_folder(tmp_path: Path, absolute: bool) -> None:
+    (tmp_path / ".git").mkdir()
+    config_path = tmp_path / "pipeline.json"
+    base = tmp_path / "custom-results" if absolute else Path("custom-results")
+    config_path.write_text(
+        json.dumps({
+            "pipeline": {"name": "demo", "base_output_dir": str(base)},
+            "drive": {"root_id": "test"},
+        }),
+        encoding="utf-8",
+    )
+
+    config = load_pipeline_config(config_path)
+
+    assert config.base_output_dir == tmp_path / "custom-results"
+    assert config.paths.pipeline_root == tmp_path / "custom-results" / "demo"
+    assert config.paths.events_csv == config.paths.pipeline_root / "events" / "events.csv"

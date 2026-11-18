@@ -147,6 +147,15 @@ def process_many_text_rows(
             logger.error("Error processing %s: %s", result["source_doc_json"], result["error"])
             continue
 
+        for page in page_rows:
+            if str(page["decision"]).startswith("error_"):
+                issues.append({
+                    "code": page["decision"],
+                    "source_doc_json": page["source_doc_json"],
+                    "page_no": page["page_no"],
+                    "message": page["decision_reason"],
+                })
+
         stats["files_processed"] += 1
         if int(result["events_extracted"]) > 0:
             stats["files_with_events"] += 1
@@ -187,6 +196,7 @@ def process_many_text_rows(
 
     return build_stage_report(
         stage="extract_events_from_documents",
+        status="warning" if issues else "ok",
         inputs={
             "input_mode": "employee_manifest_csv",
             "input_dir": os.path.abspath(input_dir) if input_dir else None,

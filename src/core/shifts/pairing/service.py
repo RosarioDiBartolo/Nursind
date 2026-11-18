@@ -226,6 +226,13 @@ def process_many_employee_events(
                 }
             )
 
+        if result["rows_unmatched_after_close"]:
+            issues.append({
+                "code": "unmatched_events",
+                "employee": employee_name,
+                "message": f"{result['rows_unmatched_after_close']} events without a complete pair",
+            })
+
         if int(result["pairs_out"]) > 0:
             stats["employees_with_pairs"] += 1
 
@@ -249,6 +256,7 @@ def process_many_employee_events(
 
     report = build_stage_report(
         stage="pair_employee_events",
+        status="warning" if issues else "ok",
         inputs={
             "input_mode": input_mode,
             "input_dir": os.path.abspath(input_dir) if input_dir else None,

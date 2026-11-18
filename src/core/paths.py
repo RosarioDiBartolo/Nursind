@@ -77,7 +77,7 @@ def build_pipeline_paths(
     output_dir_stem: str | Path,
 ) -> PipelinePaths:
     repo = Path(repository_root).resolve()
-    base = Path(f"{output_dir_stem}.out_dir")
+    base = Path(output_dir_stem)
     if not base.is_absolute():
         base = repo / base
     root = base.resolve()

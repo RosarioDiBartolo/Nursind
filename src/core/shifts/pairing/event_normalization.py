@@ -85,15 +85,14 @@ def normalize_events_file(
             working.loc[:, "source_row_index"] = pd.NA
     if "event_index" not in working.columns:
         working.loc[:, "event_index"] = pd.NA
-    if file_id is not None:
-        working.loc[:, "file_id"] = file_id
-    elif "file_id" not in working.columns:
-        working.loc[:, "file_id"] = None
-
-    if file_name is not None:
-        working.loc[:, "file_name"] = file_name
-    elif "file_name" not in working.columns:
-        working.loc[:, "file_name"] = None
+    for target, source, fallback in (
+        ("file_id", "source_file_id", file_id),
+        ("file_name", "source_file_name", file_name),
+    ):
+        if source in working.columns:
+            working = working.assign(**{target: working[source].fillna(fallback if fallback is not None else "")})
+        elif fallback is not None or target not in working.columns:
+            working = working.assign(**{target: fallback})
 
     working.loc[:, "source_events_csv"] = source_events_csv
     return _event_sort_key(working), stats
@@ -138,6 +137,8 @@ def events_to_partial_pairs(events_df: pd.DataFrame) -> pd.DataFrame:
     exit_.loc[:, "exit_raw"] = exit_.get("event_raw")
     exit_.loc[:, "source_csv"] = exit_["source_events_csv"]
 
+    for prefix, frame in (("entry", entry), ("exit", exit_)):
+        frame[f"{prefix}_event_ref"] = frame.get("source_event_ref", "")
     out = pd.concat([entry, exit_], ignore_index=True)
     out.loc[:, "_sort_ts"] = out["entry_ts"].combine_first(out["exit_ts"])
     out = out.sort_values(
@@ -153,6 +154,12 @@ def events_to_partial_pairs(events_df: pd.DataFrame) -> pd.DataFrame:
     )
     out.loc[:, "duration_hhmm"] = None
     out.loc[:, "turno"] = None
+    trace_columns = [
+        column for column in (
+            "entry_event_ref", "exit_event_ref", "parser_id", "source_doc_json",
+            "source_page_no", "source_line_id",
+        ) if column in out.columns
+    ]
     return out[
         [
             "year",
@@ -168,7 +175,7 @@ def events_to_partial_pairs(events_df: pd.DataFrame) -> pd.DataFrame:
             "file_id",
             "file_name",
             "source_csv",
-        ]
+        ] + trace_columns
     ].reset_index(drop=True)
 
 

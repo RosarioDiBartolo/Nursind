@@ -21,7 +21,7 @@ class PipelineConfig:
 
     @property
     def base_output_dir(self) -> Path:
-        return self.output_dir_stem
+        return self.output_dir_stem.parent
 
     @property
     def paths(self) -> PipelinePaths:
@@ -119,7 +119,10 @@ def load_pipeline_config(path: str | Path | None = None) -> PipelineConfig:
         raise ConfigurationError("drive.root_id is required")
     name = _resolve_pipeline_name(pipeline, drive, root_id=root_id)
 
-    output_dir_stem = Path(safe_name(name)).expanduser()
+    base_output_dir = Path(
+        _optional_text(pipeline.get("base_output_dir")) or "output"
+    ).expanduser()
+    output_dir_stem = base_output_dir / safe_name(name)
     if not output_dir_stem.is_absolute():
         output_dir_stem = repository_root / output_dir_stem
 

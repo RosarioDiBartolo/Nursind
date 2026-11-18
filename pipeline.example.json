@@ -1,0 +1,61 @@
+{
+  "$schema": "./pipeline.schema.json",
+  "pipeline": {
+    "name": "mia-pipeline",
+    "base_output_dir": "output"
+  },
+  "drive": {
+    "root_id": "INSERISCI_ID_CARTELLA_DRIVE"
+  },
+  "steps": {
+    "scan": {
+      "workers": 8
+    },
+    "extract_documents": {
+      "workers": 8,
+      "download_workers": null,
+      "extract_workers": 1,
+      "max_in_flight": 128,
+      "flush_every": 100,
+      "limit": 0,
+      "log_every": 50,
+      "reprocess_included": false,
+      "reprocess_excluded": false,
+      "min_normal_score": 0.72,
+      "min_score_delta": 0.08,
+      "ocr": {
+        "enabled": false,
+        "executable": "tesseract",
+        "language": "ita+eng",
+        "dpi": 300,
+        "psm": 6,
+        "timeout_seconds": 120,
+        "min_native_chars": 100,
+        "min_native_lines": 5,
+        "min_image_area_ratio": 0.25,
+        "max_pixels": 25000000
+      }
+    },
+    "extract_events": {
+      "max_pattern_examples": 12,
+      "max_unmatched_examples_per_file": 5
+    },
+    "filter_midnight": {
+      "max_removed_examples_per_file": 10
+    },
+    "pair_events": {
+      "max_gap_hours": 16,
+      "keep_inferred_column": false
+    },
+    "enrich_shifts": {
+      "min_hours": 6,
+      "include_holidays": true
+    },
+    "summarize_shifts": {
+      "format": "csv",
+      "year_start": null,
+      "year_end": null,
+      "min_hours": null
+    }
+  }
+}

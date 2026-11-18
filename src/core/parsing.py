@@ -486,7 +486,14 @@ def _overlaps(existing: list[tuple[int, int]], start: int, end: int) -> bool:
     return False
 
 
-def extract_events(raw: str) -> list[EventMatch]:
+def extract_events(raw: str, *, repair_ocr: bool = False) -> list[EventMatch]:
+    if repair_ocr:
+        # Same-length substitutions preserve original token offsets and provenance.
+        raw = re.sub(
+            r"(?<!\w)[EU]\s*[([\-]?\s*[0-2oOilI]?[0-9oOilI][:;.][0-9oOilI]{2}(?!\w)",
+            lambda match: match.group().translate(str.maketrans("oOilI;.", "00111::")),
+            raw,
+        )
     spans: list[tuple[int, int]] = []
     events: list[EventMatch] = []
     for pattern_name, regex in EVENT_PATTERNS:

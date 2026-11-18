@@ -7,10 +7,13 @@ from reportlab.pdfgen import canvas
 from core.config import load_pipeline_config
 from core.drive.index.build_local_pdf_index import build_local_pdf_index
 from core.drive.io_json import write_json
+from core.paths import build_pipeline_paths
 
 
 def prepare_demo(repository: Path, name: str) -> Path:
-    root = repository / f"{name}.out_dir"
+    root = build_pipeline_paths(
+        repository_root=repository, output_dir_stem=Path("output") / name
+    ).pipeline_root
     if root.exists():
         raise FileExistsError(f"Use a new --name; existing artifacts are preserved: {root}")
     inputs = root / "input"

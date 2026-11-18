@@ -9,5 +9,4 @@
   and aggregation stage folders.
 - Tests are offline and behavior-focused; avoid adding wrapper-shape tests.
 
-Start with `README.md`, then `docs/codebase_map.md` and
-`docs/shared_logic_registry.md`.
+Start with `README.md`, then `docs/codebase_map.md`.
