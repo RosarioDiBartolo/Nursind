@@ -1,16 +1,19 @@
 """Build a complete folder map from inventory and canonical extraction artifacts."""
 from __future__ import annotations
 
+from collections import Counter
 import json
 import logging
 
 from core.drive.index.map_index import MapIndex
-from core.drive.text_extraction_csv import load_text_extraction_rows
+from core.drive.text_extraction_csv import build_google_drive_file_link, load_text_extraction_rows
 from core.events.extraction.source_context import load_manifest_document, resolve_source_context
 from core.events.extraction.writers import EVENT_COLUMNS, PAGE_COLUMNS, write_rows_csv
 from core.reporting import write_json_report
 
 from .analysis import analyze_document
+
+FILE_COLUMNS = ["file_id", "file_url", "file_name", "relative_path", "is_timbrature", "employee", "identity_status", "reason", "error"]
 
 logger = logging.getLogger(__name__)
 
@@ -33,8 +36,9 @@ def map_extracted_folder(config) -> dict:
         pages: list[dict] = []
         events: list[dict] = []
         error = None
-        if not item["is_pdf"]:
-            reason = "not_pdf"
+        if item.get("reason") or not item["is_pdf"]:
+            reason = item.get("reason") or "not_pdf"
+            error = item.get("error")
         elif row is None:
             reason = "extraction_failed" if file_id in excluded else "not_extracted"
             error = excluded[file_id].reason if file_id in excluded else None
@@ -59,7 +63,19 @@ def map_extracted_folder(config) -> dict:
                 reason = "processing_error"
                 error = f"{type(exc).__name__}: {exc}"
         employees = sorted({page["employee"] for page in pages if page.get("employee")}, key=str.casefold)
-        files.append({**item, "is_timbrature": reason == "recognized", "reason": reason,
+        attendance = [page for page in pages if page["is_timbrature"]]
+        names = {page["employee"].casefold(): page["employee"] for page in attendance if page.get("employee")}
+        status = "not_applicable"
+        if attendance:
+            identifiers = {page["employee_identifier"] for page in attendance if page.get("employee_identifier")}
+            if len(names) > 1 or len(identifiers) > 1:
+                status = "multiple"
+            elif any(not page.get("employee") for page in attendance):
+                status = "unresolved"
+            else:
+                status = "unique"
+        files.append({**item, "file_url": build_google_drive_file_link(file_id=file_id), "is_timbrature": reason == "recognized", "reason": reason,
+                      "identity_status": status, "employee": next(iter(names.values())) if status == "unique" else None,
                       "error": error, "employees": employees, "pages": pages})
         all_pages.extend(pages)
         all_events.extend(events)
@@ -73,15 +89,25 @@ def map_extracted_folder(config) -> dict:
                          file_id, page.get("page_no"), page["is_timbrature"],
                          page.get("identity_status"), page.get("reason"))
     report = {
-        "schema_version": 1, "root_id": config.drive_root_id, "name": config.name,
+        "schema_version": 2, "root_id": config.drive_root_id, "name": config.name,
         "stats": {"files": len(files), "pdfs": sum(item["is_pdf"] for item in files),
                   "timbrature_files": sum(item["is_timbrature"] for item in files),
                   "pages": len(all_pages), "events": len(all_events)},
         "files": files,
     }
+    report["stats"]["unassigned_events"] = sum(not row.get("source_employee") for row in all_events)
+    coverage = Counter((page.get("parser_id") or "unknown", page.get("identity_status") or "missing")
+                       for page in all_pages if page.get("is_timbrature"))
+    write_rows_csv(rows=[{"parser_id": parser, "identity_status": status, "pages": count}
+                         for (parser, status), count in sorted(coverage.items())],
+                   columns=["parser_id", "identity_status", "pages"], out_csv=paths.events_dir / "identity_coverage.csv")
+    write_rows_csv(rows=files, out_csv=paths.events_dir / "files.csv", columns=FILE_COLUMNS)
+    relations = [{"file_id": item["file_id"], "employee": name} for item in files
+                 for name in sorted({p["employee"] for p in item["pages"] if p["is_timbrature"] and p.get("employee")})]
+    write_rows_csv(rows=relations, out_csv=paths.events_dir / "file_employees.csv", columns=["file_id", "employee"])
     write_json_report(paths.pipeline_root / "mapping.json", report)
     write_rows_csv(rows=all_events, out_csv=paths.events_csv, columns=EVENT_COLUMNS)
-    columns = PAGE_COLUMNS + ["file_id", "employee", "identity_status", "is_timbrature", "reason", "error"]
+    columns = PAGE_COLUMNS + ["employee_identifier", "file_id", "employee", "identity_status", "is_timbrature", "reason", "error"]
     write_rows_csv(rows=all_pages, out_csv=paths.pages_csv, columns=columns)
     logger.info("Mapping saved: files=%s timbrature=%s pages=%s events=%s | %s",
                 len(files), report["stats"]["timbrature_files"], len(all_pages), len(all_events),

@@ -17,11 +17,14 @@ def main() -> int:
     parser.add_argument("--config", default="pipeline.json")
     parser.add_argument("--from", dest="start", choices=STEPS, default="scan")
     parser.add_argument("--through", choices=STEPS, default="extract_events")
+    parser.add_argument("--input-csv", help="Drive file_id or file_url CSV")
+    parser.add_argument("--identities", help="Reviewed file_id,employee,employee_id CSV for grouping")
     parser.add_argument("--verbose", "-v", action="store_true")
     args = parser.parse_args()
     setup_logging(args.verbose)
     try:
-        run_mapping(load_pipeline_config(args.config), start=args.start, through=args.through, verbose=args.verbose)
+        run_mapping(load_pipeline_config(args.config), start=args.start, through=args.through, verbose=args.verbose,
+                    input_csv=args.input_csv, identities=args.identities)
     except Exception as exc:
         logging.getLogger(__name__).error("%s", exc)
         return 1

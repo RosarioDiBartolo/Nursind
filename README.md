@@ -158,6 +158,11 @@ Each stage notebook has the same layout:
 `RUN_*` switches, so an interrupted pipeline can resume from existing
 artifacts.
 
+## Parser guide
+
+See the [offline parser catalogue](docs/parsers/README.md) for annotated test
+documents, extracted events and links to the rules used by each parser.
+
 ## Tests
 
 ```powershell

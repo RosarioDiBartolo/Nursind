@@ -117,7 +117,12 @@ def test_real_pdf_extraction_maps_mixed_employees_and_failures(tmp_path, monkeyp
     # Resuming event analysis uses saved artifacts, with no Drive connection.
     monkeypatch.setattr("core.folder_mapping.runner.load_creds", lambda: pytest.fail("Unexpected Drive access"))
     primary = PipelineConfig(config.config_path, tmp_path, "Test", tmp_path / "output", "root")
-    assert run_mapping(primary, start="extract_events")["stats"] == report["stats"]
+    assert run_mapping(primary, start="extract_events", through="summarize_shifts")["stats"] == report["stats"]
+    grouped = paths.pipeline_root / "grouped"
+    snapshot = grouped / (grouped / "current.txt").read_text()
+    assert len(list(snapshot.glob("employees/*/aggregation/turni_employee_summary.csv"))) == 2
+    with (snapshot / "unresolved/events/events.csv").open(encoding="utf-8") as handle:
+        assert len(list(csv.DictReader(handle))) == 2
 
 
 def test_page_failure_prevents_file_recognition(tmp_path, monkeypatch):
@@ -157,3 +162,43 @@ def test_unique_document_identity_and_missing_identity_on_event_pages(tmp_path):
     assert pages[1]["employee"] == "Mario Rossi"
     assert pages[1]["is_timbrature"]
     assert {event["source_employee"] for event in events} == {"Mario Rossi"}
+
+@pytest.mark.parametrize("row,expected", [
+    ({"file_url": "https://drive.google.com/open?id=Ab12"}, "Ab12"),
+    ({"file_id": "Ab12", "file_url": "https://drive.google.com/file/d/Ab12/view"}, "Ab12"),
+    ({"file_id": "Ab12", "file_url": "https://drive.google.com/file/d/X/view"}, None),
+])
+def test_manifest_reference(row, expected):
+    from core.folder_mapping.csv_input import drive_id
+    if expected:
+        assert drive_id(row) == expected
+    else:
+        with pytest.raises(ValueError):
+            drive_id(row)
+
+
+def test_classic_identity_is_scoped_to_employer():
+    identity = employee_identity("AUSL1 - PERSONALE DIPENDENTE\nROSSI MARIA - 7080 Un. Org. UNI")
+    assert identity["employee"] == "ROSSI MARIA"
+    assert identity["employee_identifier"] == "AUSL1:7080"
+
+
+def test_csv_inventory_records_duplicates_and_inaccessible_files(tmp_path):
+    from unittest.mock import Mock
+    from googleapiclient.errors import HttpError
+    from httplib2 import Response
+    from core.folder_mapping.csv_input import scan_csv
+
+    source = tmp_path / "files.csv"
+    source.write_text("file_url\nhttps://drive.google.com/open?id=A\n"
+                      "https://drive.google.com/file/d/A/view\nhttps://drive.google.com/open?id=B\n")
+    drive = Mock()
+    drive.files.return_value.get.return_value.execute.side_effect = [
+        {"name": "sample.pdf", "mimeType": "application/pdf"},
+        HttpError(Response({"status": "404"}), b"not found"),
+    ]
+    config = config_for(tmp_path)
+    report = scan_csv(drive, config, source)
+    assert len(report["files"]) == 2
+    assert {r["file_id"] for r in report["files"] if r.get("reason") == "inaccessible"} == {"B"}
+    assert json.loads((config.paths.scan_dir / "duplicates.json").read_text())["rows"] == [{"file_id": "A", "line": 3}]

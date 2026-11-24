@@ -5,6 +5,9 @@ import logging
 
 from core.drive.drive_client import list_children
 from core.drive.index.map_index import MapIndex
+from core.drive.text_extraction_csv import build_google_drive_file_link
+from core.events.extraction.writers import write_rows_csv
+from core.drive.scan.scan_service import file_excluded
 from core.drive.names import is_macos_metadata
 from core.reporting import write_json_report
 
@@ -37,19 +40,30 @@ def scan_folder(drive, config) -> dict:
                 "relative_path": path, "mime_type": item["mimeType"],
                 "is_pdf": item["mimeType"] == "application/pdf" or item["name"].lower().endswith(".pdf"),
             })
+    return save_inventory(config, inventory)
+
+
+def save_inventory(config, inventory):
+    for item in inventory:
+        term = file_excluded(item["relative_path"], config.step("scan").get("exclude_terms", []))
+        if term:
+            item["reason"] = term
+        item["file_url"] = build_google_drive_file_link(file_id=item["file_id"])
     inventory.sort(key=lambda item: (item["relative_path"], item["file_id"]))
     index = MapIndex.generate_index(config.drive_root_id, 0, {
         item["file_id"]: {
             "employee": "unknown", "local": False, "file_id": item["file_id"],
             "file_name": item["file_name"], "drive_path": item["relative_path"], "type": "file",
         }
-        for item in inventory if item["is_pdf"]
+        for item in inventory if item["is_pdf"] and not item.get("reason")
     })
     config.paths.scan_dir.mkdir(parents=True, exist_ok=True)
     index.save_index(str(config.paths.scan_included_index))
     report = {"root_id": config.drive_root_id, "files": inventory}
     write_json_report(config.paths.scan_dir / "inventory.json", report)
-    logger.info("Drive inventory saved: folders=%s files=%s PDFs=%s | %s",
-                len(visited), len(inventory), index.total_files,
+    write_rows_csv(rows=inventory, out_csv=config.paths.scan_dir / "inventory.csv",
+                   columns=["file_id", "file_url", "file_name", "relative_path", "mime_type", "reason"])
+    logger.info("Drive inventory saved: root=%s files=%s PDFs=%s | %s",
+                config.drive_root_id, len(inventory), index.total_files,
                 config.paths.scan_dir / "inventory.json")
     return report

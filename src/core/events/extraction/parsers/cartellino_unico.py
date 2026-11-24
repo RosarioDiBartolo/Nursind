@@ -4,7 +4,7 @@ import re
 
 from core.parsing import normalize_text, parse_day_header
 
-from ..models import ParsedEvent
+from ..models import DocumentLine, ParsedEvent
 from .base import BaseFormatParser
 from .common import (
     document_text,
@@ -21,6 +21,12 @@ class CartellinoUnicoParser(BaseFormatParser):
     legacy_doc_format = "cartellino_classic"
     priority = 10
     _TIME_RE = re.compile(r"^(?P<h>[0-2]?\d)[:.,](?P<m>[0-5]\d)$")
+    _EXPLICIT_PUNCH_HEADER = re.compile(r"\bgiorno\s+timbrature\s+mensa\b")
+    _SIX_PAIR_HEADER = re.compile(
+        r"\bgiorno\s+orario\s+anomalie\s+"
+        + r"\s+".join(f"ent {index} usc {index}" for index in range(1, 7))
+        + r"\b"
+    )
 
     def score_document(self, document: dict[str, object]) -> int:
         text = document_text(document)
@@ -107,19 +113,87 @@ class CartellinoUnicoParser(BaseFormatParser):
             )
         return tuple(events)
 
+    def _column_events(
+        self, *, day: int, dow: str, line: DocumentLine, columns: tuple[float, ...]
+    ) -> tuple[ParsedEvent, ...]:
+        tolerance = min(right - left for left, right in zip(columns, columns[1:])) / 4
+        events = []
+        occupied = set()
+        entry_times: dict[int, int] = {}
+        for index, word in enumerate(line.words):
+            token = str(word["text"])
+            parsed = self._parse_time(token)
+            if parsed is None:
+                continue
+            hhmm, minutes = parsed
+            x0 = float(word["x0"])
+            slot = min(range(len(columns)), key=lambda candidate: abs(columns[candidate] - x0))
+            if abs(columns[slot] - x0) > tolerance or slot in occupied:
+                continue
+            occupied.add(slot)
+            pair = slot // 2
+            kind = "U" if slot % 2 else "E"
+            if kind == "E":
+                entry_times[pair] = minutes
+            events.append(
+                ParsedEvent(
+                    line=line,
+                    day=day,
+                    dow=dow,
+                    event_kind=kind,
+                    event_time_hhmm=hhmm,
+                    event_raw=token,
+                    event_pattern=f"{self.parser_id}:column_{slot + 1}",
+                    source_origin="layout_column",
+                    day_offset=int(kind == "U" and minutes < entry_times.get(pair, minutes)),
+                    source_slot=f"{'ent' if kind == 'E' else 'usc'}_{pair + 1}",
+                    source_word_start=index,
+                    source_word_end=index,
+                    source_bbox_x0=x0,
+                    source_bbox_y0=float(word["y0"]),
+                    source_bbox_x1=float(word["x1"]),
+                    source_bbox_y1=float(word["y1"]),
+                )
+            )
+        return tuple(events)
+
     def parse_document(self, document: dict[str, object]):
+        lines = iter_preferred_lines(document)
+        explicit_pages = {
+            line.page_no
+            for line in lines
+            if self._EXPLICIT_PUNCH_HEADER.search(normalize_text(line.text))
+        }
+        page_columns = {}
+        for line in lines:
+            if not self._SIX_PAIR_HEADER.search(normalize_text(line.text)):
+                continue
+            columns = tuple(
+                float(word["x0"])
+                for word in line.words
+                if str(word["text"]).lower() in {"ent", "usc"}
+            )
+            if len(columns) == 12 and all(left < right for left, right in zip(columns, columns[1:])):
+                page_columns[line.page_no] = columns
         rows = []
-        for line in iter_preferred_lines(document):
+        for line in lines:
             if not line.text.strip():
                 continue
             header = parse_day_header(line.text)
             if header is None:
                 continue
             day, dow = header
-            rest = strip_day_prefix(normalized_raw(line.text))
-            events = list(self._aligned_events(day=day, dow=dow, line=line, norm_body=rest))
-            if not events:
-                events.extend(explicit_events_for_line(line, day=day, dow=dow))
+            if line.page_no in page_columns:
+                events = self._column_events(
+                    day=day, dow=dow, line=line, columns=page_columns[line.page_no]
+                )
+            elif line.page_no in explicit_pages:
+                events = explicit_events_for_line(line, day=day, dow=dow)
+            else:
+                rest = strip_day_prefix(normalized_raw(line.text))
+                events = self._aligned_events(day=day, dow=dow, line=line, norm_body=rest)
+                if not events:
+                    events = explicit_events_for_line(line, day=day, dow=dow)
             rows.append(to_row_result(day, dow, line, events))
         return tuple(rows)
 

@@ -11,10 +11,12 @@ from core.drive.drive_client import get_drive_service
 from core.drive.index.map_index import MapIndex
 from core.pipeline.steps import run_extract_documents_step
 
+from core.folder_mapping.csv_input import scan_csv
+from core.folder_mapping.grouping import group_employees, run_employee_step
 from .scan import scan_folder
 from .service import map_extracted_folder
 
-STEPS = ("scan", "extract_documents", "extract_events")
+STEPS = ("scan", "extract_documents", "extract_events", "group_by_employee", "filter_midnight", "pair_events", "enrich_shifts", "summarize_shifts")
 logger = logging.getLogger(__name__)
 
 
@@ -28,10 +30,12 @@ def mapping_config(config: PipelineConfig) -> PipelineConfig:
 
 
 def run_mapping(config: PipelineConfig, *, start: str = "scan", through: str = "extract_events",
-                verbose: bool = False) -> dict | None:
+                verbose: bool = False, input_csv=None, identities=None) -> dict | None:
     first, last = STEPS.index(start), STEPS.index(through)
     if first > last:
         raise ValueError("--from must precede --through")
+    if input_csv and start != "scan":
+        raise ValueError("--input-csv requires --from scan")
     config = mapping_config(config)
     started = time.monotonic()
     logger.info("Mapping started: %s | steps=%s | output=%s", config.name,
@@ -41,14 +45,22 @@ def run_mapping(config: PipelineConfig, *, start: str = "scan", through: str = "
         step_started = time.monotonic()
         logger.info("Mapping step started: %s", step)
         if step == "scan":
-            scan_folder(get_drive_service(load_creds()), config)
+            drive = get_drive_service(load_creds())
+            if input_csv:
+                scan_csv(drive, config, input_csv)
+            else:
+                scan_folder(drive, config)
         elif step == "extract_documents":
             index = MapIndex.load_index(str(config.paths.scan_included_index), strict=True)
             if index.root_id != config.drive_root_id:
                 raise ValueError("Scan index belongs to another Drive folder; run scan again")
             run_extract_documents_step(config, verbose)
-        else:
+        elif step == "extract_events":
             report = map_extracted_folder(config)
+        elif step == "group_by_employee":
+            group_employees(config, identities)
+        else:
+            run_employee_step(config, step, verbose)
         logger.info("Mapping step completed: %s | %.1fs", step, time.monotonic() - step_started)
     logger.info("Mapping completed: %s | %.1fs", config.name, time.monotonic() - started)
     return report

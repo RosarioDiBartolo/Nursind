@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Guida ai parser delle timbrature · Nursind</title>
+<style>
+  :root { color-scheme:light; --ink:#20283b; --muted:#4b5870; --border:#d7dfe9;
+    --blue:#204e87; --teal:#12665c; --wash:#f3f6fa; --paper:#fffcf5; }
+  * { box-sizing:border-box; }
+  body { margin:0; color:var(--ink); background:var(--wash);
+    font:16px/1.55 "Segoe UI", system-ui, sans-serif; }
+  a { color:var(--blue); text-underline-offset:.18em; }
+  header { background:#132648; color:#fff; padding:34px max(22px, calc((100% - 1200px)/2)); }
+  header p { color:#e0eafa; margin:.6rem 0 0; max-width:72ch; }
+  h1 { margin:0; font-size:clamp(2rem,5vw,3rem); line-height:1.08; letter-spacing:-.035em; }
+  h2 { margin:0 0 1rem; font-size:1.75rem; letter-spacing:-.025em; }
+  h4 { margin:1rem 0 .45rem; }
+  .shell { display:grid; grid-template-columns:220px minmax(0, 1fr); gap:24px;
+    max-width:1248px; margin:auto; padding:24px; }
+  nav { position:sticky; top:20px; align-self:start; display:grid; gap:3px; }
+  nav a { padding:8px 11px; border-radius:6px; font-weight:600; }
+  nav a:hover { background:#e0e9f5; }
+  main { min-width:0; }
+  section { background:white; border:1px solid var(--border); border-radius:12px;
+    padding:clamp(14px,3vw,26px); margin-bottom:22px; scroll-margin-top:16px; }
+  section:target { border-color:#79a2d3; }
+  details { margin:.7rem 0; }
+  summary { cursor:pointer; font-weight:650; padding:.55rem 0; }
+  summary small { font-weight:500; margin-left:.5em; color:var(--muted); }
+  [id] { scroll-margin-top:14px; }
+  .rules { background:#eef4fb; border-radius:8px; padding:0 12px; }
+  .rules ul { margin:0; padding:0 0 10px 22px; }
+  .rules li { margin-bottom:.8rem; }
+  .rules p { margin:.1rem 0; }
+  .case { border-top:1px solid var(--border); padding-bottom:10px; }
+  .metrics { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin:6px 0 14px; }
+  .metrics div { border-radius:7px; background:var(--wash); padding:8px 10px; }
+  dt { font-weight:650; }
+  dd { margin:0; color:var(--muted); overflow-wrap:anywhere; }
+  small { color:var(--muted); }
+  .legend { display:flex; flex-wrap:wrap; gap:.5em 1.3em; margin:0 0 1.2em; color:var(--muted); }
+  .paper { border:1px solid #dcd3bf; background:var(--paper); border-radius:8px;
+    padding:10px; overflow:auto; }
+  .doc-line { display:grid; grid-template-columns:2ch 1fr; gap:10px; align-items:start;
+    width:fit-content; min-width:100%; margin:4px 0; padding:4px 7px; border:1px solid transparent; border-radius:7px; }
+  .doc-line.parsed { border-color:#d6c8a6; }
+  .doc-line:target { border-color:#1c578f; background:#edf5ff; }
+  .line-no { color:#5b5e64; font:12px/22px system-ui,sans-serif; text-align:right; }
+  .raw { white-space:pre; font:13px/22px Consolas, ui-monospace, monospace; }
+  .coords { display:block; position:relative; height:22px; font-size:10px; }
+  .coords span { position:absolute; }
+  mark { color:inherit; border-radius:8px; padding:1px; }
+  mark.identity { background:#dbebff; outline:1px solid #427ab7; }
+  mark.period { background:#ffebbd; outline:1px solid #a57628; }
+  mark.punch { background:#d8f0e5; outline:1px solid #368873; }
+  .note { color:var(--muted); font-size:13px; margin-top:2px; max-width:76ch; }
+  .scroll { overflow:auto; }
+  table { border-collapse:collapse; width:100%; text-align:left; font-size:14px; }
+  th, td { border-bottom:1px solid var(--border); padding:7px 10px; vertical-align:top; }
+  th { background:var(--wash); white-space:nowrap; }
+  td small { display:block; overflow-wrap:anywhere; }
+  .file, .legacy { display:block; margin-top:.8rem; font-size:.88rem; }
+  .source { border-top:1px solid var(--border); }
+  .source summary span { display:block; overflow-wrap:anywhere; color:var(--muted);
+    font:13px ui-monospace, monospace; }
+  .source pre { overflow:auto; padding:14px; border-radius:8px; background:#142644; color:#e8eff8; }
+  @media (max-width:760px) {
+    .shell { grid-template-columns:minmax(0,1fr); padding:12px; gap:12px; }
+    nav { position:static; display:flex; flex-wrap:wrap; }
+    nav a { padding:4px 7px; }
+    .metrics { grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Guida ai parser delle timbrature</h1>
+  <p>Apri un caso per vedere il documento sintetico così come lo riceve il parser, dopo l’estrazione di testo e layout. I timbri e le decisioni vengono dal codice di Nursind eseguito sui documenti di test. Le note spiegano le regole e i casi limite.</p>
+</header>
+<div class="shell">
+  <nav aria-label="Parser e riferimenti">
+    <!-- menu -->
+    <a href="#sorgenti">Codice sorgente</a>
+  </nav>
+  <main>
+    <div class="legend" aria-label="Legenda">
+      <span><mark class="identity">Blu</mark> Evidenza del nominativo</span>
+      <span><mark class="punch">Verde</mark> Posizione del timbro restituita dal parser</span>
+      <span><mark class="period">Ocra</mark> Evidenza del periodo</span>
+      <span>Bordo della riga · Giorno riconosciuto</span>
+    </div>
+    <!-- sections -->
+    <section id="sorgenti">
+      <h2>Codice sorgente</h2>
+      <p>Gli estratti e i numeri di riga si riferiscono alla versione con cui è stata generata la guida.</p>
+      <!-- source -->
+    </section>
+  </main>
+</div>
+<script>
+  function openAnchor() {
+    const target = document.getElementById(location.hash.slice(1));
+    if (!target) return;
+    for (let node = target; node; node = node.parentElement) {
+      if (node.tagName === 'DETAILS') node.open = true;
+    }
+    target.scrollIntoView({block: 'start'});
+  }
+  addEventListener('hashchange', openAnchor);
+  openAnchor();
+</script>
+</body>
+</html>

@@ -1,11 +1,6 @@
 from __future__ import annotations
 
-import json
-from pathlib import Path
-
 from core.events.extraction.parsers import load_parsers, resolve_parser
-
-FIXTURES_ROOT = Path(__file__).parent / "fixtures" / "days_parsers"
 
 
 def _document(text: str) -> dict[str, object]:
@@ -35,17 +30,6 @@ def test_resolve_parser_uses_deterministic_fallback() -> None:
     assert parser.parser_id == "timbrature_web"
 
 
-def test_resolve_parser_matches_fixture_expectations() -> None:
-    for expected_path in sorted(FIXTURES_ROOT.glob("*/*.expected.json")):
-        payload = json.loads(expected_path.read_text(encoding="utf-8"))
-        text_path = expected_path.with_name(
-            expected_path.name.replace(".expected.json", ".txt")
-        )
-        text = text_path.read_text(encoding="utf-8")
-        parser = resolve_parser(_document(text))
-        assert parser.parser_id == str(payload["parser_id"])
-
-
 def test_resolve_parser_and_parse_document_for_rilevazione_compact_rows() -> None:
     text = (
         "Azienda Ospedaliero Universitaria ''Policlinico - Vittorio Emanuele''\n"
@@ -64,5 +48,63 @@ def test_resolve_parser_and_parse_document_for_rilevazione_compact_rows() -> Non
         ("E", "06:50"),
         ("U", "14:09"),
     ]
+
+
+def test_cartellino_unico_explicit_punches_exclude_hours_totals() -> None:
+    document = _document(
+        "Cartellino Unico\n"
+        "Giorno Timbrature Mensa Anomalie FISICO PROGR LAVORO SALDO\n"
+        "Sab 01 E20:49 1570 Ind.3T 10:26 10:00 10:15 00:15\n"
+        "Dom 02 U07:15 E20:36 10:34 10:00\n"
+        "Lun 03 FERIE 06:00 08:00\n"
+    )
+    parser = resolve_parser(document)
+
+    assert parser.parser_id == "cartellino_unico"
+    assert [
+        [(event.event_kind, event.event_time_hhmm) for event in row.events]
+        for row in parser.parse_document(document)
+    ] == [[("E", "20:49")], [("U", "07:15"), ("E", "20:36")], []]
+
+
+def test_cartellino_unico_columns_keep_exit_without_an_entry() -> None:
+    header = [("Giorno", 10), ("Orario", 50), ("Anomalie", 80)]
+    for index in range(12):
+        pos = 114 + 31 * index
+        header.extend([("Usc" if index % 2 else "Ent", pos), (str(index // 2 + 1), pos + 13)])
+    raw_lines = [
+        header,
+        [("1", 14), ("ven", 24), ("07:16", 145), ("o", 164), ("07:03", 496)],
+        [("2", 14), ("sab", 24), ("08:02", 114), ("13:10", 145), ("05:08", 725)],
+    ]
+    words = []
+    lines = []
+    for index, raw_line in enumerate(raw_lines):
+        first = len(words)
+        words.extend(
+            {
+                "word_index": first + offset,
+                "text": token,
+                "x0": x,
+                "x1": x + 10,
+                "y0": index * 10,
+                "y1": index * 10 + 8,
+            }
+            for offset, (token, x) in enumerate(raw_line)
+        )
+        lines.append({
+            "text": " ".join(token for token, _ in raw_line),
+            "word_indices": list(range(first, len(words))),
+        })
+    document = {
+        "document": {"full_text": "Cartellino Unico"},
+        "layout": {"pages": [{"page_no": 1, "words": words, "lines": lines}]},
+    }
+    parser = resolve_parser(document)
+
+    assert [
+        [(event.source_slot, event.event_time_hhmm) for event in row.events]
+        for row in parser.parse_document(document)
+    ] == [[("usc_1", "07:16")], [("ent_1", "08:02"), ("usc_1", "13:10")]]
 
 

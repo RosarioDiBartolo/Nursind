@@ -111,3 +111,17 @@ Changes take effect on the next run; already-running workers keep the old code.
 Drive scanning and local/ZIP PDF discovery ignore macOS AppleDouble `._*` sidecars
 and `__MACOSX` containers. Drive sidecars are reported with reason `macos_metadata`;
 ZIP member discovery omits them. Such entries are metadata, not document PDFs.
+
+### Estrazione da elenco di file Drive
+
+Da PowerShell, per elaborare un CSV con intestazione `file_id` o `file_url` e produrre i riepiloghi per dipendente:
+
+```powershell
+.\.venv\Scripts\python.exe src\scripts\map_drive.py --config pipeline.json --input-csv input.csv --through summarize_shifts
+```
+
+Senza `--input-csv`, lo step `scan` percorre la cartella Drive configurata e scrive `mapping/scan/inventory.csv`. L'estrazione considera i PDF. Gli eventuali termini di esclusione si configurano in `steps.scan.exclude_terms`. Per rianalizzare i JSON locali usare `--from extract_events --through summarize_shifts`.
+
+In `mapping/events/`, `files.csv` riporta lo stato di ogni file, `file_employees.csv` elenca le associazioni e `identity_coverage.csv` conta le pagine di timbrature per parser ed esito. In `mapping/grouped/`, `current.txt` contiene il nome della cartella della generazione corrente. Ogni gruppo contiene gli input sotto `events/` e i risultati degli step richiesti. Gli elementi senza attribuzione restano in `unresolved/`.
+
+Un codice fiscale o una matricola con azienda riconosciuta permette di unire file distinti. Con il solo nome il gruppo ha ambito documento. Per confermare un collegamento tra file passare `--identities abbinamenti.csv` con colonne `file_id,employee,employee_id` allo step `group_by_employee`.

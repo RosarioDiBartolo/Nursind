@@ -1,0 +1,3291 @@
+<!doctype html>
+<html lang="it">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Guida ai parser delle timbrature · Nursind</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #20283b;
+      --muted: #4b5870;
+      --border: #d7dfe9;
+      --blue: #204e87;
+      --teal: #12665c;
+      --wash: #f3f6fa;
+      --paper: #fffcf5;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--wash);
+      font: 16px/1.55 "Segoe UI", system-ui, sans-serif;
+    }
+
+    a {
+      color: var(--blue);
+      text-underline-offset: .18em;
+    }
+
+    header {
+      background: #132648;
+      color: #fff;
+      padding: 34px max(22px, calc((100% - 1200px)/2));
+    }
+
+    header p {
+      color: #e0eafa;
+      margin: .6rem 0 0;
+      max-width: 72ch;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2rem, 5vw, 3rem);
+      line-height: 1.08;
+      letter-spacing: -.035em;
+    }
+
+    h2 {
+      margin: 0 0 1rem;
+      font-size: 1.75rem;
+      letter-spacing: -.025em;
+    }
+
+    h4 {
+      margin: 1rem 0 .45rem;
+    }
+
+    .shell {
+      display: grid;
+      grid-template-columns: 220px minmax(0, 1fr);
+      gap: 24px;
+      max-width: 1248px;
+      margin: auto;
+      padding: 24px;
+    }
+
+    nav {
+      position: sticky;
+      top: 20px;
+      align-self: start;
+      display: grid;
+      gap: 3px;
+    }
+
+    nav a {
+      padding: 8px 11px;
+      border-radius: 6px;
+      font-weight: 600;
+    }
+
+    nav a:hover {
+      background: #e0e9f5;
+    }
+
+    main {
+      min-width: 0;
+    }
+
+    section {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: clamp(14px, 3vw, 26px);
+      margin-bottom: 22px;
+      scroll-margin-top: 16px;
+    }
+
+    section:target {
+      border-color: #79a2d3;
+    }
+
+    details {
+      margin: .7rem 0;
+    }
+
+    summary {
+      cursor: pointer;
+      font-weight: 650;
+      padding: .55rem 0;
+    }
+
+    summary small {
+      font-weight: 500;
+      margin-left: .5em;
+      color: var(--muted);
+    }
+
+    [id] {
+      scroll-margin-top: 14px;
+    }
+
+    .rules {
+      background: #eef4fb;
+      border-radius: 8px;
+      padding: 0 12px;
+    }
+
+    .rules ul {
+      margin: 0;
+      padding: 0 0 10px 22px;
+    }
+
+    .rules li {
+      margin-bottom: .8rem;
+    }
+
+    .rules p {
+      margin: .1rem 0;
+    }
+
+    .case {
+      border-top: 1px solid var(--border);
+      padding-bottom: 10px;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin: 6px 0 14px;
+    }
+
+    .metrics div {
+      border-radius: 7px;
+      background: var(--wash);
+      padding: 8px 10px;
+    }
+
+    dt {
+      font-weight: 650;
+    }
+
+    dd {
+      margin: 0;
+      color: var(--muted);
+      overflow-wrap: anywhere;
+    }
+
+    small {
+      color: var(--muted);
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .5em 1.3em;
+      margin: 0 0 1.2em;
+      color: var(--muted);
+    }
+
+    .paper {
+      border: 1px solid #dcd3bf;
+      background: var(--paper);
+      border-radius: 8px;
+      padding: 10px;
+      overflow: auto;
+    }
+
+    .doc-line {
+      display: grid;
+      grid-template-columns: 2ch 1fr;
+      gap: 10px;
+      align-items: start;
+      width: fit-content;
+      min-width: 100%;
+      margin: 4px 0;
+      padding: 4px 7px;
+      border: 1px solid transparent;
+      border-radius: 7px;
+    }
+
+    .doc-line.parsed {
+      border-color: #d6c8a6;
+    }
+
+    .doc-line:target {
+      border-color: #1c578f;
+      background: #edf5ff;
+    }
+
+    .line-no {
+      color: #5b5e64;
+      font: 12px/22px system-ui, sans-serif;
+      text-align: right;
+    }
+
+    .raw {
+      white-space: pre;
+      font: 13px/22px Consolas, ui-monospace, monospace;
+    }
+
+    .coords {
+      display: block;
+      position: relative;
+      height: 22px;
+      font-size: 10px;
+    }
+
+    .coords span {
+      position: absolute;
+    }
+
+    mark {
+      color: inherit;
+      border-radius: 8px;
+      padding: 1px;
+    }
+
+    mark.identity {
+      background: #dbebff;
+      outline: 1px solid #427ab7;
+    }
+
+    mark.period {
+      background: #ffebbd;
+      outline: 1px solid #a57628;
+    }
+
+    mark.punch {
+      background: #d8f0e5;
+      outline: 1px solid #368873;
+    }
+
+    .note {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 2px;
+      max-width: 76ch;
+    }
+
+    .scroll {
+      overflow: auto;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      text-align: left;
+      font-size: 14px;
+    }
+
+    th,
+    td {
+      border-bottom: 1px solid var(--border);
+      padding: 7px 10px;
+      vertical-align: top;
+    }
+
+    th {
+      background: var(--wash);
+      white-space: nowrap;
+    }
+
+    td small {
+      display: block;
+      overflow-wrap: anywhere;
+    }
+
+    .file,
+    .legacy {
+      display: block;
+      margin-top: .8rem;
+      font-size: .88rem;
+    }
+
+    .source {
+      border-top: 1px solid var(--border);
+    }
+
+    .source summary span {
+      display: block;
+      overflow-wrap: anywhere;
+      color: var(--muted);
+      font: 13px ui-monospace, monospace;
+    }
+
+    .source pre {
+      overflow: auto;
+      padding: 14px;
+      border-radius: 8px;
+      background: #142644;
+      color: #e8eff8;
+    }
+
+    @media (max-width:760px) {
+      .shell {
+        grid-template-columns: minmax(0, 1fr);
+        padding: 12px;
+        gap: 12px;
+      }
+
+      nav {
+        position: static;
+        display: flex;
+        flex-wrap: wrap;
+      }
+
+      nav a {
+        padding: 4px 7px;
+      }
+
+      .metrics {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>Guida ai parser delle timbrature</h1>
+    <p>Apri un caso per vedere il documento sintetico così come lo riceve il parser, dopo l’estrazione di testo e
+      layout. I timbri e le decisioni vengono dal codice di Nursind eseguito sui documenti di test. Le note spiegano le
+      regole e i casi limite.</p>
+  </header>
+  <div class="shell">
+    <nav aria-label="Parser e riferimenti">
+      <a href="#cartellino_classic">Cartellino classico</a>
+      <a href="#cartellino_ocr">Cartellino OCR</a>
+      <a href="#cartellino_unico">Cartellino Unico</a>
+      <a href="#situazione_mensile">Situazione mensile presenze</a>
+      <a href="#timbrature_web">Timbrature Web</a>
+      <a href="#workflow_monthly">WORKFLOW mensile</a>
+      <a href="#sorgenti">Codice sorgente</a>
+    </nav>
+    <main>
+      <div class="legend" aria-label="Legenda">
+        <span><mark class="identity">Blu</mark> Evidenza del nominativo</span>
+        <span><mark class="punch">Verde</mark> Posizione del timbro restituita dal parser</span>
+        <span><mark class="period">Ocra</mark> Evidenza del periodo</span>
+        <span>Bordo della riga · Giorno riconosciuto</span>
+      </div>
+      <section id="cartellino_classic">
+        <h2>Cartellino classico</h2>
+        <details class="rules">
+          <summary>Regole di estrazione e limiti</summary>
+          <ul>
+            <li><strong>Formato</strong>
+              <p>Il punteggio combina titoli come Riepilogo presenze/assenze e Rilevazione del mese di, timbri compatti
+                e frequenza delle abbreviazioni dei giorni.</p><a
+                href="#code-cartellino_classic-CartellinoClassicParser-score_document">score_document</a>
+            </li>
+            <li><strong>Giorno e timbri</strong>
+              <p>Legge il prefisso giorno/settimana. Cerca ingressi E e uscite U con orari espliciti, per esempio E0650
+                → E 06:50. Le durate contigue senza E/U restano fuori.</p><a
+                href="#code-cartellino_classic-CartellinoClassicParser-parse_document">parse_document</a> · <a
+                href="#code-common-explicit_events_for_line">explicit_events_for_line</a>
+            </li>
+            <li><strong>Nome e matricola</strong>
+              <p>Oltre alle etichette condivise, nelle prime 12 righe accetta NOME COGNOME - matricola Un. Org. Con un
+                codice ente in intestazione usa ente:matricola come identificativo quando univoco.</p><a
+                href="#code-identity-employee_identity">employee_identity</a>
+            </li>
+            <li><strong>Periodo e limiti</strong>
+              <p>I titoli Riepilogo e Rilevazione possono fornire mese e anno. Un giorno valido senza E/U può essere
+                riposo, assenza o testo perso. La sola riga non permette di distinguerli.</p><a
+                href="#code-page_analysis-resolve_page_year_month">resolve_page_year_month</a>
+            </li>
+          </ul>
+        </details>
+        <details class="case" id="cartellino_classic-compatte" open>
+          <summary>Rilevazione mensile con timbri compatti <small>4 eventi emessi</small></summary>
+          <dl class="metrics">
+            <div>
+              <dt><a href="#code-identity-employee_identity">Identità</a></dt>
+              <dd>ELENA ESEMPIO · recognized · SYN:12345</dd>
+            </div>
+            <div>
+              <dt><a href="#code-page_analysis-resolve_page_year_month">Periodo</a></dt>
+              <dd>2021-10 <small>text</small></dd>
+            </div>
+            <div>
+              <dt><a href="#code-page_analysis-parse_document_pages">Decisione pagina</a></dt>
+              <dd>parsed</dd>
+            </div>
+          </dl>
+          <div class="paper">
+            <div id="cartellino_classic-compatte-r1" class="doc-line"><a class="line-no"
+                href="#cartellino_classic-compatte-r1" aria-label="Riga 1">1</a>
+              <div>
+                <div class="raw"><mark class="period" title="Evidenza del periodo">RILEVAZIONE DEL MESE DI OTTOBRE
+                    2021</mark></div>
+                <div class=note>Titolo usato per riconoscere il formato e ricavare ottobre 2021. <a
+                    href="#code-cartellino_classic-CartellinoClassicParser-score_document">Riconoscimento formato</a> ·
+                  <a href="#code-page_analysis-resolve_page_year_month">Periodo</a></div>
+              </div>
+            </div>
+            <div id="cartellino_classic-compatte-r2" class="doc-line"><a class="line-no"
+                href="#cartellino_classic-compatte-r2" aria-label="Riga 2">2</a>
+              <div>
+                <div class="raw">SYN - PERSONALE DIPENDENTE</div>
+              </div>
+            </div>
+            <div id="cartellino_classic-compatte-r3" class="doc-line"><a class="line-no"
+                href="#cartellino_classic-compatte-r3" aria-label="Riga 3">3</a>
+              <div>
+                <div class="raw"><mark class="identity" title="Candidato ELENA ESEMPIO · recognized">ELENA
+                    ESEMPIO</mark> - 12345 Un. Org. D01</div>
+                <div class=note>Nome nell’intestazione strutturata. Il codice ente e la matricola formano SYN:12345. <a
+                    href="#code-identity-employee_identity">Identità</a></div>
+              </div>
+            </div>
+            <div id="cartellino_classic-compatte-r4" class="doc-line parsed"><a class="line-no"
+                href="#cartellino_classic-compatte-r4" aria-label="Riga 4">4</a>
+              <div>
+                <div class="raw">ve 01 <mark class="punch" title="E 06:50">E0650</mark> <mark class="punch"
+                    title="U 14:09">U1409</mark> 07.09 2CARD</div>
+                <div class=note>Giorno 1 · VE · Candidati E 06:50, U 14:09 · 2 emessi <a
+                    href="#code-cartellino_classic-CartellinoClassicParser-parse_document">Parser</a> · <a
+                    href="#code-common-explicit_events_for_line">Prefissi e riferimenti</a></div>
+              </div>
+            </div>
+            <div id="cartellino_classic-compatte-r5" class="doc-line parsed"><a class="line-no"
+                href="#cartellino_classic-compatte-r5" aria-label="Riga 5">5</a>
+              <div>
+                <div class="raw">lu 04 <mark class="punch" title="E 12:58">E1258</mark> <mark class="punch"
+                    title="U 20:08">U2008</mark> 07.08 2CARD</div>
+                <div class=note>Giorno 4 · LU · Candidati E 12:58, U 20:08 · 2 emessi <a
+                    href="#code-cartellino_classic-CartellinoClassicParser-parse_document">Parser</a> · <a
+                    href="#code-common-explicit_events_for_line">Prefissi e riferimenti</a></div>
+              </div>
+            </div>
+            <div id="cartellino_classic-compatte-r6" class="doc-line parsed"><a class="line-no"
+                href="#cartellino_classic-compatte-r6" aria-label="Riga 6">6</a>
+              <div>
+                <div class="raw">do*10 GG:RS 2CARD</div>
+                <div class=note>Giorno 10 · DO · Nessun candidato Riposo. La riga giornaliera resta visibile anche senza
+                  timbri. <a href="#code-cartellino_classic-CartellinoClassicParser-parse_document">Parser</a></div>
+              </div>
+            </div>
+          </div>
+          <h4>Eventi emessi</h4>
+          <div class="scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Data e ora</th>
+                  <th>Tipo</th>
+                  <th>Valore sorgente</th>
+                  <th>Origine</th>
+                  <th>Slot</th>
+                  <th>Riferimento</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>2021-10-01 06:50:00</td>
+                  <td>E</td>
+                  <td>E0650</td>
+                  <td>text_regex</td>
+                  <td>unknown</td>
+                  <td><a href="#cartellino_classic-compatte-r4">Riga
+                      4</a><small>compatte.case.json#p1:line_no=4:slot=unknown</small></td>
+                </tr>
+                <tr>
+                  <td>2021-10-01 14:09:00</td>
+                  <td>U</td>
+                  <td>U1409</td>
+                  <td>text_regex</td>
+                  <td>unknown</td>
+                  <td><a href="#cartellino_classic-compatte-r4">Riga
+                      4</a><small>compatte.case.json#p1:line_no=4:slot=unknown</small></td>
+                </tr>
+                <tr>
+                  <td>2021-10-04 12:58:00</td>
+                  <td>E</td>
+                  <td>E1258</td>
+                  <td>text_regex</td>
+                  <td>unknown</td>
+                  <td><a href="#cartellino_classic-compatte-r5">Riga
+                      5</a><small>compatte.case.json#p1:line_no=5:slot=unknown</small></td>
+                </tr>
+                <tr>
+                  <td>2021-10-04 20:08:00</td>
+                  <td>U</td>
+                  <td>U2008</td>
+                  <td>text_regex</td>
+                  <td>unknown</td>
+                  <td><a href="#cartellino_classic-compatte-r5">Riga
+                      5</a><small>compatte.case.json#p1:line_no=5:slot=unknown</small></td>
+                </tr>
+              </tbody>
+            </table>
+          </div><a class="file" href="../../tests/fixtures/parsers/cartellino_classic/compatte.case.json">Apri il
+            documento di test e le aspettative</a>
+        </details>
+        <details class="case" id="cartellino_classic-riepilogo">
+          <summary>Riepilogo classico con uscita isolata <small>1 eventi emessi</small></summary>
+          <dl class="metrics">
+            <div>
+              <dt><a href="#code-identity-employee_identity">Identità</a></dt>
+              <dd>ESEMPIO ELENA · recognized</dd>
+            </div>
+            <div>
+              <dt><a href="#code-page_analysis-resolve_page_year_month">Periodo</a></dt>
+              <dd>2023-03 <small>text</small></dd>
+            </div>
+            <div>
+              <dt><a href="#code-page_analysis-parse_document_pages">Decisione pagina</a></dt>
+              <dd>parsed</dd>
+            </div>
+          </dl>
+          <div class="paper">
+            <div id="cartellino_classic-riepilogo-r1" class="doc-line"><a class="line-no"
+                href="#cartellino_classic-riepilogo-r1" aria-label="Riga 1">1</a>
+              <div>
+                <div class="raw"><mark class="period" title="Evidenza del periodo">Riepilogo presenze/assenze - marzo
+                    2023</mark></div>
+                <div class=note><a href="#code-cartellino_classic-CartellinoClassicParser-score_document">Riconoscimento
+                    formato</a> · <a href="#code-page_analysis-resolve_page_year_month">Periodo</a></div>
+              </div>
+            </div>
+            <div id="cartellino_classic-riepilogo-r2" class="doc-line"><a class="line-no"
+                href="#cartellino_classic-riepilogo-r2" aria-label="Riga 2">2</a>
+              <div>
+                <div class="raw"><mark class="identity" title="Candidato ESEMPIO ELENA · recognized">Cognome: ESEMPIO
+                    Nome: ELENA</mark></div>
+                <div class=note><a href="#code-identity-employee_identity">Identità</a></div>
+              </div>
+            </div>
+            <div id="cartellino_classic-riepilogo-r3" class="doc-line parsed"><a class="line-no"
+                href="#cartellino_classic-riepilogo-r3" aria-label="Riga 3">3</a>
+              <div>
+                <div class="raw">01 me <mark class="punch" title="U 14:00">U 14:00</mark> 06:00</div>
+                <div class=note>Giorno 1 · ME · Candidati U 14:00 · 1 emessi Il prefisso U assegna il tipo anche in
+                  assenza di entrata. <a
+                    href="#code-cartellino_classic-CartellinoClassicParser-parse_document">Parser</a> · <a
+                    href="#code-common-explicit_events_for_line">Prefissi e riferimenti</a></div>
+              </div>
+            </div>
+            <div id="cartellino_classic-riepilogo-r4" class="doc-line parsed"><a class="line-no"
+                href="#cartellino_classic-riepilogo-r4" aria-label="Riga 4">4</a>
+              <div>
+                <div class="raw">02 gi 08:00 14:00</div>
+                <div class=note>Giorno 2 · GI · Nessun candidato Gli orari senza prefisso non generano eventi. <a
+                    href="#code-cartellino_classic-CartellinoClassicParser-parse_document">Parser</a></div>
+              </div>
+            </div>
+            <div id="cartellino_classic-riepilogo-r5" class="doc-line"><a class="line-no"
+                href="#cartellino_classic-riepilogo-r5" aria-label="Riga 5">5</a>
+              <div>
+                <div class="raw">Totali fine mese</div>
+              </div>
+            </div>
+          </div>
+          <h4>Eventi emessi</h4>
+          <div class="scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Data e ora</th>
+                  <th>Tipo</th>
+                  <th>Valore sorgente</th>
+                  <th>Origine</th>
+                  <th>Slot</th>
+                  <th>Riferimento</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>2023-03-01 14:00:00</td>
+                  <td>U</td>
+                  <td>U 14:00</td>
+                  <td>text_regex</td>
+                  <td>unknown</td>
+                  <td><a href="#cartellino_classic-riepilogo-r3">Riga
+                      3</a><small>riepilogo.case.json#p1:line_no=3:slot=unknown</small></td>
+                </tr>
+              </tbody>
+            </table>
+          </div><a class="file" href="../../tests/fixtures/parsers/cartellino_classic/riepilogo.case.json">Apri il
+            documento di test e le aspettative</a>
+        </details>
+        <p class="legacy">Documenti testuali di routing · <a
+            href="../../tests/fixtures/parsers/cartellino_classic/case_basic.txt">case_basic.txt</a> · <a
+            href="../../tests/fixtures/parsers/cartellino_classic/sample.txt">sample.txt</a></p>
+      </section>
+      <section id="cartellino_ocr">
+        <h2>Cartellino OCR</h2>
+        <details class="rules">
+          <summary>Regole di estrazione e limiti</summary>
+          <ul>
+            <li><strong>Formato</strong>
+              <p>Cerca indicatori di stampa e intestazioni con lettere duplicate. Il nome del parser identifica un
+                formato: l’input può provenire sia dal testo nativo del PDF sia dallo step OCR.</p><a
+                href="#code-cartellino_ocr-CartellinoOcrParser-score_document">score_document</a>
+            </li>
+            <li><strong>Coordinate</strong>
+              <p>Con quattro intestazioni riconosciute (Ent1, Usc1, Ent2, Usc2) calcola le fasce orizzontali. Riunisce
+                frammenti vicini e usa il primo orario valido di ogni fascia. Un’uscita isolata conserva il proprio
+                slot.</p><a
+                href="#code-cartellino_ocr-CartellinoOcrParser-_resolve_column_bands">_resolve_column_bands</a> · <a
+                href="#code-cartellino_ocr-CartellinoOcrParser-_extract_slot_time">_extract_slot_time</a>
+            </li>
+            <li><strong>Fallback e rischi</strong>
+              <p>Senza risultati da una riga con layout, prova il primo segmento testuale separato da !. Alterna E/U,
+                con eccezione per l’unico orario accompagnato da rec. Se manca tutto, prova i prefissi E/U. Perdere uno
+                slot può invertire il tipo nel ramo testuale.</p><a
+                href="#code-cartellino_ocr-CartellinoOcrParser-_events_from_text_line">_events_from_text_line</a> · <a
+                href="#code-cartellino_ocr-CartellinoOcrParser-_aligned_events_from_text">_aligned_events_from_text</a>
+            </li>
+            <li><strong>Nome e periodo</strong>
+              <p>Usa le etichette condivise per il nome, anche quando il valore è sulla riga seguente. Il periodo passa
+                dal resolver comune. Una testata deformata oltre i casi riconosciuti può impedire l’emissione degli
+                eventi.</p><a href="#code-identity-employee_identity">employee_identity</a> · <a
+                href="#code-page_analysis-resolve_page_year_month">resolve_page_year_month</a>
+            </li>
+          </ul>
+        </details>
+        <details class="case" id="cartellino_ocr-colonne" open>
+          <summary>OCR con coordinate e slot mancanti <small>3 eventi emessi</small></summary>
+          <dl class="metrics">
+            <div>
+              <dt><a href="#code-identity-employee_identity">Identità</a></dt>
+              <dd>ELENA ESEMPIO · recognized</dd>
+            </div>
+            <div>
+              <dt><a href="#code-page_analysis-resolve_page_year_month">Periodo</a></dt>
+              <dd>2023-10 <small>text</small></dd>
+            </div>
+            <div>
+              <dt><a href="#code-page_analysis-parse_document_pages">Decisione pagina</a></dt>
+              <dd>parsed</dd>
+            </div>
+          </dl>
+          <div class="paper">
+            <div id="cartellino_ocr-colonne-r1" class="doc-line"><a class="line-no" href="#cartellino_ocr-colonne-r1"
+                aria-label="Riga 1">1</a>
+              <div>
+                <div class="raw">Data T I M B R A T U R E O R E</div>
+                <div class=note><a href="#code-cartellino_ocr-CartellinoOcrParser-score_document">Riconoscimento
+                    formato</a></div>
+              </div>
+            </div>
+            <div id="cartellino_ocr-colonne-r2" class="doc-line"><a class="line-no" href="#cartellino_ocr-colonne-r2"
+                aria-label="Riga 2">2</a>
+              <div>
+                <div class="raw">R R I I L L E E V V A A Z Z I I O O N N E E</div>
+              </div>
+            </div>
+            <div id="cartellino_ocr-colonne-r3" class="doc-line"><a class="line-no" href="#cartellino_ocr-colonne-r3"
+                aria-label="Riga 3">3</a>
+              <div>
+                <div class="raw"><mark class="period" title="Evidenza del periodo">Ottobre 2023</mark></div>
+                <div class=note><a href="#code-page_analysis-resolve_page_year_month">Periodo</a></div>
+              </div>
+            </div>
+            <div id="cartellino_ocr-colonne-r4" class="doc-line"><a class="line-no" href="#cartellino_ocr-colonne-r4"
+                aria-label="Riga 4">4</a>
+              <div>
+                <div class="raw">Dipendente: <mark class="identity" title="Candidato ELENA ESEMPIO · recognized">ELENA
+                    ESEMPIO</mark></div>
+                <div class=note><a href="#code-identity-employee_identity">Identità</a></div>
+              </div>
+            </div>
+            <div id="cartellino_ocr-colonne-r5" class="doc-line"><a class="line-no" href="#cartellino_ocr-colonne-r5"
+                aria-label="Riga 5">5</a>
+              <div>
+                <div class="raw"><span class="coords" style="width:698.25px"><span
+                      style="left:155px">E_n_t_-_1</span><span style="left:248px">U_s_c_-_1</span><span
+                      style="left:341px">Ent2</span><span style="left:434px">Usc2</span><span
+                      style="left:620px">Totale</span></span></div>
+                <div class=note>I quattro titoli normalizzati definiscono le fasce orizzontali. <a
+                    href="#code-page_analysis-resolve_page_year_month">Periodo</a></div>
+              </div>
+            </div>
+            <div id="cartellino_ocr-colonne-r6" class="doc-line parsed"><a class="line-no"
+                href="#cartellino_ocr-colonne-r6" aria-label="Riga 6">6</a>
+              <div>
+                <div class="raw"><span class="coords" style="width:682.75px"><span style="left:31px">02</span><span
+                      style="left:60.45px">lu</span><span style="left:155px"><mark class="punch"
+                        title="E 06:50">06:</mark></span><span style="left:179.8px"><mark class="punch"
+                        title="E 06:50">50</mark></span><span style="left:248px"><mark class="punch"
+                        title="U 14:09">14.09</mark></span><span style="left:620px">07:19</span></span></div>
+                <div class=note>Giorno 2 · LU · Candidati E 06:50 (ent_1), U 14:09 (usc_1) · 2 emessi 06: e 50 vengono
+                  riuniti nella stessa fascia. Il totale è esterno. <a
+                    href="#code-cartellino_ocr-CartellinoOcrParser-parse_document">Parser</a></div>
+              </div>
+            </div>
+            <div id="cartellino_ocr-colonne-r7" class="doc-line parsed"><a class="line-no"
+                href="#cartellino_ocr-colonne-r7" aria-label="Riga 7">7</a>
+              <div>
+                <div class="raw"><span class="coords" style="width:310.75px"><span style="left:31px">03</span><span
+                      style="left:60.45px">ma</span><span style="left:248px"><mark class="punch"
+                        title="U 14:05">14:05</mark></span></span></div>
+                <div class=note>Giorno 3 · MA · Candidati U 14:05 (usc_1) · 1 emessi La fascia Usc1 conserva l’uscita
+                  quando Ent1 è assente. <a href="#code-cartellino_ocr-CartellinoOcrParser-parse_document">Parser</a>
+                </div>
+              </div>
+            </div>
+          </div>
+          <h4>Eventi emessi</h4>
+          <div class="scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Data e ora</th>
+                  <th>Tipo</th>
+                  <th>Valore sorgente</th>
+                  <th>Origine</th>
+                  <th>Slot</th>
+                  <th>Riferimento</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>2023-10-02 06:50:00</td>
+                  <td>E</td>
+                  <td>06:50</td>
+                  <td>layout_slot</td>
+                  <td>ent_1</td>
+                  <td><a href="#cartellino_ocr-colonne-r6">Riga 6</a><small>colonne.case.json#p1:line=p1_l6:w2-3</small>
+                  </td>
+                </tr>
+                <tr>
+                  <td>2023-10-02 14:09:00</td>
+                  <td>U</td>
+                  <td>14.09</td>
+                  <td>layout_slot</td>
+                  <td>usc_1</td>
+                  <td><a href="#cartellino_ocr-colonne-r6">Riga 6</a><small>colonne.case.json#p1:line=p1_l6:w4</small>
+                  </td>
+                </tr>
+                <tr>
+                  <td>2023-10-03 14:05:00</td>
+                  <td>U</td>
+                  <td>14:05</td>
+                  <td>layout_slot</td>
+                  <td>usc_1</td>
+                  <td><a href="#cartellino_ocr-colonne-r7">Riga 7</a><small>colonne.case.json#p1:line=p1_l7:w2</small>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div><a class="file" href="../../tests/fixtures/parsers/cartellino_ocr/colonne.case.json">Apri il documento
+            di test e le aspettative</a>
+        </details>
+        <details class="case" id="cartellino_ocr-testo">
+          <summary>OCR testuale con separatori e uscita rec <small>3 eventi emessi</small></summary>
+          <dl class="metrics">
+            <div>
+              <dt><a href="#code-identity-employee_identity">Identità</a></dt>
+              <dd>ELENA ESEMPIO · recognized</dd>
+            </div>
+            <div>
+              <dt><a href="#code-page_analysis-resolve_page_year_month">Periodo</a></dt>
+              <dd>2023-10 <small>text</small></dd>
+            </div>
+            <div>
+              <dt><a href="#code-page_analysis-parse_document_pages">Decisione pagina</a></dt>
+              <dd>parsed</dd>
+            </div>
+          </dl>
+          <div class="paper">
+            <div id="cartellino_ocr-testo-r1" class="doc-line"><a class="line-no" href="#cartellino_ocr-testo-r1"
+                aria-label="Riga 1">1</a>
+              <div>
+                <div class="raw">Data T I M B R A T U R E O R E</div>
+                <div class=note><a href="#code-cartellino_ocr-CartellinoOcrParser-score_document">Riconoscimento
+                    formato</a></div>
+              </div>
+            </div>
+            <div id="cartellino_ocr-testo-r2" class="doc-line"><a class="line-no" href="#cartellino_ocr-testo-r2"
+                aria-label="Riga 2">2</a>
+              <div>
+                <div class="raw">R R I I L L E E V V A A Z Z I I O O N N E E</div>
+                <div class=note>La scritta duplicata contribuisce al riconoscimento del formato. <a
+                    href="#code-page_analysis-resolve_page_year_month">Periodo</a></div>
+              </div>
+            </div>
+            <div id="cartellino_ocr-testo-r3" class="doc-line"><a class="line-no" href="#cartellino_ocr-testo-r3"
+                aria-label="Riga 3">3</a>
+              <div>
+                <div class="raw"><mark class="period" title="Evidenza del periodo">Ottobre 2023</mark></div>
+                <div class=note>Periodo leggibile nell’intestazione. <a
+                    href="#code-page_analysis-resolve_page_year_month">Periodo</a></div>
+              </div>
+            </div>
+            <div id="cartellino_ocr-testo-r4" class="doc-line"><a class="line-no" href="#cartellino_ocr-testo-r4"
+                aria-label="Riga 4">4</a>
+              <div>
+                <div class="raw"><mark class="identity" title="Candidato ELENA ESEMPIO · recognized">Nominativo:</mark>
+                </div>
+                <div class=note><a href="#code-identity-employee_identity">Identità</a></div>
+              </div>
+            </div>
+            <div id="cartellino_ocr-testo-r5" class="doc-line"><a class="line-no" href="#cartellino_ocr-testo-r5"
+                aria-label="Riga 5">5</a>
+              <div>
+                <div class="raw"><mark class="identity" title="Candidato ELENA ESEMPIO · recognized">ELENA
+                    ESEMPIO</mark></div>
+                <div class=note>Il nome viene cercato sulla riga seguente quando l’etichetta è isolata. <a
+                    href="#code-identity-employee_identity">Identità</a></div>
+              </div>
+            </div>
+            <div id="cartellino_ocr-testo-r6" class="doc-line parsed"><a class="line-no" href="#cartellino_ocr-testo-r6"
+                aria-label="Riga 6">6</a>
+              <div>
+                <div class="raw">02 lu 0650 14.09 ! 07:19 07:12</div>
+                <div class=note>Giorno 2 · LU · Candidati E 06:50, U 14:09 · 2 emessi L’ordine dei due orari validi nel
+                  primo segmento determina E e U. <a
+                    href="#code-cartellino_ocr-CartellinoOcrParser-parse_document">Parser</a></div>
+              </div>
+            </div>
+            <div id="cartellino_ocr-testo-r7" class="doc-line parsed"><a class="line-no" href="#cartellino_ocr-testo-r7"
+                aria-label="Riga 7">7</a>
+              <div>
+                <div class="raw">03 ma 1405 rec ! 07:00</div>
+                <div class=note>Giorno 3 · MA · Candidati U 14:05 · 1 emessi Un orario isolato con rec diventa U. <a
+                    href="#code-cartellino_ocr-CartellinoOcrParser-parse_document">Parser</a></div>
+              </div>
+            </div>
+            <div id="cartellino_ocr-testo-r8" class="doc-line parsed"><a class="line-no" href="#cartellino_ocr-testo-r8"
+                aria-label="Riga 8">8</a>
+              <div>
+                <div class="raw">04 me FERIE ! 07:00</div>
+                <div class=note>Giorno 4 · ME · Nessun candidato Il segmento dopo ! contiene un totale e resta fuori. <a
+                    href="#code-cartellino_ocr-CartellinoOcrParser-parse_document">Parser</a></div>
+              </div>
+            </div>
+          </div>
+          <h4>Eventi emessi</h4>
+          <div class="scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Data e ora</th>
+                  <th>Tipo</th>
+                  <th>Valore sorgente</th>
+                  <th>Origine</th>
+                  <th>Slot</th>
+                  <th>Riferimento</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>2023-10-02 06:50:00</td>
+                  <td>E</td>
+                  <td>E 06:50</td>
+                  <td>text_order</td>
+                  <td>unknown</td>
+                  <td><a href="#cartellino_ocr-testo-r6">Riga
+                      6</a><small>testo.case.json#p1:line_no=6:slot=unknown</small></td>
+                </tr>
+                <tr>
+                  <td>2023-10-02 14:09:00</td>
+                  <td>U</td>
+                  <td>U 14:09</td>
+                  <td>text_order</td>
+                  <td>unknown</td>
+                  <td><a href="#cartellino_ocr-testo-r6">Riga
+                      6</a><small>testo.case.json#p1:line_no=6:slot=unknown</small></td>
+                </tr>
+                <tr>
+                  <td>2023-10-03 14:05:00</td>
+                  <td>U</td>
+                  <td>U 14:05</td>
+                  <td>text_order</td>
+                  <td>unknown</td>
+                  <td><a href="#cartellino_ocr-testo-r7">Riga
+                      7</a><small>testo.case.json#p1:line_no=7:slot=unknown</small></td>
+                </tr>
+              </tbody>
+            </table>
+          </div><a class="file" href="../../tests/fixtures/parsers/cartellino_ocr/testo.case.json">Apri il documento di
+            test e le aspettative</a>
+        </details>
+        <p class="legacy">Documenti testuali di routing · <a
+            href="../../tests/fixtures/parsers/cartellino_ocr/case_tipo4.txt">case_tipo4.txt</a> · <a
+            href="../../tests/fixtures/parsers/cartellino_ocr/case_tipo5.txt">case_tipo5.txt</a> · <a
+            href="../../tests/fixtures/parsers/cartellino_ocr/sample.txt">sample.txt</a></p>
+      </section>
+      <section id="cartellino_unico">
+        <h2>Cartellino Unico</h2>
+        <details class="rules">
+          <summary>Regole di estrazione e limiti</summary>
+          <ul>
+            <li><strong>Formato</strong>
+              <p>Il titolo Cartellino Unico, l’intestazione Giorno Orario Anomalie e la dicitura Data e ora stampa
+                contribuiscono al punteggio.</p><a
+                href="#code-cartellino_unico-CartellinoUnicoParser-score_document">score_document</a>
+            </li>
+            <li><strong>Ordine delle strategie</strong>
+              <p>Con dodici colonne Ent/Usc integre usa le coordinate. Con Giorno Timbrature Mensa usa esclusivamente i
+                prefissi E/U. Negli altri casi prova l’allineamento testuale e poi i prefissi espliciti.</p><a
+                href="#code-cartellino_unico-CartellinoUnicoParser-parse_document">parse_document</a>
+            </li>
+            <li><strong>Slot e notte</strong>
+              <p>Assegna il tipo alla colonna più vicina entro la tolleranza. Mantiene una sola timbratura per slot e
+                sposta al giorno successivo un’uscita precedente all’entrata della stessa coppia.</p><a
+                href="#code-cartellino_unico-CartellinoUnicoParser-_column_events">_column_events</a>
+            </li>
+            <li><strong>Fallback e rischi</strong>
+              <p>I marcatori o/a/t possono selezionare un orario e quello vicino precedente. Senza marcatori usa i primi
+                due orari con almeno 90 minuti di distanza. Con layout degradato, un totale può somigliare a un timbro.
+              </p><a href="#code-cartellino_unico-CartellinoUnicoParser-_aligned_events">_aligned_events</a>
+            </li>
+            <li><strong>Nome e periodo</strong>
+              <p>Il mese può essere riconosciuto anche accanto a un nominativo. La riga NOME COGNOME, MESE ANNO,
+                Cartellino Unico da sola non soddisfa le regole attuali dell’identità.</p><a
+                href="#code-identity-employee_identity">employee_identity</a> · <a
+                href="#code-page_analysis-resolve_page_year_month">resolve_page_year_month</a>
+            </li>
+          </ul>
+        </details>
+        <details class="case" id="cartellino_unico-allineamento" open>
+          <summary>Allineamento testuale e fallback esplicito <small>5 eventi emessi</small></summary>
+          <dl class="metrics">
+            <div>
+              <dt><a href="#code-identity-employee_identity">Identità</a></dt>
+              <dd>Assente · missing</dd>
+            </div>
+            <div>
+              <dt><a href="#code-page_analysis-resolve_page_year_month">Periodo</a></dt>
+              <dd>2021-10 <small>text</small></dd>
+            </div>
+            <div>
+              <dt><a href="#code-page_analysis-parse_document_pages">Decisione pagina</a></dt>
+              <dd>parsed</dd>
+            </div>
+          </dl>
+          <div class="paper">
+            <div id="cartellino_unico-allineamento-r1" class="doc-line"><a class="line-no"
+                href="#cartellino_unico-allineamento-r1" aria-label="Riga 1">1</a>
+              <div>
+                <div class="raw"><mark class="period" title="Evidenza del periodo">Cartellino Unico - ottobre
+                    2021</mark></div>
+                <div class=note><a href="#code-cartellino_unico-CartellinoUnicoParser-score_document">Riconoscimento
+                    formato</a> · <a href="#code-page_analysis-resolve_page_year_month">Periodo</a></div>
+              </div>
+            </div>
+            <div id="cartellino_unico-allineamento-r2" class="doc-line"><a class="line-no"
+                href="#cartellino_unico-allineamento-r2" aria-label="Riga 2">2</a>
+              <div>
+                <div class="raw">ELENA ESEMPIO, OTTOBRE 2021, Cartellino Unico</div>
+                <div class=note>Questo formato di nome senza etichetta rimane missing nella logica condivisa attuale. <a
+                    href="#code-page_analysis-resolve_page_year_month">Periodo</a></div>
+              </div>
+            </div>
+            <div id="cartellino_unico-allineamento-r3" class="doc-line parsed"><a class="line-no"
+                href="#cartellino_unico-allineamento-r3" aria-label="Riga 3">3</a>
+              <div>
+                <div class="raw">01 ven 08:02 13:10 o 05:08</div>
+                <div class=note>Giorno 1 · VE · Candidati E 08:02, U 13:10 · 2 emessi Il marcatore o fa selezionare
+                  13:10 e l’orario vicino che lo precede. <a
+                    href="#code-cartellino_unico-CartellinoUnicoParser-parse_document">Parser</a></div>
+              </div>
+            </div>
+            <div id="cartellino_unico-allineamento-r4" class="doc-line parsed"><a class="line-no"
+                href="#cartellino_unico-allineamento-r4" aria-label="Riga 4">4</a>
+              <div>
+                <div class="raw">02 sab 07:00 08:00</div>
+                <div class=note>Giorno 2 · SA · Nessun candidato La differenza di 60 minuti è sotto la soglia di 90 per
+                  due orari senza marcatori. <a
+                    href="#code-cartellino_unico-CartellinoUnicoParser-parse_document">Parser</a></div>
+              </div>
+            </div>
+            <div id="cartellino_unico-allineamento-r5" class="doc-line parsed"><a class="line-no"
+                href="#cartellino_unico-allineamento-r5" aria-label="Riga 5">5</a>
+              <div>
+                <div class="raw">03 dom <mark class="punch" title="U 14:10">U14:10</mark></div>
+                <div class=note>Giorno 3 · DO · Candidati U 14:10 · 1 emessi Il ramo testuale usa il prefisso U quando
+                  l’allineamento non produce eventi. <a
+                    href="#code-cartellino_unico-CartellinoUnicoParser-parse_document">Parser</a> · <a
+                    href="#code-common-explicit_events_for_line">Prefissi e riferimenti</a></div>
+              </div>
+            </div>
+            <div id="cartellino_unico-allineamento-r6" class="doc-line parsed"><a class="line-no"
+                href="#cartellino_unico-allineamento-r6" aria-label="Riga 6">6</a>
+              <div>
+                <div class="raw">04 lun 08:00 15:00 07:00</div>
+                <div class=note>Giorno 4 · LU · Candidati E 08:00, U 15:00 · 2 emessi Senza marcatori vengono
+                  considerati i primi due orari. <a
+                    href="#code-cartellino_unico-CartellinoUnicoParser-parse_document">Parser</a></div>
+              </div>
+            </div>
+          </div>
+          <h4>Eventi emessi</h4>
+          <div class="scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Data e ora</th>
+                  <th>Tipo</th>
+                  <th>Valore sorgente</th>
+                  <th>Origine</th>
+                  <th>Slot</th>
+                  <th>Riferimento</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>2021-10-01 08:02:00</td>
+                  <td>E</td>
+                  <td>E 08:02</td>
+                  <td>text_alignment</td>
+                  <td>unknown</td>
+                  <td><a href="#cartellino_unico-allineamento-r3">Riga
+                      3</a><small>allineamento.case.json#p1:line_no=3:slot=unknown</small></td>
+                </tr>
+                <tr>
+                  <td>2021-10-01 13:10:00</td>
+                  <td>U</td>
+                  <td>U 13:10</td>
+                  <td>text_alignment</td>
+                  <td>unknown</td>
+                  <td><a href="#cartellino_unico-allineamento-r3">Riga
+                      3</a><small>allineamento.case.json#p1:line_no=3:slot=unknown</small></td>
+                </tr>
+                <tr>
+                  <td>2021-10-03 14:10:00</td>
+                  <td>U</td>
+                  <td>U14:10</td>
+                  <td>text_regex</td>
+                  <td>unknown</td>
+                  <td><a href="#cartellino_unico-allineamento-r5">Riga
+                      5</a><small>allineamento.case.json#p1:line_no=5:slot=unknown</small></td>
+                </tr>
+                <tr>
+                  <td>2021-10-04 08:00:00</td>
+                  <td>E</td>
+                  <td>E 08:00</td>
+                  <td>text_alignment</td>
+                  <td>unknown</td>
+                  <td><a href="#cartellino_unico-allineamento-r6">Riga
+                      6</a><small>allineamento.case.json#p1:line_no=6:slot=unknown</small></td>
+                </tr>
+                <tr>
+                  <td>2021-10-04 15:00:00</td>
+                  <td>U</td>
+                  <td>U 15:00</td>
+                  <td>text_alignment</td>
+                  <td>unknown</td>
+                  <td><a href="#cartellino_unico-allineamento-r6">Riga
+                      6</a><small>allineamento.case.json#p1:line_no=6:slot=unknown</small></td>
+                </tr>
+              </tbody>
+            </table>
+          </div><a class="file" href="../../tests/fixtures/parsers/cartellino_unico/allineamento.case.json">Apri il
+            documento di test e le aspettative</a>
+        </details>
+        <details class="case" id="cartellino_unico-esplicite">
+          <summary>Modello Giorno / Timbrature / Mensa <small>3 eventi emessi</small></summary>
+          <dl class="metrics">
+            <div>
+              <dt><a href="#code-identity-employee_identity">Identità</a></dt>
+              <dd>ELENA ESEMPIO · recognized</dd>
+            </div>
+            <div>
+              <dt><a href="#code-page_analysis-resolve_page_year_month">Periodo</a></dt>
+              <dd>2022-10 <small>text</small></dd>
+            </div>
+            <div>
+              <dt><a href="#code-page_analysis-parse_document_pages">Decisione pagina</a></dt>
+              <dd>parsed</dd>
+            </div>
+          </dl>
+          <div class="paper">
+            <div id="cartellino_unico-esplicite-r1" class="doc-line"><a class="line-no"
+                href="#cartellino_unico-esplicite-r1" aria-label="Riga 1">1</a>
+              <div>
+                <div class="raw"><mark class="period" title="Evidenza del periodo">Cartellino Unico - ottobre
+                    2022</mark></div>
+                <div class=note><a href="#code-cartellino_unico-CartellinoUnicoParser-score_document">Riconoscimento
+                    formato</a> · <a href="#code-page_analysis-resolve_page_year_month">Periodo</a></div>
+              </div>
+            </div>
+            <div id="cartellino_unico-esplicite-r2" class="doc-line"><a class="line-no"
+                href="#cartellino_unico-esplicite-r2" aria-label="Riga 2">2</a>
+              <div>
+                <div class="raw">Dipendente: <mark class="identity" title="Candidato ELENA ESEMPIO · recognized">ELENA
+                    ESEMPIO</mark></div>
+                <div class=note><a href="#code-identity-employee_identity">Identità</a></div>
+              </div>
+            </div>
+            <div id="cartellino_unico-esplicite-r3" class="doc-line"><a class="line-no"
+                href="#cartellino_unico-esplicite-r3" aria-label="Riga 3">3</a>
+              <div>
+                <div class="raw">Giorno Timbrature Mensa Anomalie FISICO PROGR LAVORO SALDO</div>
+                <div class=note>Questo titolo attiva il ramo con prefissi espliciti. <a
+                    href="#code-page_analysis-resolve_page_year_month">Periodo</a></div>
+              </div>
+            </div>
+            <div id="cartellino_unico-esplicite-r4" class="doc-line parsed"><a class="line-no"
+                href="#cartellino_unico-esplicite-r4" aria-label="Riga 4">4</a>
+              <div>
+                <div class="raw">Sab 01 <mark class="punch" title="E 20:49">E20:49</mark> 1570 Ind.3T 10:26 10:00 10:15
+                  00:15</div>
+                <div class=note>Giorno 1 · SA · Candidati E 20:49 · 1 emessi 10:26 e 10:00 appartengono ai totali e
+                  restano fuori. <a href="#code-cartellino_unico-CartellinoUnicoParser-parse_document">Parser</a> · <a
+                    href="#code-common-explicit_events_for_line">Prefissi e riferimenti</a></div>
+              </div>
+            </div>
+            <div id="cartellino_unico-esplicite-r5" class="doc-line parsed"><a class="line-no"
+                href="#cartellino_unico-esplicite-r5" aria-label="Riga 5">5</a>
+              <div>
+                <div class="raw">Dom 02 <mark class="punch" title="U 07:15">U07:15</mark> <mark class="punch"
+                    title="E 20:36">E20:36</mark> 10:34 10:00</div>
+                <div class=note>Giorno 2 · DO · Candidati U 07:15, E 20:36 · 2 emessi <a
+                    href="#code-cartellino_unico-CartellinoUnicoParser-parse_document">Parser</a> · <a
+                    href="#code-common-explicit_events_for_line">Prefissi e riferimenti</a></div>
+              </div>
+            </div>
+            <div id="cartellino_unico-esplicite-r6" class="doc-line parsed"><a class="line-no"
+                href="#cartellino_unico-esplicite-r6" aria-label="Riga 6">6</a>
+              <div>
+                <div class="raw">Lun 03 FERIE 06:00 08:00</div>
+                <div class=note>Giorno 3 · LU · Nessun candidato Ferie con orari senza prefissi. Nessun evento. <a
+                    href="#code-cartellino_unico-CartellinoUnicoParser-parse_document">Parser</a></div>
+              </div>
+            </div>
+          </div>
+          <h4>Eventi emessi</h4>
+          <div class="scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Data e ora</th>
+                  <th>Tipo</th>
+                  <th>Valore sorgente</th>
+                  <th>Origine</th>
+                  <th>Slot</th>
+                  <th>Riferimento</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>2022-10-01 20:49:00</td>
+                  <td>E</td>
+                  <td>E20:49</td>
+                  <td>text_regex</td>
+                  <td>unknown</td>
+                  <td><a href="#cartellino_unico-esplicite-r4">Riga
+                      4</a><small>esplicite.case.json#p1:line_no=4:slot=unknown</small></td>
+                </tr>
+                <tr>
+                  <td>2022-10-02 07:15:00</td>
+                  <td>U</td>
+                  <td>U07:15</td>
+                  <td>text_regex</td>
+                  <td>unknown</td>
+                  <td><a href="#cartellino_unico-esplicite-r5">Riga
+                      5</a><small>esplicite.case.json#p1:line_no=5:slot=unknown</small></td>
+                </tr>
+                <tr>
+                  <td>2022-10-02 20:36:00</td>
+                  <td>E</td>
+                  <td>E20:36</td>
+                  <td>text_regex</td>
+                  <td>unknown</td>
+                  <td><a href="#cartellino_unico-esplicite-r5">Riga
+                      5</a><small>esplicite.case.json#p1:line_no=5:slot=unknown</small></td>
+                </tr>
+              </tbody>
+            </table>
+          </div><a class="file" href="../../tests/fixtures/parsers/cartellino_unico/esplicite.case.json">Apri il
+            documento di test e le aspettative</a>
+        </details>
+        <details class="case" id="cartellino_unico-sei-coppie">
+          <summary>Dodici colonne con uscita isolata e notte <small>5 eventi emessi</small></summary>
+          <dl class="metrics">
+            <div>
+              <dt><a href="#code-identity-employee_identity">Identità</a></dt>
+              <dd>ELENA ESEMPIO · recognized</dd>
+            </div>
+            <div>
+              <dt><a href="#code-page_analysis-resolve_page_year_month">Periodo</a></dt>
+              <dd>2021-10 <small>text</small></dd>
+            </div>
+            <div>
+              <dt><a href="#code-page_analysis-parse_document_pages">Decisione pagina</a></dt>
+              <dd>parsed</dd>
+            </div>
+          </dl>
+          <div class="paper">
+            <div id="cartellino_unico-sei-coppie-r1" class="doc-line"><a class="line-no"
+                href="#cartellino_unico-sei-coppie-r1" aria-label="Riga 1">1</a>
+              <div>
+                <div class="raw"><mark class="period" title="Evidenza del periodo">Cartellino Unico - ottobre
+                    2021</mark></div>
+                <div class=note><a href="#code-cartellino_unico-CartellinoUnicoParser-score_document">Riconoscimento
+                    formato</a> · <a href="#code-page_analysis-resolve_page_year_month">Periodo</a></div>
+              </div>
+            </div>
+            <div id="cartellino_unico-sei-coppie-r2" class="doc-line"><a class="line-no"
+                href="#cartellino_unico-sei-coppie-r2" aria-label="Riga 2">2</a>
+              <div>
+                <div class="raw">Nominativo: <mark class="identity" title="Candidato ELENA ESEMPIO · recognized">ELENA
+                    ESEMPIO</mark></div>
+                <div class=note><a href="#code-identity-employee_identity">Identità</a></div>
+              </div>
+            </div>
+            <div id="cartellino_unico-sei-coppie-r3" class="doc-line"><a class="line-no"
+                href="#cartellino_unico-sei-coppie-r3" aria-label="Riga 3">3</a>
+              <div>
+                <div class="raw"><span class="coords" style="width:757.15px"><span
+                      style="left:18.6px">Giorno</span><span style="left:68.2px">Orario</span><span
+                      style="left:116.25px">Anomalie</span><span style="left:176.7px">Ent</span><span
+                      style="left:196.85px">1</span><span style="left:224.75px">Usc</span><span
+                      style="left:244.9px">1</span><span style="left:272.8px">Ent</span><span
+                      style="left:292.95px">2</span><span style="left:320.85px">Usc</span><span
+                      style="left:341px">2</span><span style="left:368.9px">Ent</span><span
+                      style="left:389.05px">3</span><span style="left:416.95px">Usc</span><span
+                      style="left:437.1px">3</span><span style="left:465px">Ent</span><span
+                      style="left:485.15px">4</span><span style="left:513.05px">Usc</span><span
+                      style="left:533.2px">4</span><span style="left:561.1px">Ent</span><span
+                      style="left:581.25px">5</span><span style="left:609.15px">Usc</span><span
+                      style="left:629.3px">5</span><span style="left:657.2px">Ent</span><span
+                      style="left:677.35px">6</span><span style="left:705.25px">Usc</span><span
+                      style="left:725.4px">6</span></span></div>
+                <div class=note>I dodici titoli Ent/Usc determinano le posizioni delle timbrature. <a
+                    href="#code-page_analysis-resolve_page_year_month">Periodo</a></div>
+              </div>
+            </div>
+            <div id="cartellino_unico-sei-coppie-r4" class="doc-line parsed"><a class="line-no"
+                href="#cartellino_unico-sei-coppie-r4" aria-label="Riga 4">4</a>
+              <div>
+                <div class="raw"><span class="coords" style="width:823.8px"><span style="left:21.7px">1</span><span
+                      style="left:38.75px">ven</span><span style="left:224.75px"><mark class="punch"
+                        title="U 07:16">07:16</mark></span><span style="left:768.8px">07:03</span></span></div>
+                <div class=note>Giorno 1 · VE · Candidati U 07:16 (usc_1) · 1 emessi 07:16 è sotto Usc 1 e resta
+                  un’uscita. 07:03 è fuori colonna. <a
+                    href="#code-cartellino_unico-CartellinoUnicoParser-parse_document">Parser</a></div>
+              </div>
+            </div>
+            <div id="cartellino_unico-sei-coppie-r5" class="doc-line parsed"><a class="line-no"
+                href="#cartellino_unico-sei-coppie-r5" aria-label="Riga 5">5</a>
+              <div>
+                <div class="raw"><span class="coords" style="width:823.8px"><span style="left:21.7px">2</span><span
+                      style="left:38.75px">sab</span><span style="left:176.7px"><mark class="punch"
+                        title="E 20:30">20:30</mark></span><span style="left:224.75px"><mark class="punch"
+                        title="U 07:20">07:20</mark></span><span style="left:768.8px">10:50</span></span></div>
+                <div class=note>Giorno 2 · SA · Candidati E 20:30 (ent_1), U 07:20 (usc_1) · 2 emessi L’uscita 07:20 è
+                  inferiore all’entrata della stessa coppia e passa al giorno seguente. <a
+                    href="#code-cartellino_unico-CartellinoUnicoParser-parse_document">Parser</a></div>
+              </div>
+            </div>
+            <div id="cartellino_unico-sei-coppie-r6" class="doc-line parsed"><a class="line-no"
+                href="#cartellino_unico-sei-coppie-r6" aria-label="Riga 6">6</a>
+              <div>
+                <div class="raw"><span class="coords" style="width:760.25px"><span style="left:21.7px">3</span><span
+                      style="left:38.75px">dom</span><span style="left:657.2px"><mark class="punch"
+                        title="E 09:10">09:10</mark></span><span style="left:705.25px"><mark class="punch"
+                        title="U 11:10">11:10</mark></span></span></div>
+                <div class=note>Giorno 3 · DO · Candidati E 09:10 (ent_6), U 11:10 (usc_6) · 2 emessi La sesta coppia
+                  conserva gli slot ent_6 e usc_6. <a
+                    href="#code-cartellino_unico-CartellinoUnicoParser-parse_document">Parser</a></div>
+              </div>
+            </div>
+          </div>
+          <h4>Eventi emessi</h4>
+          <div class="scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Data e ora</th>
+                  <th>Tipo</th>
+                  <th>Valore sorgente</th>
+                  <th>Origine</th>
+                  <th>Slot</th>
+                  <th>Riferimento</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>2021-10-01 07:16:00</td>
+                  <td>U</td>
+                  <td>07:16</td>
+                  <td>layout_column</td>
+                  <td>usc_1</td>
+                  <td><a href="#cartellino_unico-sei-coppie-r4">Riga
+                      4</a><small>sei-coppie.case.json#p1:line=p1_l4:w2</small></td>
+                </tr>
+                <tr>
+                  <td>2021-10-02 20:30:00</td>
+                  <td>E</td>
+                  <td>20:30</td>
+                  <td>layout_column</td>
+                  <td>ent_1</td>
+                  <td><a href="#cartellino_unico-sei-coppie-r5">Riga
+                      5</a><small>sei-coppie.case.json#p1:line=p1_l5:w2</small></td>
+                </tr>
+                <tr>
+                  <td>2021-10-03 07:20:00</td>
+                  <td>U</td>
+                  <td>07:20</td>
+                  <td>layout_column</td>
+                  <td>usc_1</td>
+                  <td><a href="#cartellino_unico-sei-coppie-r5">Riga
+                      5</a><small>sei-coppie.case.json#p1:line=p1_l5:w3</small></td>
+                </tr>
+                <tr>
+                  <td>2021-10-03 09:10:00</td>
+                  <td>E</td>
+                  <td>09:10</td>
+                  <td>layout_column</td>
+                  <td>ent_6</td>
+                  <td><a href="#cartellino_unico-sei-coppie-r6">Riga
+                      6</a><small>sei-coppie.case.json#p1:line=p1_l6:w2</small></td>
+                </tr>
+                <tr>
+                  <td>2021-10-03 11:10:00</td>
+                  <td>U</td>
+                  <td>11:10</td>
+                  <td>layout_column</td>
+                  <td>usc_6</td>
+                  <td><a href="#cartellino_unico-sei-coppie-r6">Riga
+                      6</a><small>sei-coppie.case.json#p1:line=p1_l6:w3</small></td>
+                </tr>
+              </tbody>
+            </table>
+          </div><a class="file" href="../../tests/fixtures/parsers/cartellino_unico/sei-coppie.case.json">Apri il
+            documento di test e le aspettative</a>
+        </details>
+        <p class="legacy">Documenti testuali di routing · <a
+            href="../../tests/fixtures/parsers/cartellino_unico/case_tipo2.txt">case_tipo2.txt</a> · <a
+            href="../../tests/fixtures/parsers/cartellino_unico/sample.txt">sample.txt</a></p>
+      </section>
+      <section id="situazione_mensile">
+        <h2>Situazione mensile presenze</h2>
+        <details class="rules">
+          <summary>Regole di estrazione e limiti</summary>
+          <ul>
+            <li><strong>Formato e nome</strong>
+              <p>Il titolo Situazione mensile presenze guida il riconoscimento. Oltre alle etichette condivise,
+                l’intestazione umbriadigitale presenze abilita la lettura di un nominativo seguito da una matricola di
+                4–8 cifre nelle prime 12 righe. La stessa regola può trattare un totale testuale seguito dall’anno come
+                candidato, se cade nelle prime 12 righe.</p><a
+                href="#code-situazione_mensile-SituazioneMensileParser-score_document">score_document</a> · <a
+                href="#code-identity-employee_identity">employee_identity</a>
+            </li>
+            <li><strong>Periodo</strong>
+              <p>Mese e anno devono provenire dal titolo mensile. Il recupero gestisce un insieme limitato di
+                deformazioni OCR. La ricerca si ferma a Mese chiuso. I totali a piè di pagina non riparano un titolo
+                assente.</p><a href="#code-monthly_header-monthly_title_year_month">monthly_title_year_month</a>
+            </li>
+            <li><strong>Giorno e orari</strong>
+              <p>Estrae giorno e giorno della settimana e cerca E/U. Consente riparazioni OCR limitate negli orari e
+                conserva il token sorgente. Ore o minuti fuori intervallo vengono scartati.</p><a
+                href="#code-situazione_mensile-SituazioneMensileParser-parse_document">parse_document</a> · <a
+                href="#code-common-explicit_events_for_line">explicit_events_for_line</a>
+            </li>
+            <li><strong>Controllo pagina</strong>
+              <p>Confronta il giorno della settimana stampato con il calendario. Una riga in conflitto non emette i
+                propri candidati. Le righe valide della stessa pagina possono comunque emettere eventi.</p><a
+                href="#code-page_analysis-parse_document_pages">parse_document_pages</a>
+            </li>
+          </ul>
+        </details>
+        <details class="case" id="situazione_mensile-nominativo" open>
+          <summary>Nominativo con matricola <small>2 eventi emessi</small></summary>
+          <dl class="metrics">
+            <div>
+              <dt><a href="#code-identity-employee_identity">Identità</a></dt>
+              <dd>ELENA ESEMPIO · recognized</dd>
+            </div>
+            <div>
+              <dt><a href="#code-page_analysis-resolve_page_year_month">Periodo</a></dt>
+              <dd>2024-04 <small>monthly_title</small></dd>
+            </div>
+            <div>
+              <dt><a href="#code-page_analysis-parse_document_pages">Decisione pagina</a></dt>
+              <dd>parsed</dd>
+            </div>
+          </dl>
+          <div class="paper">
+            <div id="situazione_mensile-nominativo-r1" class="doc-line"><a class="line-no"
+                href="#situazione_mensile-nominativo-r1" aria-label="Riga 1">1</a>
+              <div>
+                <div class="raw">SITUAZIONE MENSILE PRESENZE</div>
+                <div class=note><a href="#code-situazione_mensile-SituazioneMensileParser-score_document">Riconoscimento
+                    formato</a></div>
+              </div>
+            </div>
+            <div id="situazione_mensile-nominativo-r2" class="doc-line"><a class="line-no"
+                href="#situazione_mensile-nominativo-r2" aria-label="Riga 2">2</a>
+              <div>
+                <div class="raw"><mark class="period" title="Evidenza del periodo">aprile 2024</mark></div>
+                <div class=note><a href="#code-page_analysis-resolve_page_year_month">Periodo</a></div>
+              </div>
+            </div>
+            <div id="situazione_mensile-nominativo-r3" class="doc-line"><a class="line-no"
+                href="#situazione_mensile-nominativo-r3" aria-label="Riga 3">3</a>
+              <div>
+                <div class="raw">umbriadigitale presenze</div>
+              </div>
+            </div>
+            <div id="situazione_mensile-nominativo-r4" class="doc-line"><a class="line-no"
+                href="#situazione_mensile-nominativo-r4" aria-label="Riga 4">4</a>
+              <div>
+                <div class="raw"><mark class="identity" title="Candidato ELENA ESEMPIO · recognized">ELENA
+                    ESEMPIO</mark> 12345</div>
+                <div class=note>La testata umbriadigitale presenze attiva la struttura nome più matricola. In questa
+                  pagina il nome è univoco. <a href="#code-identity-employee_identity">Identità</a></div>
+              </div>
+            </div>
+            <div id="situazione_mensile-nominativo-r5" class="doc-line"><a class="line-no"
+                href="#situazione_mensile-nominativo-r5" aria-label="Riga 5">5</a>
+              <div>
+                <div class="raw">Mese chiuso</div>
+              </div>
+            </div>
+            <div id="situazione_mensile-nominativo-r6" class="doc-line parsed"><a class="line-no"
+                href="#situazione_mensile-nominativo-r6" aria-label="Riga 6">6</a>
+              <div>
+                <div class="raw">01 lu <mark class="punch" title="E 08:00">E 08:00</mark> <mark class="punch"
+                    title="U 14:00">U 14:00</mark></div>
+                <div class=note>Giorno 1 · LU · Candidati E 08:00, U 14:00 · 2 emessi <a
+                    href="#code-situazione_mensile-SituazioneMensileParser-parse_document">Parser</a> · <a
+                    href="#code-common-explicit_events_for_line">Prefissi e riferimenti</a></div>
+              </div>
+            </div>
+          </div>
+          <h4>Eventi emessi</h4>
+          <div class="scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Data e ora</th>
+                  <th>Tipo</th>
+                  <th>Valore sorgente</th>
+                  <th>Origine</th>
+                  <th>Slot</th>
+                  <th>Riferimento</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>2024-04-01 08:00:00</td>
+                  <td>E</td>
+                  <td>E 08:00</td>
+                  <td>text_regex</td>
+                  <td>unknown</td>
+                  <td><a href="#situazione_mensile-nominativo-r6">Riga
+                      6</a><small>nominativo.case.json#p1:line_no=6:slot=unknown</small></td>
+                </tr>
+                <tr>
+                  <td>2024-04-01 14:00:00</td>
+                  <td>U</td>
+                  <td>U 14:00</td>
+                  <td>text_regex</td>
+                  <td>unknown</td>
+                  <td><a href="#situazione_mensile-nominativo-r6">Riga
+                      6</a><small>nominativo.case.json#p1:line_no=6:slot=unknown</small></td>
+                </tr>
+              </tbody>
+            </table>
+          </div><a class="file" href="../../tests/fixtures/parsers/situazione_mensile/nominativo.case.json">Apri il
+            documento di test e le aspettative</a>
+        </details>
+        <details class="case" id="situazione_mensile-periodo-assente">
+          <summary>Titolo senza periodo valido <small>0 eventi emessi</small></summary>
+          <dl class="metrics">
+            <div>
+              <dt><a href="#code-identity-employee_identity">Identità</a></dt>
+              <dd>ELENA ESEMPIO · recognized</dd>
+            </div>
+            <div>
+              <dt><a href="#code-page_analysis-resolve_page_year_month">Periodo</a></dt>
+              <dd>Assente <small>monthly_missing_title</small></dd>
+            </div>
+            <div>
+              <dt><a href="#code-page_analysis-parse_document_pages">Decisione pagina</a></dt>
+              <dd>error_missing_year_month</dd>
+            </div>
+          </dl>
+          <div class="paper">
+            <div id="situazione_mensile-periodo-assente-r1" class="doc-line"><a class="line-no"
+                href="#situazione_mensile-periodo-assente-r1" aria-label="Riga 1">1</a>
+              <div>
+                <div class="raw">SITUAZIONE MENSILE PRESENZE</div>
+                <div class=note><a href="#code-situazione_mensile-SituazioneMensileParser-score_document">Riconoscimento
+                    formato</a></div>
+              </div>
+            </div>
+            <div id="situazione_mensile-periodo-assente-r2" class="doc-line"><a class="line-no"
+                href="#situazione_mensile-periodo-assente-r2" aria-label="Riga 2">2</a>
+              <div>
+                <div class="raw">Nominativo: <mark class="identity" title="Candidato ELENA ESEMPIO · recognized">ELENA
+                    ESEMPIO</mark></div>
+                <div class=note><a href="#code-identity-employee_identity">Identità</a></div>
+              </div>
+            </div>
+            <div id="situazione_mensile-periodo-assente-r3" class="doc-line"><a class="line-no"
+                href="#situazione_mensile-periodo-assente-r3" aria-label="Riga 3">3</a>
+              <div>
+                <div class="raw">Mese chiuso</div>
+              </div>
+            </div>
+            <div id="situazione_mensile-periodo-assente-r4" class="doc-line parsed"><a class="line-no"
+                href="#situazione_mensile-periodo-assente-r4" aria-label="Riga 4">4</a>
+              <div>
+                <div class="raw">4 ven <mark class="punch" title="E 13:32">E 13:32</mark> <mark class="punch"
+                    title="U 21:21">U 21:21</mark></div>
+                <div class=note>Giorno 4 · VE · Candidati E 13:32, U 21:21 · 0 emessi Il parser riconosce due timbri. La
+                  pagina li scarta per periodo mancante. <a
+                    href="#code-situazione_mensile-SituazioneMensileParser-parse_document">Parser</a> · <a
+                    href="#code-common-explicit_events_for_line">Prefissi e riferimenti</a></div>
+              </div>
+            </div>
+            <div id="situazione_mensile-periodo-assente-r5" class="doc-line"><a class="line-no"
+                href="#situazione_mensile-periodo-assente-r5" aria-label="Riga 5">5</a>
+              <div>
+                <div class="raw">Totale maggio 2022</div>
+                <div class=note>La data a piè di pagina non sostituisce il titolo. <a
+                    href="#code-page_analysis-resolve_page_year_month">Periodo</a></div>
+              </div>
+            </div>
+          </div>
+          <h4>Eventi emessi</h4>
+          <p>Nessun evento emesso per questa pagina.</p><a class="file"
+            href="../../tests/fixtures/parsers/situazione_mensile/periodo-assente.case.json">Apri il documento di test e
+            le aspettative</a>
+        </details>
+        <details class="case" id="situazione_mensile-recupero-ocr">
+          <summary>Titolo deformato, correzione OCR e giorno in conflitto <small>2 eventi emessi</small></summary>
+          <dl class="metrics">
+            <div>
+              <dt><a href="#code-identity-employee_identity">Identità</a></dt>
+              <dd>ELENA ESEMPIO, Totale maggio · ambiguous</dd>
+            </div>
+            <div>
+              <dt><a href="#code-page_analysis-resolve_page_year_month">Periodo</a></dt>
+              <dd>2021-06 <small>monthly_title</small></dd>
+            </div>
+            <div>
+              <dt><a href="#code-page_analysis-parse_document_pages">Decisione pagina</a></dt>
+              <dd>error_day_weekday_mismatch</dd>
+            </div>
+          </dl>
+          <div class="paper">
+            <div id="situazione_mensile-recupero-ocr-r1" class="doc-line"><a class="line-no"
+                href="#situazione_mensile-recupero-ocr-r1" aria-label="Riga 1">1</a>
+              <div>
+                <div class="raw">SITUAZIONE MENSILE PRESENZE</div>
+                <div class=note><a href="#code-situazione_mensile-SituazioneMensileParser-score_document">Riconoscimento
+                    formato</a></div>
+              </div>
+            </div>
+            <div id="situazione_mensile-recupero-ocr-r2" class="doc-line"><a class="line-no"
+                href="#situazione_mensile-recupero-ocr-r2" aria-label="Riga 2">2</a>
+              <div>
+                <div class="raw"><mark class="period" title="Evidenza del periodo">zozi</mark></div>
+                <div class=note>Il recupero del titolo interpreta zozi come 2021. <a
+                    href="#code-page_analysis-resolve_page_year_month">Periodo</a></div>
+              </div>
+            </div>
+            <div id="situazione_mensile-recupero-ocr-r3" class="doc-line"><a class="line-no"
+                href="#situazione_mensile-recupero-ocr-r3" aria-label="Riga 3">3</a>
+              <div>
+                <div class="raw"><mark class="period" title="Evidenza del periodo">giugno</mark></div>
+                <div class=note>Il mese proviene dal titolo. <a
+                    href="#code-page_analysis-resolve_page_year_month">Periodo</a></div>
+              </div>
+            </div>
+            <div id="situazione_mensile-recupero-ocr-r4" class="doc-line"><a class="line-no"
+                href="#situazione_mensile-recupero-ocr-r4" aria-label="Riga 4">4</a>
+              <div>
+                <div class="raw">umbriadigitale presenze</div>
+              </div>
+            </div>
+            <div id="situazione_mensile-recupero-ocr-r5" class="doc-line"><a class="line-no"
+                href="#situazione_mensile-recupero-ocr-r5" aria-label="Riga 5">5</a>
+              <div>
+                <div class="raw"><mark class="identity" title="Candidato ELENA ESEMPIO · ambiguous">ELENA ESEMPIO</mark>
+                  12345</div>
+                <div class=note>L’intestazione umbriadigitale presenze abilita il nominativo seguito da matricola. <a
+                    href="#code-identity-employee_identity">Identità</a></div>
+              </div>
+            </div>
+            <div id="situazione_mensile-recupero-ocr-r6" class="doc-line"><a class="line-no"
+                href="#situazione_mensile-recupero-ocr-r6" aria-label="Riga 6">6</a>
+              <div>
+                <div class="raw">Mese chiuso</div>
+              </div>
+            </div>
+            <div id="situazione_mensile-recupero-ocr-r7" class="doc-line parsed"><a class="line-no"
+                href="#situazione_mensile-recupero-ocr-r7" aria-label="Riga 7">7</a>
+              <div>
+                <div class="raw">4 ven <mark class="punch" title="E 13:32">E 13:32</mark> <mark class="punch"
+                    title="U 21:21">U 2l:21</mark> T01P 7:00</div>
+                <div class=note>Giorno 4 · VE · Candidati E 13:32, U 21:21 · 2 emessi La correzione OCR legge 2l:21 come
+                  21:21, conservando il testo sorgente. <a
+                    href="#code-situazione_mensile-SituazioneMensileParser-parse_document">Parser</a> · <a
+                    href="#code-common-explicit_events_for_line">Prefissi e riferimenti</a></div>
+              </div>
+            </div>
+            <div id="situazione_mensile-recupero-ocr-r8" class="doc-line parsed"><a class="line-no"
+                href="#situazione_mensile-recupero-ocr-r8" aria-label="Riga 8">8</a>
+              <div>
+                <div class="raw">4,, mar <mark class="punch" title="E 06:27">E 06:27</mark> <mark class="punch"
+                    title="U 14:01">U 14:01</mark></div>
+                <div class=note>Giorno 4 · MA · Candidati E 06:27, U 14:01 · 0 emessi Il 4 giugno 2021 è venerdì. I due
+                  candidati di questa riga vengono scartati a livello pagina. <a
+                    href="#code-situazione_mensile-SituazioneMensileParser-parse_document">Parser</a> · <a
+                    href="#code-common-explicit_events_for_line">Prefissi e riferimenti</a></div>
+              </div>
+            </div>
+            <div id="situazione_mensile-recupero-ocr-r9" class="doc-line parsed"><a class="line-no"
+                href="#situazione_mensile-recupero-ocr-r9" aria-label="Riga 9">9</a>
+              <div>
+                <div class="raw">5 sab E 29:72</div>
+                <div class=note>Giorno 5 · SA · Nessun candidato 29:72 è fuori dai limiti di un orario valido. <a
+                    href="#code-situazione_mensile-SituazioneMensileParser-parse_document">Parser</a></div>
+              </div>
+            </div>
+            <div id="situazione_mensile-recupero-ocr-r10" class="doc-line"><a class="line-no"
+                href="#situazione_mensile-recupero-ocr-r10" aria-label="Riga 10">10</a>
+              <div>
+                <div class="raw"><mark class="identity" title="Candidato Totale maggio · ambiguous">Totale maggio</mark>
+                  2022</div>
+                <div class=note>Il totale è fuori dal titolo mensile. Nel mapping, invece, la regola nome più matricola
+                  lo considera un secondo nominativo perché è ancora nelle prime dodici righe. <a
+                    href="#code-identity-employee_identity">Identità</a></div>
+              </div>
+            </div>
+          </div>
+          <h4>Eventi emessi</h4>
+          <div class="scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Data e ora</th>
+                  <th>Tipo</th>
+                  <th>Valore sorgente</th>
+                  <th>Origine</th>
+                  <th>Slot</th>
+                  <th>Riferimento</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>2021-06-04 13:32:00</td>
+                  <td>E</td>
+                  <td>E 13:32</td>
+                  <td>text_regex</td>
+                  <td>unknown</td>
+                  <td><a href="#situazione_mensile-recupero-ocr-r7">Riga
+                      7</a><small>recupero-ocr.case.json#p1:line_no=7:slot=unknown</small></td>
+                </tr>
+                <tr>
+                  <td>2021-06-04 21:21:00</td>
+                  <td>U</td>
+                  <td>U 2l:21</td>
+                  <td>text_regex</td>
+                  <td>unknown</td>
+                  <td><a href="#situazione_mensile-recupero-ocr-r7">Riga
+                      7</a><small>recupero-ocr.case.json#p1:line_no=7:slot=unknown</small></td>
+                </tr>
+              </tbody>
+            </table>
+          </div><a class="file" href="../../tests/fixtures/parsers/situazione_mensile/recupero-ocr.case.json">Apri il
+            documento di test e le aspettative</a>
+        </details>
+        <p class="legacy">Documenti testuali di routing · <a
+            href="../../tests/fixtures/parsers/situazione_mensile/case_basic.txt">case_basic.txt</a> · <a
+            href="../../tests/fixtures/parsers/situazione_mensile/sample.txt">sample.txt</a></p>
+      </section>
+      <section id="timbrature_web">
+        <h2>Timbrature Web</h2>
+        <details class="rules">
+          <summary>Regole di estrazione e limiti</summary>
+          <ul>
+            <li><strong>Formato</strong>
+              <p>Premia Elenco timbrature, Data Ent Usc e orari espliciti. Fa anche da fallback su testo generico quando
+                ottiene il punteggio più alto. Il parser selezionato da solo non prova che la pagina contenga
+                timbrature.</p><a href="#code-timbrature_web-TimbratureWebParser-score_document">score_document</a> · <a
+                href="#code-router-resolve_parser">resolve_parser</a>
+            </li>
+            <li><strong>Giorno e timbri</strong>
+              <p>Legge i giorni riconosciuti dal prefisso e cerca marcatori E/U. Orari senza un marcatore, timbri fuori
+                intervallo e righe senza giorno valido possono restare senza eventi.</p><a
+                href="#code-timbrature_web-TimbratureWebParser-parse_document">parse_document</a> · <a
+                href="#code-common-explicit_events_for_line">explicit_events_for_line</a>
+            </li>
+            <li><strong>Nome</strong>
+              <p>Il mapping cerca un nominativo con etichetta. Più nominativi distinti producono ambiguous, con i
+                candidati come evidenza e senza assegnazione automatica.</p><a
+                href="#code-identity-employee_identity">employee_identity</a>
+            </li>
+            <li><strong>Periodo</strong>
+              <p>Il resolver condiviso usa il periodo del documento quando lo riconosce. Un orario 24:00 viene emesso
+                alle 00:00 del giorno dopo.</p><a
+                href="#code-page_analysis-resolve_page_year_month">resolve_page_year_month</a> · <a
+                href="#code-page_analysis-build_event_row">build_event_row</a>
+            </li>
+          </ul>
+        </details>
+        <details class="case" id="timbrature_web-esplicite" open>
+          <summary>Timbrature con E/U e riepilogo <small>4 eventi emessi</small></summary>
+          <dl class="metrics">
+            <div>
+              <dt><a href="#code-identity-employee_identity">Identità</a></dt>
+              <dd>ELENA ESEMPIO · recognized</dd>
+            </div>
+            <div>
+              <dt><a href="#code-page_analysis-resolve_page_year_month">Periodo</a></dt>
+              <dd>2023-01 <small>text</small></dd>
+            </div>
+            <div>
+              <dt><a href="#code-page_analysis-parse_document_pages">Decisione pagina</a></dt>
+              <dd>parsed</dd>
+            </div>
+          </dl>
+          <div class="paper">
+            <div id="timbrature_web-esplicite-r1" class="doc-line"><a class="line-no"
+                href="#timbrature_web-esplicite-r1" aria-label="Riga 1">1</a>
+              <div>
+                <div class="raw"><mark class="period" title="Evidenza del periodo">Elenco timbrature - gennaio
+                    2023</mark></div>
+                <div class=note>Il titolo identifica il formato e indica il periodo. <a
+                    href="#code-timbrature_web-TimbratureWebParser-score_document">Riconoscimento formato</a> · <a
+                    href="#code-page_analysis-resolve_page_year_month">Periodo</a></div>
+              </div>
+            </div>
+            <div id="timbrature_web-esplicite-r2" class="doc-line"><a class="line-no"
+                href="#timbrature_web-esplicite-r2" aria-label="Riga 2">2</a>
+              <div>
+                <div class="raw">Dipendente: <mark class="identity" title="Candidato ELENA ESEMPIO · recognized">ELENA
+                    ESEMPIO</mark></div>
+                <div class=note><a href="#code-identity-employee_identity">Identità</a></div>
+              </div>
+            </div>
+            <div id="timbrature_web-esplicite-r3" class="doc-line"><a class="line-no"
+                href="#timbrature_web-esplicite-r3" aria-label="Riga 3">3</a>
+              <div>
+                <div class="raw">Data Ent Usc Ent Usc Teorico Valido Differenza</div>
+              </div>
+            </div>
+            <div id="timbrature_web-esplicite-r4" class="doc-line parsed"><a class="line-no"
+                href="#timbrature_web-esplicite-r4" aria-label="Riga 4">4</a>
+              <div>
+                <div class="raw">02 lunedì <mark class="punch" title="E 08:00">E 08:00</mark> <mark class="punch"
+                    title="U 14:00">U 14:00</mark> 6,00</div>
+                <div class=note>Giorno 2 · LU · Candidati E 08:00, U 14:00 · 2 emessi <a
+                    href="#code-timbrature_web-TimbratureWebParser-parse_document">Parser</a> · <a
+                    href="#code-common-explicit_events_for_line">Prefissi e riferimenti</a></div>
+              </div>
+            </div>
+            <div id="timbrature_web-esplicite-r5" class="doc-line parsed"><a class="line-no"
+                href="#timbrature_web-esplicite-r5" aria-label="Riga 5">5</a>
+              <div>
+                <div class="raw">03 martedì FERIE 07:30</div>
+                <div class=note>Giorno 3 · MA · Nessun candidato Riga giornaliera senza marcatori E/U. Il valore 07:30
+                  non produce eventi. <a href="#code-timbrature_web-TimbratureWebParser-parse_document">Parser</a></div>
+              </div>
+            </div>
+            <div id="timbrature_web-esplicite-r6" class="doc-line parsed"><a class="line-no"
+                href="#timbrature_web-esplicite-r6" aria-label="Riga 6">6</a>
+              <div>
+                <div class="raw">04 mercoledì <mark class="punch" title="E 09:10">E 09:10</mark> <mark class="punch"
+                    title="U 24:00">U 24:00</mark></div>
+                <div class=note>Giorno 4 · ME · Candidati E 09:10, U 24:00 · 2 emessi 24:00 viene emesso come 00:00 del
+                  giorno successivo. <a href="#code-timbrature_web-TimbratureWebParser-parse_document">Parser</a> · <a
+                    href="#code-common-explicit_events_for_line">Prefissi e riferimenti</a></div>
+              </div>
+            </div>
+            <div id="timbrature_web-esplicite-r7" class="doc-line"><a class="line-no"
+                href="#timbrature_web-esplicite-r7" aria-label="Riga 7">7</a>
+              <div>
+                <div class="raw">Totale 21:30</div>
+              </div>
+            </div>
+          </div>
+          <h4>Eventi emessi</h4>
+          <div class="scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Data e ora</th>
+                  <th>Tipo</th>
+                  <th>Valore sorgente</th>
+                  <th>Origine</th>
+                  <th>Slot</th>
+                  <th>Riferimento</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>2023-01-02 08:00:00</td>
+                  <td>E</td>
+                  <td>E 08:00</td>
+                  <td>text_regex</td>
+                  <td>unknown</td>
+                  <td><a href="#timbrature_web-esplicite-r4">Riga
+                      4</a><small>esplicite.case.json#p1:line_no=4:slot=unknown</small></td>
+                </tr>
+                <tr>
+                  <td>2023-01-02 14:00:00</td>
+                  <td>U</td>
+                  <td>U 14:00</td>
+                  <td>text_regex</td>
+                  <td>unknown</td>
+                  <td><a href="#timbrature_web-esplicite-r4">Riga
+                      4</a><small>esplicite.case.json#p1:line_no=4:slot=unknown</small></td>
+                </tr>
+                <tr>
+                  <td>2023-01-04 09:10:00</td>
+                  <td>E</td>
+                  <td>E 09:10</td>
+                  <td>text_regex</td>
+                  <td>unknown</td>
+                  <td><a href="#timbrature_web-esplicite-r6">Riga
+                      6</a><small>esplicite.case.json#p1:line_no=6:slot=unknown</small></td>
+                </tr>
+                <tr>
+                  <td>2023-01-05 00:00:00</td>
+                  <td>U</td>
+                  <td>U 24:00</td>
+                  <td>text_regex</td>
+                  <td>unknown</td>
+                  <td><a href="#timbrature_web-esplicite-r6">Riga
+                      6</a><small>esplicite.case.json#p1:line_no=6:slot=unknown</small></td>
+                </tr>
+              </tbody>
+            </table>
+          </div><a class="file" href="../../tests/fixtures/parsers/timbrature_web/esplicite.case.json">Apri il documento
+            di test e le aspettative</a>
+        </details>
+        <details class="case" id="timbrature_web-identita-ambigua">
+          <summary>Identità ambigua e orari non validi <small>1 eventi emessi</small></summary>
+          <dl class="metrics">
+            <div>
+              <dt><a href="#code-identity-employee_identity">Identità</a></dt>
+              <dd>ELENA ESEMPIO, LUCA ESEMPIO · ambiguous</dd>
+            </div>
+            <div>
+              <dt><a href="#code-page_analysis-resolve_page_year_month">Periodo</a></dt>
+              <dd>2023-01 <small>text</small></dd>
+            </div>
+            <div>
+              <dt><a href="#code-page_analysis-parse_document_pages">Decisione pagina</a></dt>
+              <dd>parsed</dd>
+            </div>
+          </dl>
+          <div class="paper">
+            <div id="timbrature_web-identita-ambigua-r1" class="doc-line"><a class="line-no"
+                href="#timbrature_web-identita-ambigua-r1" aria-label="Riga 1">1</a>
+              <div>
+                <div class="raw"><mark class="period" title="Evidenza del periodo">Elenco timbrature - gennaio
+                    2023</mark></div>
+                <div class=note><a href="#code-timbrature_web-TimbratureWebParser-score_document">Riconoscimento
+                    formato</a> · <a href="#code-page_analysis-resolve_page_year_month">Periodo</a></div>
+              </div>
+            </div>
+            <div id="timbrature_web-identita-ambigua-r2" class="doc-line"><a class="line-no"
+                href="#timbrature_web-identita-ambigua-r2" aria-label="Riga 2">2</a>
+              <div>
+                <div class="raw">Dipendente: <mark class="identity" title="Candidato ELENA ESEMPIO · ambiguous">ELENA
+                    ESEMPIO</mark></div>
+                <div class=note>Primo nominativo compatibile. <a href="#code-identity-employee_identity">Identità</a>
+                </div>
+              </div>
+            </div>
+            <div id="timbrature_web-identita-ambigua-r3" class="doc-line"><a class="line-no"
+                href="#timbrature_web-identita-ambigua-r3" aria-label="Riga 3">3</a>
+              <div>
+                <div class="raw">Nominativo: <mark class="identity" title="Candidato LUCA ESEMPIO · ambiguous">LUCA
+                    ESEMPIO</mark></div>
+                <div class=note>Secondo nominativo distinto. Il mapping restituisce ambiguous. <a
+                    href="#code-identity-employee_identity">Identità</a></div>
+              </div>
+            </div>
+            <div id="timbrature_web-identita-ambigua-r4" class="doc-line parsed"><a class="line-no"
+                href="#timbrature_web-identita-ambigua-r4" aria-label="Riga 4">4</a>
+              <div>
+                <div class="raw">02 lu E 99:70 <mark class="punch" title="U 14:00">U 14:00</mark></div>
+                <div class=note>Giorno 2 · LU · Candidati U 14:00 · 1 emessi 99:70 viene scartato. L’uscita valida
+                  rimane disponibile. <a href="#code-timbrature_web-TimbratureWebParser-parse_document">Parser</a> · <a
+                    href="#code-common-explicit_events_for_line">Prefissi e riferimenti</a></div>
+              </div>
+            </div>
+          </div>
+          <h4>Eventi emessi</h4>
+          <div class="scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Data e ora</th>
+                  <th>Tipo</th>
+                  <th>Valore sorgente</th>
+                  <th>Origine</th>
+                  <th>Slot</th>
+                  <th>Riferimento</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>2023-01-02 14:00:00</td>
+                  <td>U</td>
+                  <td>U 14:00</td>
+                  <td>text_regex</td>
+                  <td>unknown</td>
+                  <td><a href="#timbrature_web-identita-ambigua-r4">Riga
+                      4</a><small>identita-ambigua.case.json#p1:line_no=4:slot=unknown</small></td>
+                </tr>
+              </tbody>
+            </table>
+          </div><a class="file" href="../../tests/fixtures/parsers/timbrature_web/identita-ambigua.case.json">Apri il
+            documento di test e le aspettative</a>
+        </details>
+        <p class="legacy">Documenti testuali di routing · <a
+            href="../../tests/fixtures/parsers/timbrature_web/case_basic.txt">case_basic.txt</a> · <a
+            href="../../tests/fixtures/parsers/timbrature_web/sample.txt">sample.txt</a></p>
+      </section>
+      <section id="workflow_monthly">
+        <h2>WORKFLOW mensile</h2>
+        <details class="rules">
+          <summary>Regole di estrazione e limiti</summary>
+          <ul>
+            <li><strong>Formato e periodo</strong>
+              <p>Riconosce il titolo WORKFLOW CARTELLINO MENSILE anche con certe codifiche PDF e lettere di riempimento.
+                Il periodo viene dal titolo. La data di assunzione non vale come periodo.</p><a
+                href="#code-workflow_header-is_workflow_monthly">is_workflow_monthly</a> · <a
+                href="#code-workflow_header-workflow_year_month">workflow_year_month</a>
+            </li>
+            <li><strong>Coordinate</strong>
+              <p>Legge tre coppie E/U in sei colonne fisse relative alla larghezza della pagina. Esclude parole fuori
+                fascia, conserva gli slot vuoti e applica uno spostamento di un giorno all’uscita notturna di una
+                coppia.</p><a href="#code-workflow_monthly-WorkflowMonthlyParser-parse_document">parse_document</a>
+            </li>
+            <li><strong>Giorno e nome</strong>
+              <p>Il parser legge il giorno numerico e il codice del giorno settimanale. L’evento emesso usa il
+                calendario. Il nome viene cercato dal mapping con le regole condivise, dopo la decodifica WORKFLOW.</p>
+              <a href="#code-page_analysis-build_event_row">build_event_row</a> · <a
+                href="#code-identity-employee_identity">employee_identity</a>
+            </li>
+            <li><strong>Limiti</strong>
+              <p>Il testo senza coordinate non produce righe. Cambiamenti di scala relativa, struttura delle colonne o
+                ordine delle parole possono impedirne la lettura. Un titolo privo di periodo blocca l’emissione anche in
+                presenza di candidati validi.</p><a
+                href="#code-workflow_monthly-WorkflowMonthlyParser-parse_document">parse_document</a> · <a
+                href="#code-page_analysis-resolve_page_year_month">resolve_page_year_month</a>
+            </li>
+          </ul>
+        </details>
+        <details class="case" id="workflow_monthly-coordinate" open>
+          <summary>Tre coppie WORKFLOW, notte e uscita isolata <small>7 eventi emessi</small></summary>
+          <dl class="metrics">
+            <div>
+              <dt><a href="#code-identity-employee_identity">Identità</a></dt>
+              <dd>ELENA ESEMPIO · recognized</dd>
+            </div>
+            <div>
+              <dt><a href="#code-page_analysis-resolve_page_year_month">Periodo</a></dt>
+              <dd>2020-09 <small>workflow_header</small></dd>
+            </div>
+            <div>
+              <dt><a href="#code-page_analysis-parse_document_pages">Decisione pagina</a></dt>
+              <dd>parsed</dd>
+            </div>
+          </dl>
+          <div class="paper">
+            <div id="workflow_monthly-coordinate-r1" class="doc-line"><a class="line-no"
+                href="#workflow_monthly-coordinate-r1" aria-label="Riga 1">1</a>
+              <div>
+                <div class="raw"><mark class="period"
+                    title="Evidenza del periodo">WORKFLOWGCARTELLINOGMENSILEGGGSGGEGGGTGGTEMBRE 2020</mark></div>
+                <div class=note>La decodifica rimuove il padding e riconosce settembre 2020. <a
+                    href="#code-workflow_monthly-WorkflowMonthlyParser-score_document">Riconoscimento formato</a> · <a
+                    href="#code-page_analysis-resolve_page_year_month">Periodo</a></div>
+              </div>
+            </div>
+            <div id="workflow_monthly-coordinate-r2" class="doc-line"><a class="line-no"
+                href="#workflow_monthly-coordinate-r2" aria-label="Riga 2">2</a>
+              <div>
+                <div class="raw">Dipendente: <mark class="identity" title="Candidato ELENA ESEMPIO · recognized">ELENA
+                    ESEMPIO</mark></div>
+                <div class=note><a href="#code-identity-employee_identity">Identità</a></div>
+              </div>
+            </div>
+            <div id="workflow_monthly-coordinate-r3" class="doc-line"><a class="line-no"
+                href="#workflow_monthly-coordinate-r3" aria-label="Riga 3">3</a>
+              <div>
+                <div class="raw">Data assunzione 01/12/2002</div>
+                <div class=note>La data di assunzione è esclusa dal periodo. <a
+                    href="#code-page_analysis-resolve_page_year_month">Periodo</a></div>
+              </div>
+            </div>
+            <div id="workflow_monthly-coordinate-r4" class="doc-line parsed"><a class="line-no"
+                href="#workflow_monthly-coordinate-r4" aria-label="Riga 4">4</a>
+              <div>
+                <div class="raw"><span class="coords" style="width:627.57px"><span style="left:48.949px">3</span><span
+                      style="left:69.1455px">G</span><span style="left:92.3955px"><mark class="punch"
+                        title="E 19:32">19:32</mark></span><span style="left:126.496px"><mark class="punch"
+                        title="U 07:35">07:35</mark></span><span style="left:309.798px">001</span><span
+                      style="left:579.7px">12:30</span></span></div>
+                <div class=note>Giorno 3 · GI · Candidati E 19:32 (ent_1), U 07:35 (usc_1) · 2 emessi La coppia passa la
+                  mezzanotte. Codice e totale sono fuori dalle colonne. <a
+                    href="#code-workflow_monthly-WorkflowMonthlyParser-parse_document">Parser</a></div>
+              </div>
+            </div>
+            <div id="workflow_monthly-coordinate-r5" class="doc-line parsed"><a class="line-no"
+                href="#workflow_monthly-coordinate-r5" aria-label="Riga 5">5</a>
+              <div>
+                <div class="raw"><span class="coords" style="width:174.366px"><span style="left:48.949px">4</span><span
+                      style="left:69.1455px">V</span><span style="left:126.496px"><mark class="punch"
+                        title="U 14:03">14:03</mark></span></span></div>
+                <div class=note>Giorno 4 · VE · Candidati U 14:03 (usc_1) · 1 emessi Slot Usc1 preservato con Ent1
+                  vuoto. <a href="#code-workflow_monthly-WorkflowMonthlyParser-parse_document">Parser</a></div>
+              </div>
+            </div>
+            <div id="workflow_monthly-coordinate-r6" class="doc-line parsed"><a class="line-no"
+                href="#workflow_monthly-coordinate-r6" aria-label="Riga 6">6</a>
+              <div>
+                <div class="raw"><span class="coords" style="width:309.216px"><span style="left:48.949px">5</span><span
+                      style="left:69.1455px">S</span><span style="left:160.596px"><mark class="punch"
+                        title="E 08:40">08:40</mark></span><span style="left:193.145px"><mark class="punch"
+                        title="U 10:40">10:40</mark></span><span style="left:227.246px"><mark class="punch"
+                        title="E 10:50">10:50</mark></span><span style="left:261.346px"><mark class="punch"
+                        title="U 12:50">12:50</mark></span></span></div>
+                <div class=note>Giorno 5 · SA · Candidati E 08:40 (ent_2), U 10:40 (usc_2), E 10:50 (ent_3), U 12:50
+                  (usc_3) · 4 emessi Le colonne Ent2/Usc2 ed Ent3/Usc3 vengono lette anche con la prima coppia vuota. <a
+                    href="#code-workflow_monthly-WorkflowMonthlyParser-parse_document">Parser</a></div>
+              </div>
+            </div>
+          </div>
+          <h4>Eventi emessi</h4>
+          <div class="scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Data e ora</th>
+                  <th>Tipo</th>
+                  <th>Valore sorgente</th>
+                  <th>Origine</th>
+                  <th>Slot</th>
+                  <th>Riferimento</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>2020-09-03 19:32:00</td>
+                  <td>E</td>
+                  <td>19:32</td>
+                  <td>layout_column</td>
+                  <td>ent_1</td>
+                  <td><a href="#workflow_monthly-coordinate-r4">Riga
+                      4</a><small>coordinate.case.json#p1:line=p1_l4:w2</small></td>
+                </tr>
+                <tr>
+                  <td>2020-09-04 07:35:00</td>
+                  <td>U</td>
+                  <td>07:35</td>
+                  <td>layout_column</td>
+                  <td>usc_1</td>
+                  <td><a href="#workflow_monthly-coordinate-r4">Riga
+                      4</a><small>coordinate.case.json#p1:line=p1_l4:w3</small></td>
+                </tr>
+                <tr>
+                  <td>2020-09-04 14:03:00</td>
+                  <td>U</td>
+                  <td>14:03</td>
+                  <td>layout_column</td>
+                  <td>usc_1</td>
+                  <td><a href="#workflow_monthly-coordinate-r5">Riga
+                      5</a><small>coordinate.case.json#p1:line=p1_l5:w2</small></td>
+                </tr>
+                <tr>
+                  <td>2020-09-05 08:40:00</td>
+                  <td>E</td>
+                  <td>08:40</td>
+                  <td>layout_column</td>
+                  <td>ent_2</td>
+                  <td><a href="#workflow_monthly-coordinate-r6">Riga
+                      6</a><small>coordinate.case.json#p1:line=p1_l6:w2</small></td>
+                </tr>
+                <tr>
+                  <td>2020-09-05 10:40:00</td>
+                  <td>U</td>
+                  <td>10:40</td>
+                  <td>layout_column</td>
+                  <td>usc_2</td>
+                  <td><a href="#workflow_monthly-coordinate-r6">Riga
+                      6</a><small>coordinate.case.json#p1:line=p1_l6:w3</small></td>
+                </tr>
+                <tr>
+                  <td>2020-09-05 10:50:00</td>
+                  <td>E</td>
+                  <td>10:50</td>
+                  <td>layout_column</td>
+                  <td>ent_3</td>
+                  <td><a href="#workflow_monthly-coordinate-r6">Riga
+                      6</a><small>coordinate.case.json#p1:line=p1_l6:w4</small></td>
+                </tr>
+                <tr>
+                  <td>2020-09-05 12:50:00</td>
+                  <td>U</td>
+                  <td>12:50</td>
+                  <td>layout_column</td>
+                  <td>usc_3</td>
+                  <td><a href="#workflow_monthly-coordinate-r6">Riga
+                      6</a><small>coordinate.case.json#p1:line=p1_l6:w5</small></td>
+                </tr>
+              </tbody>
+            </table>
+          </div><a class="file" href="../../tests/fixtures/parsers/workflow_monthly/coordinate.case.json">Apri il
+            documento di test e le aspettative</a>
+        </details>
+        <details class="case" id="workflow_monthly-senza-periodo">
+          <summary>Coordinate valide, periodo assente <small>0 eventi emessi</small></summary>
+          <dl class="metrics">
+            <div>
+              <dt><a href="#code-identity-employee_identity">Identità</a></dt>
+              <dd>Assente · missing</dd>
+            </div>
+            <div>
+              <dt><a href="#code-page_analysis-resolve_page_year_month">Periodo</a></dt>
+              <dd>Assente <small>workflow_missing_header</small></dd>
+            </div>
+            <div>
+              <dt><a href="#code-page_analysis-parse_document_pages">Decisione pagina</a></dt>
+              <dd>error_missing_year_month</dd>
+            </div>
+          </dl>
+          <div class="paper">
+            <div id="workflow_monthly-senza-periodo-r1" class="doc-line"><a class="line-no"
+                href="#workflow_monthly-senza-periodo-r1" aria-label="Riga 1">1</a>
+              <div>
+                <div class="raw">WORKFLOW CARTELLINO MENSILE</div>
+                <div class=note><a href="#code-workflow_monthly-WorkflowMonthlyParser-score_document">Riconoscimento
+                    formato</a></div>
+              </div>
+            </div>
+            <div id="workflow_monthly-senza-periodo-r2" class="doc-line"><a class="line-no"
+                href="#workflow_monthly-senza-periodo-r2" aria-label="Riga 2">2</a>
+              <div>
+                <div class="raw">Data assunzione 01/12/2002</div>
+                <div class=note>La data di assunzione non colma il titolo incompleto. <a
+                    href="#code-page_analysis-resolve_page_year_month">Periodo</a></div>
+              </div>
+            </div>
+            <div id="workflow_monthly-senza-periodo-r3" class="doc-line parsed"><a class="line-no"
+                href="#workflow_monthly-senza-periodo-r3" aria-label="Riga 3">3</a>
+              <div>
+                <div class="raw"><span class="coords" style="width:174.366px"><span style="left:48.949px">3</span><span
+                      style="left:69.1455px">G</span><span style="left:92.3955px"><mark class="punch"
+                        title="E 06:55">06:55</mark></span><span style="left:126.496px"><mark class="punch"
+                        title="U 14:03">14:03</mark></span></span></div>
+                <div class=note>Giorno 3 · GI · Candidati E 06:55 (ent_1), U 14:03 (usc_1) · 0 emessi I candidati
+                  restano visibili ma non vengono emessi. <a
+                    href="#code-workflow_monthly-WorkflowMonthlyParser-parse_document">Parser</a></div>
+              </div>
+            </div>
+          </div>
+          <h4>Eventi emessi</h4>
+          <p>Nessun evento emesso per questa pagina.</p><a class="file"
+            href="../../tests/fixtures/parsers/workflow_monthly/senza-periodo.case.json">Apri il documento di test e le
+            aspettative</a>
+        </details>
+        <details class="case" id="workflow_monthly-solo-testo">
+          <summary>Titolo riconosciuto senza coordinate <small>0 eventi emessi</small></summary>
+          <dl class="metrics">
+            <div>
+              <dt><a href="#code-identity-employee_identity">Identità</a></dt>
+              <dd>ELENA ESEMPIO · recognized</dd>
+            </div>
+            <div>
+              <dt><a href="#code-page_analysis-resolve_page_year_month">Periodo</a></dt>
+              <dd>2020-09 <small>workflow_header</small></dd>
+            </div>
+            <div>
+              <dt><a href="#code-page_analysis-parse_document_pages">Decisione pagina</a></dt>
+              <dd>skipped_non_event</dd>
+            </div>
+          </dl>
+          <div class="paper">
+            <div id="workflow_monthly-solo-testo-r1" class="doc-line"><a class="line-no"
+                href="#workflow_monthly-solo-testo-r1" aria-label="Riga 1">1</a>
+              <div>
+                <div class="raw"><mark class="period" title="Evidenza del periodo">WORKFLOW CARTELLINO MENSILE SETTEMBRE
+                    2020</mark></div>
+                <div class=note><a href="#code-workflow_monthly-WorkflowMonthlyParser-score_document">Riconoscimento
+                    formato</a> · <a href="#code-page_analysis-resolve_page_year_month">Periodo</a></div>
+              </div>
+            </div>
+            <div id="workflow_monthly-solo-testo-r2" class="doc-line"><a class="line-no"
+                href="#workflow_monthly-solo-testo-r2" aria-label="Riga 2">2</a>
+              <div>
+                <div class="raw">Nominativo: <mark class="identity" title="Candidato ELENA ESEMPIO · recognized">ELENA
+                    ESEMPIO</mark></div>
+                <div class=note><a href="#code-identity-employee_identity">Identità</a></div>
+              </div>
+            </div>
+            <div id="workflow_monthly-solo-testo-r3" class="doc-line"><a class="line-no"
+                href="#workflow_monthly-solo-testo-r3" aria-label="Riga 3">3</a>
+              <div>
+                <div class="raw">3 G 06:55 14:03</div>
+                <div class=note>Questo formato richiede le colonne del layout. Il testo lineare non produce righe
+                  evento. <a href="#code-page_analysis-resolve_page_year_month">Periodo</a></div>
+              </div>
+            </div>
+          </div>
+          <h4>Eventi emessi</h4>
+          <p>Nessun evento emesso per questa pagina.</p><a class="file"
+            href="../../tests/fixtures/parsers/workflow_monthly/solo-testo.case.json">Apri il documento di test e le
+            aspettative</a>
+        </details>
+      </section>
+      <section id="sorgenti">
+        <h2>Codice sorgente</h2>
+        <p>Gli estratti e i numeri di riga si riferiscono alla versione con cui è stata generata la guida.</p>
+        <details class="source" id="code-cartellino_classic-CartellinoClassicParser-score_document">
+          <summary>CartellinoClassicParser.score_document <span>src/core/events/extraction/parsers/cartellino_classic.py
+              · riga 22</span></summary><a href="../../src/core/events/extraction/parsers/cartellino_classic.py">Apri il
+            file sorgente</a>
+          <pre>  22  def score_document(self, document: dict[str, object]) -&gt; int:
+  23      text = document_text(document)
+  24      norm = normalize_text(text)
+  25      score = -40
+  26      if &quot;riepilogo presenze/assenze&quot; in norm:
+  27          score += 120
+  28      if &quot;rilevazione del mese di&quot; in norm:
+  29          score += 80
+  30      if &quot;totali fine mese&quot; in norm:
+  31          score += 40
+  32      if &quot;data t i m b r a t u r e o r e&quot; in norm:
+  33          score += 20
+  34      if re.search(r&quot;\b[eu]\d{3,4}(?:-[a-z])?\b&quot;, norm):
+  35          score += 30
+  36      short_dow = 0
+  37      long_dow = 0
+  38      for line in text.splitlines():
+  39          norm_line = normalize_text(line)
+  40          match = DAY_HEADER_RE.match(norm_line) or ALT_DAY_HEADER_RE.match(norm_line)
+  41          if not match:
+  42              continue
+  43          token = match.group(&quot;dow&quot;)
+  44          if token in {&quot;lu&quot;, &quot;ma&quot;, &quot;me&quot;, &quot;gi&quot;, &quot;ve&quot;, &quot;sa&quot;, &quot;do&quot;}:
+  45              short_dow += 1
+  46          else:
+  47              long_dow += 1
+  48      if short_dow &gt; 0 or long_dow &gt; 0:
+  49          score += 20 if short_dow &gt;= long_dow else 0
+  50      return score</pre>
+        </details>
+        <details class="source" id="code-cartellino_classic-CartellinoClassicParser-parse_document">
+          <summary>CartellinoClassicParser.parse_document <span>src/core/events/extraction/parsers/cartellino_classic.py
+              · riga 52</span></summary><a href="../../src/core/events/extraction/parsers/cartellino_classic.py">Apri il
+            file sorgente</a>
+          <pre>  52  def parse_document(self, document: dict[str, object]):
+  53      rows = []
+  54      for line in iter_preferred_lines(document):
+  55          if not line.text.strip():
+  56              continue
+  57          header = parse_day_header(line.text)
+  58          if header is None:
+  59              continue
+  60          day, dow = header
+  61          rows.append(
+  62              to_row_result(
+  63                  day,
+  64                  dow,
+  65                  line,
+  66                  explicit_events_for_line(line, day=day, dow=dow),
+  67              )
+  68          )
+  69      return tuple(rows)</pre>
+        </details>
+        <details class="source" id="code-common-explicit_events_for_line">
+          <summary>explicit_events_for_line <span>src/core/events/extraction/parsers/common.py · riga 262</span>
+          </summary><a href="../../src/core/events/extraction/parsers/common.py">Apri il file sorgente</a>
+          <pre> 262  def explicit_events_for_line(
+ 263      line: DocumentLine,
+ 264      *,
+ 265      day: int,
+ 266      dow: str,
+ 267      repair_ocr: bool = False,
+ 268  ) -&gt; tuple[ParsedEvent, ...]:
+ 269      events: list[ParsedEvent] = []
+ 270      for event in extract_events(line.text, repair_ocr=repair_ocr):
+ 271          word_position = _event_word_position(
+ 272              line,
+ 273              match_start=event.start,
+ 274              match_end=event.end,
+ 275          )
+ 276          source_word_start = (
+ 277              int(word_position[&quot;source_word_start&quot;])
+ 278              if isinstance(word_position.get(&quot;source_word_start&quot;), int)
+ 279              else None
+ 280          )
+ 281          source_word_end = (
+ 282              int(word_position[&quot;source_word_end&quot;])
+ 283              if isinstance(word_position.get(&quot;source_word_end&quot;), int)
+ 284              else None
+ 285          )
+ 286          events.append(
+ 287              ParsedEvent(
+ 288                  line=line,
+ 289                  day=day,
+ 290                  dow=dow,
+ 291                  event_kind=event.kind,
+ 292                  event_time_hhmm=event.time_str,
+ 293                  event_raw=line.text[event.start : event.end],
+ 294                  event_pattern=event.pattern,
+ 295                  match_start=event.start,
+ 296                  match_end=event.end,
+ 297                  source_origin=&quot;text_regex&quot;,
+ 298                  source_word_start=source_word_start,
+ 299                  source_word_end=source_word_end,
+ 300                  source_bbox_x0=word_position.get(&quot;source_bbox_x0&quot;),
+ 301                  source_bbox_y0=word_position.get(&quot;source_bbox_y0&quot;),
+ 302                  source_bbox_x1=word_position.get(&quot;source_bbox_x1&quot;),
+ 303                  source_bbox_y1=word_position.get(&quot;source_bbox_y1&quot;),
+ 304              )
+ 305          )
+ 306      return tuple(events)</pre>
+        </details>
+        <details class="source" id="code-identity-employee_identity">
+          <summary>employee_identity <span>src/core/events/extraction/identity.py · riga 28</span></summary><a
+            href="../../src/core/events/extraction/identity.py">Apri il file sorgente</a>
+          <pre>  28  def employee_identity(text: str) -&gt; dict:
+  29      &quot;&quot;&quot;Return explicit names and evidence; never infer from a path or filename.
+  30  
+  31      Unknown templates remain unresolved. Multiple different labelled names are
+  32      ambiguous, rather than silently selecting the first person mentioned.
+  33      &quot;&quot;&quot;
+  34      candidates: dict[str, dict] = {}
+  35      lines = decode_workflow_header(text).splitlines()
+  36      header = &quot;\n&quot;.join(lines[:12])
+  37      employer = _EMPLOYER.search(header)
+  38      monthly = &quot;umbriadigitale&quot; in header.casefold() and &quot;presenze&quot; in header.casefold()
+  39      identifiers = set()
+  40      for index, line in enumerate(lines):
+  41          evidence = line.strip()
+  42          if index &lt; 12:
+  43              structured = _CLASSIC.match(evidence)
+  44              if structured is None and monthly:
+  45                  structured = _MONTHLY.fullmatch(evidence)
+  46              if structured:
+  47                  line = f&quot;Nominativo: {structured[1]}&quot;
+  48                  if employer:
+  49                      identifiers.add(f&quot;{employer[1]}:{structured[2]}&quot;)
+  50          separate = _SEPARATE.search(line)
+  51          if separate:
+  52              line = f&quot;Nominativo: {separate[&#x27;surname&#x27;]} {separate[&#x27;name&#x27;]}&quot;
+  53          for match in _LABEL.finditer(line):
+  54              tail = line[match.end():].strip()
+  55              if not tail and index + 1 &lt; len(lines):
+  56                  tail = lines[index + 1].strip()
+  57              name = _END.split(tail, maxsplit=1)[0].strip(&quot; :-=,.&quot;)
+  58              words = name.split()
+  59              if not 2 &lt;= len(words) &lt;= 7:
+  60                  continue
+  61              if any(word.casefold() in {&quot;dipendente&quot;, &quot;nominativo&quot;, &quot;cognome&quot;, &quot;nome&quot;, &quot;del&quot;, &quot;della&quot;} for word in words):
+  62                  continue
+  63              if not all(all(ch.isalpha() or ch in &quot;&#x27;-’&quot; for ch in word) for word in words):
+  64                  continue
+  65              name = &quot; &quot;.join(words)
+  66              key = unicodedata.normalize(&quot;NFC&quot;, name).casefold()
+  67              candidates[key] = {&quot;name&quot;: name, &quot;evidence&quot;: evidence}
+  68      codes = set(re.findall(r&quot;(?i)\bcodice\s+fiscale\s*[:=-]?\s*([a-z]{6}[a-z0-9]{2}[a-z][a-z0-9]{2}[a-z][a-z0-9]{3}[a-z])\b&quot;, text.upper()))
+  69      identifiers = codes or identifiers
+  70      values = list(candidates.values())
+  71      return {
+  72          &quot;employee&quot;: values[0][&quot;name&quot;] if len(values) == 1 else None,
+  73          &quot;identity_status&quot;: &quot;recognized&quot; if len(values) == 1 else &quot;ambiguous&quot; if values else &quot;missing&quot;,
+  74          &quot;employee_identifier&quot;: next(iter(identifiers)) if len(identifiers) == len(values) == 1 else None,
+  75          &quot;identity_candidates&quot;: values,
+  76      }</pre>
+        </details>
+        <details class="source" id="code-page_analysis-resolve_page_year_month">
+          <summary>resolve_page_year_month <span>src/core/events/extraction/page_analysis.py · riga 173</span></summary>
+          <a href="../../src/core/events/extraction/page_analysis.py">Apri il file sorgente</a>
+          <pre> 173  def resolve_page_year_month(
+ 174      *,
+ 175      page_text: str,
+ 176      source_path: Path,
+ 177      parser_id: str | None = None,
+ 178  ) -&gt; tuple[int | None, int | None, str]:
+ 179      if parser_id == &quot;situazione_mensile&quot; or &quot;situazione mensile presenze&quot; in normalize_text(page_text):
+ 180          year, month = monthly_title_year_month(page_text)
+ 181          return year, month, &quot;monthly_title&quot; if year is not None else &quot;monthly_missing_title&quot;
+ 182  
+ 183      year, month = workflow_year_month(page_text)
+ 184      if year is not None and month is not None:
+ 185          return year, month, &quot;workflow_header&quot;
+ 186      if is_workflow_monthly(page_text):
+ 187          return None, None, &quot;workflow_missing_header&quot;
+ 188  
+ 189      year, month = infer_year_month_from_text(page_text)
+ 190      if year is not None and month is not None:
+ 191          return year, month, &quot;text&quot;
+ 192  
+ 193      year, month = infer_year_month_from_header(page_text)
+ 194      if year is not None and month is not None:
+ 195          return year, month, &quot;header&quot;
+ 196  
+ 197      year, month = infer_year_month_from_filename(source_path)
+ 198      if year is not None and month is not None:
+ 199          return year, month, &quot;filename&quot;
+ 200  
+ 201      year, month = infer_year_month_from_header_date(page_text)
+ 202      if year is not None and month is not None:
+ 203          return year, month, &quot;header_date&quot;
+ 204  
+ 205      return None, None, &quot;none&quot;</pre>
+        </details>
+        <details class="source" id="code-page_analysis-parse_document_pages">
+          <summary>parse_document_pages <span>src/core/events/extraction/page_analysis.py · riga 315</span></summary><a
+            href="../../src/core/events/extraction/page_analysis.py">Apri il file sorgente</a>
+          <pre> 315  def parse_document_pages(
+ 316      *,
+ 317      document: dict[str, Any],
+ 318      source_context: dict[str, Any],
+ 319      source_path: Path,
+ 320      max_unmatched_examples_per_file: int,
+ 321  ) -&gt; tuple[
+ 322      dict[str, Any],
+ 323      list[dict[str, Any]],
+ 324      list[dict[str, Any]],
+ 325      list[dict[str, Any]],
+ 326      list[dict[str, Any]],
+ 327  ]:
+ 328      result = base_process_result(source_context)
+ 329      event_rows: list[dict[str, Any]] = []
+ 330      page_rows: list[dict[str, Any]] = []
+ 331      pages_missing_year_month: list[dict[str, Any]] = []
+ 332      low_coverage_pages: list[dict[str, Any]] = []
+ 333  
+ 334      parser = resolve_parser(document)
+ 335      deduped_rows = dedupe_rows(parser.parse_document(document))
+ 336      rows_by_page: dict[int, list[ParsedRow]] = defaultdict(list)
+ 337      for row in deduped_rows:
+ 338          rows_by_page[normalize_page_no(row.line.page_no)].append(row)
+ 339  
+ 340      page_texts = resolve_page_texts(document)
+ 341      page_numbers = resolve_page_numbers(
+ 342          document=document,
+ 343          page_texts=page_texts,
+ 344          rows_by_page=rows_by_page,
+ 345      )
+ 346  
+ 347      rows_without_events_examples: list[str] = []
+ 348      rows_considered_total = 0
+ 349      rows_with_events_total = 0
+ 350      rows_without_events_total = 0
+ 351      events_extracted_total = 0
+ 352      events_dropped_missing_year_month_total = 0
+ 353      pages_relevant_total = 0
+ 354      pages_skipped_non_event_total = 0
+ 355      pages_error_total = 0
+ 356  
+ 357      for page_no in page_numbers:
+ 358          page_rows_input = rows_by_page.get(page_no, [])
+ 359          rows_considered = len(page_rows_input)
+ 360          page_text = page_texts.get(page_no, &quot;&quot;)
+ 361          if not page_text and page_rows_input:
+ 362              page_text = &quot;\n&quot;.join(row.line.text for row in page_rows_input if row.line.text)
+ 363          if not page_text and page_no == 1:
+ 364              page_text = document_text(document)
+ 365  
+ 366          page_year, page_month, year_month_source = resolve_page_year_month(
+ 367              page_text=page_text,
+ 368              source_path=source_path,
+ 369              parser_id=parser.parser_id,
+ 370          )
+ 371          page_kind = classify_page_kind(page_text=page_text, rows_considered=rows_considered)
+ 372  
+ 373          rows_with_events = 0
+ 374          rows_without_events = 0
+ 375          events_extracted = 0
+ 376          candidate_events = 0
+ 377          date_mismatches = 0
+ 378          events_dropped_missing_year_month = 0
+ 379  
+ 380          if rows_considered &lt;= 0:
+ 381              decision = &quot;skipped_non_event&quot;
+ 382              decision_reason = &quot;no_parsed_rows&quot;
+ 383              relevant_for_coverage = False
+ 384          else:
+ 385              has_page_year_month = page_year is not None and page_month is not None
+ 386              for parsed_row in page_rows_input:
+ 387                  row_events = list(parsed_row.events)
+ 388                  candidate_events += len(row_events)
+ 389  
+ 390                  if not row_events:
+ 391                      rows_without_events += 1
+ 392                      line_example = parsed_row.line.text.strip()
+ 393                      if (
+ 394                          line_example
+ 395                          and len(rows_without_events_examples) &lt; max_unmatched_examples_per_file
+ 396                      ):
+ 397                          rows_without_events_examples.append(line_example)
+ 398                      continue
+ 399  
+ 400                  emitted_for_row = 0
+ 401                  row_day = (
+ 402                      _build_day(year=page_year, month=page_month, day_value=parsed_row.day)
+ 403                      if has_page_year_month else None
+ 404                  )
+ 405                  valid_weekday = not (
+ 406                      parser.parser_id == &quot;situazione_mensile&quot;
+ 407                      and row_day is not None
+ 408                      and calendar_dow(row_day) != parsed_row.dow
+ 409                  )
+ 410                  if not valid_weekday:
+ 411                      date_mismatches += len(row_events)
+ 412                  if has_page_year_month and valid_weekday:
+ 413                      for event_index, event in enumerate(row_events):
+ 414                          resolved_year = page_year
+ 415                          resolved_month = page_month
+ 416                          if resolved_year is None or resolved_month is None:
+ 417                              continue
+ 418                          event_row = build_event_row(
+ 419                              source_context=source_context,
+ 420                              parser_id=parser.parser_id,
+ 421                              page_no=page_no,
+ 422                              page_year=resolved_year,
+ 423                              page_month=resolved_month,
+ 424                              event_index=event_index,
+ 425                              event=event,
+ 426                          )
+ 427                          if event_row is None:
+ 428                              continue
+ 429                          emitted_for_row += 1
+ 430                          event_rows.append(event_row)
+ 431                          events_extracted += 1
+ 432  
+ 433                  if emitted_for_row &gt; 0:
+ 434                      rows_with_events += 1
+ 435                  else:
+ 436                      rows_without_events += 1
+ 437  
+ 438              if candidate_events &gt; 0 and (page_year is None or page_month is None):
+ 439                  decision = &quot;error_missing_year_month&quot;
+ 440                  decision_reason = &quot;missing_page_year_month&quot;
+ 441                  relevant_for_coverage = True
+ 442                  pages_relevant_total += 1
+ 443                  pages_error_total += 1
+ 444                  events_dropped_missing_year_month = candidate_events
+ 445                  events_dropped_missing_year_month_total += events_dropped_missing_year_month
+ 446                  pages_missing_year_month.append(
+ 447                      {
+ 448                          &quot;source_doc_json&quot;: source_context[&quot;source_doc_json&quot;],
+ 449                          &quot;source_file_name&quot;: source_context.get(&quot;source_file_name&quot;),
+ 450                          &quot;source_file_id&quot;: source_context.get(&quot;source_file_id&quot;),
+ 451                          &quot;source_drive_path&quot;: source_context.get(&quot;source_drive_path&quot;),
+ 452                          &quot;source_file_link&quot;: source_context.get(&quot;source_file_link&quot;),
+ 453                          &quot;page_no&quot;: page_no,
+ 454                          &quot;rows_considered&quot;: rows_considered,
+ 455                          &quot;candidate_events&quot;: candidate_events,
+ 456                          &quot;header_preview&quot;: header_preview(page_text) if page_text else None,
+ 457                      }
+ 458                  )
+ 459                  if events_extracted &gt; 0:
+ 460                      event_rows = [
+ 461                          row for row in event_rows if int(row.get(&quot;source_page_no&quot;) or -1) != page_no
+ 462                      ]
+ 463                      events_extracted = 0
+ 464                  rows_with_events = 0
+ 465                  rows_without_events = rows_considered
+ 466              else:
+ 467                  decision = &quot;parsed&quot;
+ 468                  decision_reason = &quot;parsed&quot;
+ 469                  relevant_for_coverage = bool(page_kind == &quot;events_table&quot;)
+ 470                  if relevant_for_coverage:
+ 471                      pages_relevant_total += 1
+ 472  
+ 473          if date_mismatches:
+ 474              decision = &quot;error_day_weekday_mismatch&quot;
+ 475              decision_reason = f&quot;{date_mismatches} events rejected: day/weekday mismatch&quot;
+ 476              pages_error_total += 1
+ 477  
+ 478          if decision == &quot;skipped_non_event&quot;:
+ 479              pages_skipped_non_event_total += 1
+ 480  
+ 481          if relevant_for_coverage:
+ 482              rows_considered_total += rows_considered
+ 483              rows_with_events_total += rows_with_events
+ 484              rows_without_events_total += rows_without_events
+ 485  
+ 486          events_extracted_total += events_extracted
+ 487          coverage_ratio_page = None
+ 488          if relevant_for_coverage and rows_considered &gt; 0:
+ 489              coverage_ratio_page = round(rows_with_events / rows_considered, 6)
+ 490              if coverage_ratio_page &lt; LOW_COVERAGE_RATIO:
+ 491                  low_coverage_pages.append(
+ 492                      {
+ 493                          &quot;source_doc_json&quot;: source_context[&quot;source_doc_json&quot;],
+ 494                          &quot;source_file_name&quot;: source_context.get(&quot;source_file_name&quot;),
+ 495                          &quot;source_file_id&quot;: source_context.get(&quot;source_file_id&quot;),
+ 496                          &quot;source_drive_path&quot;: source_context.get(&quot;source_drive_path&quot;),
+ 497                          &quot;source_file_link&quot;: source_context.get(&quot;source_file_link&quot;),
+ 498                          &quot;page_no&quot;: page_no,
+ 499                          &quot;coverage_ratio_page&quot;: coverage_ratio_page,
+ 500                          &quot;rows_considered&quot;: rows_considered,
+ 501                          &quot;rows_without_events&quot;: rows_without_events,
+ 502                          &quot;events_extracted&quot;: events_extracted,
+ 503                      }
+ 504                  )
+ 505  
+ 506          page_rows.append(
+ 507              {
+ 508                  &quot;page_ref&quot;: f&quot;{source_context[&#x27;source_doc_json&#x27;]}#p{page_no}&quot;,
+ 509                  &quot;source_doc_json&quot;: source_context[&quot;source_doc_json&quot;],
+ 510                  &quot;source_file_id&quot;: source_context.get(&quot;source_file_id&quot;),
+ 511                  &quot;source_file_name&quot;: source_context.get(&quot;source_file_name&quot;),
+ 512                  &quot;source_employee&quot;: source_context.get(&quot;source_employee&quot;),
+ 513                  &quot;source_drive_path&quot;: source_context.get(&quot;source_drive_path&quot;),
+ 514                  &quot;source_file_link&quot;: source_context.get(&quot;source_file_link&quot;),
+ 515                  &quot;page_no&quot;: page_no,
+ 516                  &quot;page_kind&quot;: page_kind,
+ 517                  &quot;decision&quot;: decision,
+ 518                  &quot;decision_reason&quot;: decision_reason,
+ 519                  &quot;parser_id&quot;: parser.parser_id,
+ 520                  &quot;page_year&quot;: page_year,
+ 521                  &quot;page_month&quot;: page_month,
+ 522                  &quot;year_month_source&quot;: year_month_source,
+ 523                  &quot;relevant_for_coverage&quot;: relevant_for_coverage,
+ 524                  &quot;rows_considered&quot;: rows_considered,
+ 525                  &quot;rows_with_events&quot;: rows_with_events,
+ 526                  &quot;rows_without_events&quot;: rows_without_events,
+ 527                  &quot;events_extracted&quot;: events_extracted,
+ 528                  &quot;events_dropped_missing_year_month&quot;: events_dropped_missing_year_month,
+ 529                  &quot;coverage_ratio_page&quot;: coverage_ratio_page,
+ 530                  &quot;header_preview&quot;: header_preview(page_text) if page_text else None,
+ 531                  &quot;parse_error&quot;: None,
+ 532              }
+ 533          )
+ 534  
+ 535      result[&quot;status&quot;] = &quot;ok&quot;
+ 536      result[&quot;error&quot;] = None
+ 537      result[&quot;error_code&quot;] = None
+ 538      result[&quot;doc_format&quot;] = parser.legacy_doc_format
+ 539      result[&quot;parser_id&quot;] = parser.parser_id
+ 540      result[&quot;rows_considered&quot;] = rows_considered_total
+ 541      result[&quot;rows_with_events&quot;] = rows_with_events_total
+ 542      result[&quot;rows_without_events&quot;] = rows_without_events_total
+ 543      result[&quot;events_extracted&quot;] = events_extracted_total
+ 544      result[&quot;events_dropped_missing_year_month&quot;] = events_dropped_missing_year_month_total
+ 545      result[&quot;pages_total&quot;] = len(page_numbers)
+ 546      result[&quot;pages_relevant&quot;] = pages_relevant_total
+ 547      result[&quot;pages_skipped_non_event&quot;] = pages_skipped_non_event_total
+ 548      result[&quot;pages_error&quot;] = pages_error_total
+ 549      result[&quot;rows_without_events_examples&quot;] = rows_without_events_examples
+ 550      if rows_considered_total &gt; 0:
+ 551          result[&quot;coverage_ratio&quot;] = round(rows_with_events_total / rows_considered_total, 6)
+ 552      else:
+ 553          result[&quot;coverage_ratio&quot;] = None
+ 554      result[&quot;header_preview&quot;] = header_preview(document_text(document))
+ 555      return result, event_rows, page_rows, pages_missing_year_month, low_coverage_pages</pre>
+        </details>
+        <details class="source" id="code-cartellino_ocr-CartellinoOcrParser-score_document">
+          <summary>CartellinoOcrParser.score_document <span>src/core/events/extraction/parsers/cartellino_ocr.py · riga
+              34</span></summary><a href="../../src/core/events/extraction/parsers/cartellino_ocr.py">Apri il file
+            sorgente</a>
+          <pre>  34  def score_document(self, document: dict[str, Any]) -&gt; int:
+  35      text = document_text(document)
+  36      norm = normalize_text(text)
+  37      score = -100
+  38      if &quot;data t i m b r a t u r e o r e&quot; in norm:
+  39          score += 160
+  40      if &quot;r r i i l l e e v v a a z z i i o o n n e e&quot; in norm:
+  41          score += 160
+  42      if &quot;rr ii ll ee vv aa zz ii oo nn ee pp rr ee ss ee nn zz ee&quot; in norm:
+  43          score += 120
+  44      elif &quot;rr ii ll ee vv aa zz ii oo nn ee&quot; in norm:
+  45          score += 80
+  46      if norm.count(&quot; ! &quot;) &gt;= 8:
+  47          score += 20
+  48      return score</pre>
+        </details>
+        <details class="source" id="code-cartellino_ocr-CartellinoOcrParser-_resolve_column_bands">
+          <summary>CartellinoOcrParser._resolve_column_bands <span>src/core/events/extraction/parsers/cartellino_ocr.py
+              · riga 106</span></summary><a href="../../src/core/events/extraction/parsers/cartellino_ocr.py">Apri il
+            file sorgente</a>
+          <pre> 106  def _resolve_column_bands(self, page_lines: list[DocumentLine]) -&gt; dict[str, tuple[float, float]] | None:
+ 107      header_centers: dict[str, float] = {}
+ 108      for line in page_lines:
+ 109          for word in line.words:
+ 110              token = self._normalized_header_token(str(word.get(&quot;text&quot;) or &quot;&quot;))
+ 111              slot = self._header_slot(token)
+ 112              if slot is None or slot in header_centers:
+ 113                  continue
+ 114              try:
+ 115                  x0 = float(word[&quot;x0&quot;])
+ 116                  x1 = float(word[&quot;x1&quot;])
+ 117              except Exception:
+ 118                  continue
+ 119              header_centers[slot] = (x0 + x1) / 2.0
+ 120          if len(header_centers) == len(self._SLOT_ORDER):
+ 121              break
+ 122  
+ 123      if len(header_centers) != len(self._SLOT_ORDER):
+ 124          return None
+ 125  
+ 126      centers = [header_centers[slot] for slot, _ in self._SLOT_ORDER]
+ 127      left = centers[0] - (centers[1] - centers[0]) / 2.0
+ 128      mid_1 = (centers[0] + centers[1]) / 2.0
+ 129      mid_2 = (centers[1] + centers[2]) / 2.0
+ 130      mid_3 = (centers[2] + centers[3]) / 2.0
+ 131      right = centers[3] + (centers[3] - centers[2]) / 2.0
+ 132      return {
+ 133          &quot;ent_1&quot;: (left, mid_1),
+ 134          &quot;usc_1&quot;: (mid_1, mid_2),
+ 135          &quot;ent_2&quot;: (mid_2, mid_3),
+ 136          &quot;usc_2&quot;: (mid_3, right),
+ 137      }</pre>
+        </details>
+        <details class="source" id="code-cartellino_ocr-CartellinoOcrParser-_extract_slot_time">
+          <summary>CartellinoOcrParser._extract_slot_time <span>src/core/events/extraction/parsers/cartellino_ocr.py ·
+              riga 203</span></summary><a href="../../src/core/events/extraction/parsers/cartellino_ocr.py">Apri il file
+            sorgente</a>
+          <pre> 203  def _extract_slot_time(
+ 204      self,
+ 205      words: list[tuple[int, dict[str, Any]]] | tuple[tuple[int, dict[str, Any]], ...],
+ 206  ) -&gt; dict[str, Any] | None:
+ 207      if not words:
+ 208          return None
+ 209  
+ 210      for segment in self._segment_slot_words(words):
+ 211          combined = &quot;&quot;.join(str(word.get(&quot;text&quot;) or &quot;&quot;).strip() for _, word in segment)
+ 212          if not combined:
+ 213              continue
+ 214          time_hhmm = self._normalize_layout_time(combined)
+ 215          if time_hhmm is None:
+ 216              continue
+ 217          bbox_x0, bbox_y0, bbox_x1, bbox_y1 = self._segment_bbox(segment)
+ 218          return {
+ 219              &quot;time_hhmm&quot;: time_hhmm,
+ 220              &quot;raw_token&quot;: combined,
+ 221              &quot;word_start&quot;: segment[0][0],
+ 222              &quot;word_end&quot;: segment[-1][0],
+ 223              &quot;bbox_x0&quot;: bbox_x0,
+ 224              &quot;bbox_y0&quot;: bbox_y0,
+ 225              &quot;bbox_x1&quot;: bbox_x1,
+ 226              &quot;bbox_y1&quot;: bbox_y1,
+ 227              &quot;normalization_kind&quot;: (
+ 228                  &quot;layout_segment_cleanup&quot; if len(segment) &gt; 1 else &quot;layout_time_cleanup&quot;
+ 229              ),
+ 230          }
+ 231      return None</pre>
+        </details>
+        <details class="source" id="code-cartellino_ocr-CartellinoOcrParser-_events_from_text_line">
+          <summary>CartellinoOcrParser._events_from_text_line <span>src/core/events/extraction/parsers/cartellino_ocr.py
+              · riga 323</span></summary><a href="../../src/core/events/extraction/parsers/cartellino_ocr.py">Apri il
+            file sorgente</a>
+          <pre> 323  def _events_from_text_line(self, *, line: DocumentLine, day: int, dow: str) -&gt; tuple[ParsedEvent, ...]:
+ 324      body = strip_day_prefix(normalized_raw(line.text))
+ 325      segments = split_bang_segments(body)
+ 326      primary = segments[0] if segments else body
+ 327      events = list(self._aligned_events_from_text(primary=primary, line=line, day=day, dow=dow))
+ 328      if not events:
+ 329          events.extend(explicit_events_for_line(line, day=day, dow=dow))
+ 330      return tuple(events)</pre>
+        </details>
+        <details class="source" id="code-cartellino_ocr-CartellinoOcrParser-_aligned_events_from_text">
+          <summary>CartellinoOcrParser._aligned_events_from_text
+            <span>src/core/events/extraction/parsers/cartellino_ocr.py · riga 332</span></summary><a
+            href="../../src/core/events/extraction/parsers/cartellino_ocr.py">Apri il file sorgente</a>
+          <pre> 332  def _aligned_events_from_text(
+ 333      self,
+ 334      *,
+ 335      primary: str,
+ 336      line: DocumentLine,
+ 337      day: int,
+ 338      dow: str,
+ 339  ) -&gt; tuple[ParsedEvent, ...]:
+ 340      times: list[str] = []
+ 341      for raw_token in primary.split():
+ 342          time_hhmm = self._normalize_layout_time(raw_token)
+ 343          if time_hhmm is None:
+ 344              continue
+ 345          times.append(time_hhmm)
+ 346  
+ 347      if not times:
+ 348          return ()
+ 349  
+ 350      events: list[ParsedEvent] = []
+ 351      for idx, hhmm in enumerate(times[:12]):
+ 352          kind = &quot;E&quot; if idx % 2 == 0 else &quot;U&quot;
+ 353          if len(times) == 1 and &quot;rec&quot; in primary:
+ 354              kind = &quot;U&quot;
+ 355          events.append(
+ 356              ParsedEvent(
+ 357                  line=line,
+ 358                  day=day,
+ 359                  dow=dow,
+ 360                  event_kind=kind,
+ 361                  event_time_hhmm=hhmm,
+ 362                  event_raw=f&quot;{kind} {hhmm}&quot;,
+ 363                  event_pattern=f&quot;{self.parser_id}:text_order:{idx+1}&quot;,
+ 364                  source_origin=&quot;text_order&quot;,
+ 365              )
+ 366          )
+ 367      return tuple(events)</pre>
+        </details>
+        <details class="source" id="code-cartellino_ocr-CartellinoOcrParser-parse_document">
+          <summary>CartellinoOcrParser.parse_document <span>src/core/events/extraction/parsers/cartellino_ocr.py · riga
+              50</span></summary><a href="../../src/core/events/extraction/parsers/cartellino_ocr.py">Apri il file
+            sorgente</a>
+          <pre>  50  def parse_document(self, document: dict[str, Any]):
+  51      layout_rows = self._parse_layout_document(document)
+  52      if layout_rows:
+  53          return layout_rows
+  54      return self._parse_text_document(document)</pre>
+        </details>
+        <details class="source" id="code-cartellino_unico-CartellinoUnicoParser-score_document">
+          <summary>CartellinoUnicoParser.score_document <span>src/core/events/extraction/parsers/cartellino_unico.py ·
+              riga 31</span></summary><a href="../../src/core/events/extraction/parsers/cartellino_unico.py">Apri il
+            file sorgente</a>
+          <pre>  31  def score_document(self, document: dict[str, object]) -&gt; int:
+  32      text = document_text(document)
+  33      norm = normalize_text(text)
+  34      score = -100
+  35      if &quot;cartellino unico&quot; in norm:
+  36          score += 160
+  37      if &quot;giorno orario anomalie ent 1 usc 1&quot; in norm:
+  38          score += 80
+  39      if &quot;data e ora stampa&quot; in norm:
+  40          score += 20
+  41      return score</pre>
+        </details>
+        <details class="source" id="code-cartellino_unico-CartellinoUnicoParser-parse_document">
+          <summary>CartellinoUnicoParser.parse_document <span>src/core/events/extraction/parsers/cartellino_unico.py ·
+              riga 160</span></summary><a href="../../src/core/events/extraction/parsers/cartellino_unico.py">Apri il
+            file sorgente</a>
+          <pre> 160  def parse_document(self, document: dict[str, object]):
+ 161      lines = iter_preferred_lines(document)
+ 162      explicit_pages = {
+ 163          line.page_no
+ 164          for line in lines
+ 165          if self._EXPLICIT_PUNCH_HEADER.search(normalize_text(line.text))
+ 166      }
+ 167      page_columns = {}
+ 168      for line in lines:
+ 169          if not self._SIX_PAIR_HEADER.search(normalize_text(line.text)):
+ 170              continue
+ 171          columns = tuple(
+ 172              float(word[&quot;x0&quot;])
+ 173              for word in line.words
+ 174              if str(word[&quot;text&quot;]).lower() in {&quot;ent&quot;, &quot;usc&quot;}
+ 175          )
+ 176          if len(columns) == 12 and all(left &lt; right for left, right in zip(columns, columns[1:])):
+ 177              page_columns[line.page_no] = columns
+ 178      rows = []
+ 179      for line in lines:
+ 180          if not line.text.strip():
+ 181              continue
+ 182          header = parse_day_header(line.text)
+ 183          if header is None:
+ 184              continue
+ 185          day, dow = header
+ 186          if line.page_no in page_columns:
+ 187              events = self._column_events(
+ 188                  day=day, dow=dow, line=line, columns=page_columns[line.page_no]
+ 189              )
+ 190          elif line.page_no in explicit_pages:
+ 191              events = explicit_events_for_line(line, day=day, dow=dow)
+ 192          else:
+ 193              rest = strip_day_prefix(normalized_raw(line.text))
+ 194              events = self._aligned_events(day=day, dow=dow, line=line, norm_body=rest)
+ 195              if not events:
+ 196                  events = explicit_events_for_line(line, day=day, dow=dow)
+ 197          rows.append(to_row_result(day, dow, line, events))
+ 198      return tuple(rows)</pre>
+        </details>
+        <details class="source" id="code-cartellino_unico-CartellinoUnicoParser-_column_events">
+          <summary>CartellinoUnicoParser._column_events <span>src/core/events/extraction/parsers/cartellino_unico.py ·
+              riga 116</span></summary><a href="../../src/core/events/extraction/parsers/cartellino_unico.py">Apri il
+            file sorgente</a>
+          <pre> 116  def _column_events(
+ 117      self, *, day: int, dow: str, line: DocumentLine, columns: tuple[float, ...]
+ 118  ) -&gt; tuple[ParsedEvent, ...]:
+ 119      tolerance = min(right - left for left, right in zip(columns, columns[1:])) / 4
+ 120      events = []
+ 121      occupied = set()
+ 122      entry_times: dict[int, int] = {}
+ 123      for index, word in enumerate(line.words):
+ 124          token = str(word[&quot;text&quot;])
+ 125          parsed = self._parse_time(token)
+ 126          if parsed is None:
+ 127              continue
+ 128          hhmm, minutes = parsed
+ 129          x0 = float(word[&quot;x0&quot;])
+ 130          slot = min(range(len(columns)), key=lambda candidate: abs(columns[candidate] - x0))
+ 131          if abs(columns[slot] - x0) &gt; tolerance or slot in occupied:
+ 132              continue
+ 133          occupied.add(slot)
+ 134          pair = slot // 2
+ 135          kind = &quot;U&quot; if slot % 2 else &quot;E&quot;
+ 136          if kind == &quot;E&quot;:
+ 137              entry_times[pair] = minutes
+ 138          events.append(
+ 139              ParsedEvent(
+ 140                  line=line,
+ 141                  day=day,
+ 142                  dow=dow,
+ 143                  event_kind=kind,
+ 144                  event_time_hhmm=hhmm,
+ 145                  event_raw=token,
+ 146                  event_pattern=f&quot;{self.parser_id}:column_{slot + 1}&quot;,
+ 147                  source_origin=&quot;layout_column&quot;,
+ 148                  day_offset=int(kind == &quot;U&quot; and minutes &lt; entry_times.get(pair, minutes)),
+ 149                  source_slot=f&quot;{&#x27;ent&#x27; if kind == &#x27;E&#x27; else &#x27;usc&#x27;}_{pair + 1}&quot;,
+ 150                  source_word_start=index,
+ 151                  source_word_end=index,
+ 152                  source_bbox_x0=x0,
+ 153                  source_bbox_y0=float(word[&quot;y0&quot;]),
+ 154                  source_bbox_x1=float(word[&quot;x1&quot;]),
+ 155                  source_bbox_y1=float(word[&quot;y1&quot;]),
+ 156              )
+ 157          )
+ 158      return tuple(events)</pre>
+        </details>
+        <details class="source" id="code-cartellino_unico-CartellinoUnicoParser-_aligned_events">
+          <summary>CartellinoUnicoParser._aligned_events <span>src/core/events/extraction/parsers/cartellino_unico.py ·
+              riga 55</span></summary><a href="../../src/core/events/extraction/parsers/cartellino_unico.py">Apri il
+            file sorgente</a>
+          <pre>  55  def _aligned_events(self, *, day: int, dow: str, line, norm_body: str) -&gt; tuple[ParsedEvent, ...]:
+  56      tokens = norm_body.split()
+  57      marker_positions: set[int] = set()
+  58      all_times: list[tuple[int, str, int]] = []
+  59  
+  60      for idx, token in enumerate(tokens):
+  61          parsed = self._parse_time(token)
+  62          if parsed is None:
+  63              continue
+  64          hhmm, minutes = parsed
+  65          all_times.append((idx, hhmm, minutes))
+  66          if idx + 1 &lt; len(tokens):
+  67              nxt = tokens[idx + 1].strip().lower()
+  68              if nxt.startswith((&quot;o&quot;, &quot;a&quot;, &quot;t&quot;)):
+  69                  marker_positions.add(idx)
+  70  
+  71      if not all_times:
+  72          return ()
+  73  
+  74      selected: list[tuple[str, int]]
+  75  
+  76      if marker_positions:
+  77          selected_positions = sorted(marker_positions)
+  78          first_marked = selected_positions[0]
+  79          previous_candidates = [item for item in all_times if item[0] &lt; first_marked]
+  80          if previous_candidates and (first_marked - previous_candidates[-1][0] &lt;= 2):
+  81              selected_positions.insert(0, previous_candidates[-1][0])
+  82          selected = [
+  83              (hhmm, minutes)
+  84              for pos, hhmm, minutes in all_times
+  85              if pos in set(selected_positions)
+  86          ]
+  87      else:
+  88          if len(all_times) &lt; 2:
+  89              return ()
+  90          first = all_times[0]
+  91          second = all_times[1]
+  92          delta = second[2] - first[2]
+  93          if delta &lt; 0:
+  94              delta += 24 * 60
+  95          if delta &lt; 90:
+  96              return ()
+  97          selected = [(first[1], first[2]), (second[1], second[2])]
+  98  
+  99      events: list[ParsedEvent] = []
+ 100      for idx, (hhmm, _) in enumerate(selected[:12]):
+ 101          kind = &quot;E&quot; if idx % 2 == 0 else &quot;U&quot;
+ 102          events.append(
+ 103              ParsedEvent(
+ 104                  line=line,
+ 105                  day=day,
+ 106                  dow=dow,
+ 107                  event_kind=kind,
+ 108                  event_time_hhmm=hhmm,
+ 109                  event_raw=f&quot;{kind} {hhmm}&quot;,
+ 110                  event_pattern=f&quot;{self.parser_id}:aligned_{idx+1}&quot;,
+ 111                  source_origin=&quot;text_alignment&quot;,
+ 112              )
+ 113          )
+ 114      return tuple(events)</pre>
+        </details>
+        <details class="source" id="code-situazione_mensile-SituazioneMensileParser-score_document">
+          <summary>SituazioneMensileParser.score_document <span>src/core/events/extraction/parsers/situazione_mensile.py
+              · riga 19</span></summary><a href="../../src/core/events/extraction/parsers/situazione_mensile.py">Apri il
+            file sorgente</a>
+          <pre>  19  def score_document(self, document: dict[str, object]) -&gt; int:
+  20      text = document_text(document)
+  21      norm = normalize_text(text)
+  22      score = -100
+  23      if &quot;situazione mensile presenze&quot; in norm:
+  24          score += 140
+  25      if &quot;totali mensili nel mese di&quot; in norm:
+  26          score += 20
+  27      return score</pre>
+        </details>
+        <details class="source" id="code-monthly_header-monthly_title_year_month">
+          <summary>monthly_title_year_month <span>src/core/events/extraction/monthly_header.py · riga 11</span>
+          </summary><a href="../../src/core/events/extraction/monthly_header.py">Apri il file sorgente</a>
+          <pre>  11  def monthly_title_year_month(text: str) -&gt; tuple[int | None, int | None]:
+  12      # Never use footer print dates, totals, or daily schedule codes as the title.
+  13      header = re.split(r&quot;mese\s+chiuso|timbrature|giorno&quot;, text, maxsplit=1, flags=re.I)[0]
+  14      tokens = re.findall(r&quot;[a-z0-9\ufffd]+&quot;, normalize_text(header))
+  15      months = {word: month for word, month in MONTH_WORDS.items() if len(word) &gt;= 3}
+  16      candidates: set[tuple[int, int]] = set()
+  17      for index, token in enumerate(tokens):
+  18          if len(token) != 4:
+  19              continue
+  20          digits = token.translate(str.maketrans(&quot;zZoOiIlL&quot;, &quot;22001111&quot;))
+  21          if not digits.isdigit() or not digits.startswith((&quot;19&quot;, &quot;20&quot;)):
+  22              continue
+  23          year = int(digits)
+  24          if not 1900 &lt;= year &lt;= date.today().year:
+  25              continue
+  26          for neighbor in tokens[max(0, index - 1):index] + tokens[index + 1:index + 2]:
+  27              scores = [(SequenceMatcher(None, neighbor, word).ratio(), month) for word, month in months.items()]
+  28              best = max(score for score, _ in scores)
+  29              matches = {month for score, month in scores if score == best and score &gt;= 0.8}
+  30              if len(matches) == 1:
+  31                  candidates.add((year, matches.pop()))
+  32      return next(iter(candidates)) if len(candidates) == 1 else (None, None)</pre>
+        </details>
+        <details class="source" id="code-situazione_mensile-SituazioneMensileParser-parse_document">
+          <summary>SituazioneMensileParser.parse_document <span>src/core/events/extraction/parsers/situazione_mensile.py
+              · riga 29</span></summary><a href="../../src/core/events/extraction/parsers/situazione_mensile.py">Apri il
+            file sorgente</a>
+          <pre>  29  def parse_document(self, document: dict[str, object]):
+  30      rows = []
+  31      for line in iter_preferred_lines(document):
+  32          if not line.text.strip():
+  33              continue
+  34          header = parse_day_header(line.text)
+  35          if header is None:
+  36              continue
+  37          day, dow = header
+  38          rows.append(
+  39              to_row_result(
+  40                  day,
+  41                  dow,
+  42                  line,
+  43                  explicit_events_for_line(line, day=day, dow=dow, repair_ocr=True),
+  44              )
+  45          )
+  46      return tuple(rows)</pre>
+        </details>
+        <details class="source" id="code-timbrature_web-TimbratureWebParser-score_document">
+          <summary>TimbratureWebParser.score_document <span>src/core/events/extraction/parsers/timbrature_web.py · riga
+              21</span></summary><a href="../../src/core/events/extraction/parsers/timbrature_web.py">Apri il file
+            sorgente</a>
+          <pre>  21  def score_document(self, document: dict[str, object]) -&gt; int:
+  22      text = document_text(document)
+  23      norm = normalize_text(text)
+  24      score = -20
+  25      if &quot;elenco timbrature&quot; in norm:
+  26          score += 120
+  27      if &quot;data ent usc&quot; in norm:
+  28          score += 40
+  29      if re.search(r&quot;\b[eu]\s*[0-2]?\d:[0-5]\d&quot;, norm):
+  30          score += 20
+  31      return score</pre>
+        </details>
+        <details class="source" id="code-router-resolve_parser">
+          <summary>resolve_parser <span>src/core/events/extraction/parsers/router.py · riga 9</span></summary><a
+            href="../../src/core/events/extraction/parsers/router.py">Apri il file sorgente</a>
+          <pre>   9  def resolve_parser(document: dict[str, Any]) -&gt; BaseFormatParser:
+  10      selected: BaseFormatParser | None = None
+  11      best_key: tuple[int, int, str] | None = None
+  12  
+  13      for parser in load_parsers():
+  14          score = int(parser.score_document(document))
+  15          key = (score, -int(parser.priority), parser.parser_id)
+  16          if best_key is None or key &gt; best_key:
+  17              selected = parser
+  18              best_key = key
+  19  
+  20      if selected is None:
+  21          raise RuntimeError(&quot;Parser resolution failed: no parser candidates available&quot;)
+  22      return selected</pre>
+        </details>
+        <details class="source" id="code-timbrature_web-TimbratureWebParser-parse_document">
+          <summary>TimbratureWebParser.parse_document <span>src/core/events/extraction/parsers/timbrature_web.py · riga
+              33</span></summary><a href="../../src/core/events/extraction/parsers/timbrature_web.py">Apri il file
+            sorgente</a>
+          <pre>  33  def parse_document(self, document: dict[str, object]):
+  34      rows = []
+  35      for line in iter_preferred_lines(document):
+  36          if not line.text.strip():
+  37              continue
+  38          header = parse_day_header(line.text)
+  39          if header is None:
+  40              continue
+  41          day, dow = header
+  42          rows.append(
+  43              to_row_result(
+  44                  day,
+  45                  dow,
+  46                  line,
+  47                  explicit_events_for_line(line, day=day, dow=dow),
+  48              )
+  49          )
+  50      return tuple(rows)</pre>
+        </details>
+        <details class="source" id="code-page_analysis-build_event_row">
+          <summary>build_event_row <span>src/core/events/extraction/page_analysis.py · riga 224</span></summary><a
+            href="../../src/core/events/extraction/page_analysis.py">Apri il file sorgente</a>
+          <pre> 224  def build_event_row(
+ 225      *,
+ 226      source_context: dict[str, Any],
+ 227      parser_id: str,
+ 228      page_no: int,
+ 229      page_year: int,
+ 230      page_month: int,
+ 231      event_index: int,
+ 232      event: ParsedEvent,
+ 233  ) -&gt; dict[str, Any] | None:
+ 234      day_value = _build_day(year=page_year, month=page_month, day_value=event.day)
+ 235      if day_value is None:
+ 236          return None
+ 237      day_value += timedelta(days=event.day_offset)
+ 238      event_dt = _to_dt(day_value, event.event_time_hhmm)
+ 239      if event_dt is None:
+ 240          return None
+ 241  
+ 242      match_col_start: int | None = None
+ 243      if event.match_start is not None:
+ 244          match_col_start = event.match_start + 1
+ 245  
+ 246      normalized_slot = event.source_slot if event.source_slot else &quot;unknown&quot;
+ 247      line_no = int(event.line.line_no)
+ 248      event_id = f&quot;{source_context[&#x27;source_doc_json&#x27;]}#p{page_no}:l{line_no}:i{event_index}&quot;
+ 249      return {
+ 250          &quot;event_id&quot;: event_id,
+ 251          &quot;event_ts&quot;: event_dt.strftime(&quot;%Y-%m-%d %H:%M:%S&quot;),
+ 252          &quot;dow&quot;: calendar_dow(event_dt),
+ 253          &quot;event_kind&quot;: str(event.event_kind).strip().upper(),
+ 254          &quot;event_time_hhmm&quot;: event.event_time_hhmm,
+ 255          &quot;event_raw&quot;: event.event_raw,
+ 256          &quot;parser_id&quot;: parser_id,
+ 257          &quot;source_origin&quot;: event.source_origin,
+ 258          &quot;source_doc_json&quot;: source_context[&quot;source_doc_json&quot;],
+ 259          &quot;source_file_id&quot;: source_context.get(&quot;source_file_id&quot;),
+ 260          &quot;source_file_name&quot;: source_context.get(&quot;source_file_name&quot;),
+ 261          &quot;source_employee&quot;: source_context.get(&quot;source_employee&quot;),
+ 262          &quot;source_drive_path&quot;: source_context.get(&quot;source_drive_path&quot;),
+ 263          &quot;source_file_link&quot;: source_context.get(&quot;source_file_link&quot;),
+ 264          &quot;source_page_no&quot;: page_no,
+ 265          &quot;source_line_id&quot;: event.line.line_id,
+ 266          &quot;source_line_no&quot;: line_no,
+ 267          &quot;source_slot&quot;: normalized_slot,
+ 268          &quot;source_event_ref&quot;: _event_ref(
+ 269              source_doc_json=source_context[&quot;source_doc_json&quot;],
+ 270              page_no=page_no,
+ 271              line_id=event.line.line_id,
+ 272              line_no=line_no,
+ 273              word_start=event.source_word_start,
+ 274              word_end=event.source_word_end,
+ 275              slot=normalized_slot,
+ 276              col_start=match_col_start,
+ 277          ),
+ 278      }</pre>
+        </details>
+        <details class="source" id="code-workflow_header-is_workflow_monthly">
+          <summary>is_workflow_monthly <span>src/core/events/extraction/workflow_header.py · riga 36</span></summary><a
+            href="../../src/core/events/extraction/workflow_header.py">Apri il file sorgente</a>
+          <pre>  36  def is_workflow_monthly(text: str) -&gt; bool:
+  37      return bool(TITLE_RE.search(decode_workflow_header(text)))</pre>
+        </details>
+        <details class="source" id="code-workflow_header-workflow_year_month">
+          <summary>workflow_year_month <span>src/core/events/extraction/workflow_header.py · riga 21</span></summary><a
+            href="../../src/core/events/extraction/workflow_header.py">Apri il file sorgente</a>
+          <pre>  21  def workflow_year_month(text: str) -&gt; tuple[int | None, int | None]:
+  22      for line in text.splitlines()[:8]:
+  23          decoded = decode_workflow_header(line)
+  24          title = TITLE_RE.search(decoded)
+  25          if not title:
+  26              continue
+  27          tail = decoded[title.end() :]
+  28          for month in MONTH_NAMES:
+  29              pattern = r&quot;[G\s]*&quot;.join(re.escape(ch) for ch in month)
+  30              match = re.search(pattern + r&quot;[G\s]*(?P&lt;year&gt;20\d{2}|19\d{2})\b&quot;, tail, re.IGNORECASE)
+  31              if match:
+  32                  return int(match[&quot;year&quot;]), MONTH_WORDS[month]
+  33      return None, None</pre>
+        </details>
+        <details class="source" id="code-workflow_monthly-WorkflowMonthlyParser-parse_document">
+          <summary>WorkflowMonthlyParser.parse_document <span>src/core/events/extraction/parsers/workflow_monthly.py ·
+              riga 33</span></summary><a href="../../src/core/events/extraction/parsers/workflow_monthly.py">Apri il
+            file sorgente</a>
+          <pre>  33  def parse_document(self, document: dict):
+  34      widths = {int(p[&quot;page_no&quot;]): float(p[&quot;width&quot;]) for p in get_layout_pages(document)}
+  35      rows = []
+  36      for line in iter_layout_lines(document):
+  37          header = self._DAY.match(line.text)
+  38          if not header:
+  39              continue
+  40          day = int(header[&quot;day&quot;])
+  41          # M is ambiguous (Tuesday/Wednesday); output weekday is computed from date.
+  42          dow = {&quot;L&quot;: &quot;LU&quot;, &quot;M&quot;: &quot;MA&quot;, &quot;G&quot;: &quot;GI&quot;, &quot;V&quot;: &quot;VE&quot;, &quot;S&quot;: &quot;SA&quot;, &quot;D&quot;: &quot;DO&quot;}[header[&quot;dow&quot;]]
+  43          width = widths.get(line.page_no or 0)
+  44          events = []
+  45          occupied = set()
+  46          entry_times: dict[int, str] = {}
+  47          for index, word in enumerate(line.words):
+  48              token = str(word.get(&quot;text&quot;, &quot;&quot;))
+  49              if not width or not self._TIME.fullmatch(token):
+  50                  continue
+  51              position = (float(word[&quot;x0&quot;]) + float(word[&quot;x1&quot;])) / (2 * width)
+  52              slot = min(range(6), key=lambda i: abs(position - self._CENTERS[i]))
+  53              if abs(position - self._CENTERS[slot]) &gt; 0.017 or slot in occupied:
+  54                  continue
+  55              occupied.add(slot)
+  56              kind = &quot;E&quot; if slot % 2 == 0 else &quot;U&quot;
+  57              day_offset = 0
+  58              if kind == &quot;E&quot;:
+  59                  entry_times[slot // 2] = token
+  60              elif slot // 2 in entry_times and token &lt; entry_times[slot // 2]:
+  61                  day_offset = 1
+  62              events.append(
+  63                  ParsedEvent(
+  64                      line=line,
+  65                      day=day,
+  66                      dow=dow,
+  67                      event_kind=kind,
+  68                      event_time_hhmm=token,
+  69                      event_raw=token,
+  70                      event_pattern=f&quot;{self.parser_id}:column_{slot + 1}&quot;,
+  71                      source_origin=&quot;layout_column&quot;,
+  72                      day_offset=day_offset,
+  73                      source_slot=f&quot;{&#x27;ent&#x27; if kind == &#x27;E&#x27; else &#x27;usc&#x27;}_{slot // 2 + 1}&quot;,
+  74                      source_word_start=index,
+  75                      source_word_end=index,
+  76                      source_bbox_x0=float(word[&quot;x0&quot;]),
+  77                      source_bbox_y0=float(word[&quot;y0&quot;]),
+  78                      source_bbox_x1=float(word[&quot;x1&quot;]),
+  79                      source_bbox_y1=float(word[&quot;y1&quot;]),
+  80                  )
+  81              )
+  82          rows.append(to_row_result(day, dow, line, events))
+  83      return tuple(rows)</pre>
+        </details>
+        <details class="source" id="code-workflow_monthly-WorkflowMonthlyParser-score_document">
+          <summary>WorkflowMonthlyParser.score_document <span>src/core/events/extraction/parsers/workflow_monthly.py ·
+              riga 30</span></summary><a href="../../src/core/events/extraction/parsers/workflow_monthly.py">Apri il
+            file sorgente</a>
+          <pre>  30  def score_document(self, document: dict) -&gt; int:
+  31      return 180 if is_workflow_monthly(document_text(document)) else -200</pre>
+        </details>
+      </section>
+    </main>
+  </div>
+  <script>
+    function openAnchor() {
+      const target = document.getElementById(location.hash.slice(1));
+      if (!target) return;
+      for (let node = target; node; node = node.parentElement) {
+        if (node.tagName === 'DETAILS') node.open = true;
+      }
+      target.scrollIntoView({ block: 'start' });
+    }
+    addEventListener('hashchange', openAnchor);
+    openAnchor();
+  </script>
+</body>
+
+</html>

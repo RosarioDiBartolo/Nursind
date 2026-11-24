@@ -15,7 +15,8 @@ def analyze_document(document: dict, context: dict) -> tuple[list[dict], list[di
     numbers = sorted(set(range(1, count + 1)) | texts.keys() | layout.keys())
     identities = {number: employee_identity(texts.get(number, "")) for number in numbers}
     names = {value["employee"].casefold(): value["employee"] for value in identities.values() if value["employee"]}
-    unique_name = next(iter(names.values())) if len(names) == 1 and not any(
+    identifiers = {value["employee_identifier"] for value in identities.values() if value.get("employee_identifier")}
+    unique_name = next(iter(names.values())) if len(names) == 1 and len(identifiers) <= 1 and not any(
         value["identity_status"] == "ambiguous" for value in identities.values()
     ) else None
     pages, events = [], []
@@ -23,6 +24,8 @@ def analyze_document(document: dict, context: dict) -> tuple[list[dict], list[di
         identity = dict(identities[number])
         if identity["identity_status"] == "missing" and unique_name:
             identity.update(employee=unique_name, identity_status="document_unique")
+        if unique_name and identity["employee"] and len(identifiers) == 1:
+            identity["employee_identifier"] = next(iter(identifiers))
         page_context = {**context, "source_employee": identity["employee"]}
         single = {
             **document,

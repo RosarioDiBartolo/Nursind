@@ -25,3 +25,7 @@
 ## Commit Workflow
 - After any substantial code change, propose a descriptive commit message that summarizes the actual changes.
 - Do not create a commit for substantial changes until the user explicitly confirms they are satisfied and wants the commit created.
+
+## Operational Shift Counts
+- Save operational count runs, such as Ragusa and Pisa, under `runs/<run-name>/`. Set `pipeline.base_output_dir` to that folder for the run's configurations.
+- Keep the count spreadsheets, coverage reports, and artifacts needed to verify the results together. Use temporary storage for pilots and tests, and remove them when the run is complete.
