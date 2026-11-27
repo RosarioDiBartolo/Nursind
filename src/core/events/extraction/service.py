@@ -147,6 +147,7 @@ def process_many_text_rows(
             logger.error("Error processing %s: %s", result["source_doc_json"], result["error"])
             continue
 
+        undated = {page["page_no"]: page["undated_events"] for page in missing_pages}
         for page in page_rows:
             if str(page["decision"]).startswith("error_"):
                 issues.append({
@@ -154,6 +155,7 @@ def process_many_text_rows(
                     "source_doc_json": page["source_doc_json"],
                     "page_no": page["page_no"],
                     "message": page["decision_reason"],
+                    **({"undated_events": undated[page["page_no"]]} if page["page_no"] in undated else {}),
                 })
 
         stats["files_processed"] += 1

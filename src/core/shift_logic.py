@@ -113,6 +113,7 @@ class PairsCloser:
         pending_entry: pd.Series | None = None
         max_gap = pd.Timedelta(hours=self.max_gap_hours)
 
+        matched = []
         for ts, kind, row in events:
             if kind == "entry":
                 pending_entry = row
@@ -154,9 +155,11 @@ class PairsCloser:
                 merged["duration_hhmm"] = None
             if self.mark_inferred:
                 merged["closed_inferred"] = True
-            closed_rows = pd.concat([closed_rows, pd.DataFrame([merged])], ignore_index=True)
+            matched.append(merged)
             pending_entry = None
 
+        if matched:
+            closed_rows = pd.concat([closed_rows, pd.DataFrame(matched)], ignore_index=True)
         return closed_rows.reset_index(drop=True)
 
 

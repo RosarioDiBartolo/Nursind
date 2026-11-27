@@ -15,8 +15,10 @@ from core.parsing import (
 )
 
 from core.events.extraction.monthly_header import monthly_title_year_month
+from core.events.extraction.attendance_period import recover_attendance_period
 from core.events.extraction.workflow_header import workflow_year_month, is_workflow_monthly
 
+from .bologna_layout import decode_bologna_layout
 from .models import ParsedEvent, ParsedRow
 from .parsers import resolve_parser
 from .parsers.common import document_text, get_layout_pages
@@ -331,6 +333,7 @@ def parse_document_pages(
     pages_missing_year_month: list[dict[str, Any]] = []
     low_coverage_pages: list[dict[str, Any]] = []
 
+    document = decode_bologna_layout(document)
     parser = resolve_parser(document)
     deduped_rows = dedupe_rows(parser.parse_document(document))
     rows_by_page: dict[int, list[ParsedRow]] = defaultdict(list)
@@ -369,6 +372,21 @@ def parse_document_pages(
             parser_id=parser.parser_id,
         )
         page_kind = classify_page_kind(page_text=page_text, rows_considered=rows_considered)
+        classic_columns = parser.parser_id == "cartellino_classic" and any(
+            event.source_origin == "layout_column" for row in page_rows_input for event in row.events
+        )
+        if classic_columns:
+            # The elaboration date on these sheets can be years after the punches.
+            titles = [line for line in page_text.splitlines()[:12] if "mese" in line.lower()]
+            page_year, page_month = infer_year_month_from_text("\n".join(titles))
+            year_month_source = "attendance_title" if page_year else "none"
+        if parser.parser_id in {"cartellino_unico", "timbrature_web"} and page_rows_input:
+            if page_year is None or year_month_source == "header_date":
+                recovered = recover_attendance_period(page_texts, page_no, page_rows_input)
+                if recovered:
+                    page_year, page_month, year_month_source = recovered
+                elif "dedalus" in page_text.lower() or parser.parser_id == "cartellino_unico":
+                    page_year, page_month, year_month_source = None, None, "none"
 
         rows_with_events = 0
         rows_without_events = 0
@@ -403,7 +421,7 @@ def parse_document_pages(
                     if has_page_year_month else None
                 )
                 valid_weekday = not (
-                    parser.parser_id == "situazione_mensile"
+                    (parser.parser_id == "situazione_mensile" or classic_columns)
                     and row_day is not None
                     and calendar_dow(row_day) != parsed_row.dow
                 )
@@ -453,6 +471,11 @@ def parse_document_pages(
                         "page_no": page_no,
                         "rows_considered": rows_considered,
                         "candidate_events": candidate_events,
+                        "undated_events": [
+                            {"line_id": row.line.line_id, "line_no": row.line.line_no,
+                             "day": row.day, "kind": event.event_kind, "time": event.event_time_hhmm}
+                            for row in page_rows_input for event in row.events
+                        ],
                         "header_preview": header_preview(page_text) if page_text else None,
                     }
                 )

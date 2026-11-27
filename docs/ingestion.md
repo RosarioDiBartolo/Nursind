@@ -14,6 +14,13 @@ helpers.
 
 ## Local OCR for scanned pages
 
+For dense low-confidence OCR with fewer than three recognized attendance days,
+the extractor also tries quarter-turn rotations. It accepts a retry when it
+recognizes an attendance heading and at least three different days. A recovered
+layout records `rotation_ccw` in degrees. Its dimensions and word boxes describe
+the upright page in PDF points. To overlay these boxes, rotate the original page
+counterclockwise by the recorded angle first.
+
 OCR is optional and disabled by default. It uses the existing pdfplumber/PDFium
 renderer and the Tesseract executable on the CPU; no cloud OCR or GPU is used.
 Native extraction remains unchanged when OCR is disabled. No additional Python
@@ -87,9 +94,10 @@ Artifacts retain schema `text_layout_v1`, with additive extraction metadata:
   arithmetic word mean, not a calibrated probability or guarantee of correctness.
 
 Reports count `used_ocr` documents and `ocr_pages`. Missing executables or language
-packs fail runtime preflight before indexes are changed. Timeouts, empty OCR,
-rendering failures, and oversized pages fail the affected document; no partial
-new document is written. Existing exclusion/reprocessing behavior still applies.
+packs fail runtime preflight before indexes are changed. The extractor lowers rendering DPI to stay within the pixel budget. A page-level
+failure preserves usable native text and the remaining pages. Partial documents
+record numbered `page_errors` in extraction metadata and the run report. When
+no page yields usable text the document is excluded. Existing exclusion/reprocessing behavior still applies.
 
 Before processing a whole archive, compare 20–30 representative pages against
 manual transcription, especially dates, times, row alignment, and missing events.
@@ -99,8 +107,8 @@ accuracy and throughput need a real Tesseract benchmark on the target machine.
 ### Extraction progress logs
 
 At the default INFO level, extraction logs each download/read start and finish,
-file queue/start/save or failure, native/OCR page start and finish, and the total
-completed/queued documents. OCR logs rendering, Tesseract invocation and timeout.
+file queue/start/save or failure, the first page start, the final page completion,
+and the completed/queued document count. Individual page errors include the page number.
 Worker logging is initialized explicitly for Windows spawned processes. While
 waiting for download or extraction futures, the coordinator reports outstanding
 work every 15 seconds; this is a waiting notice, not proof of worker progress.
@@ -125,3 +133,26 @@ Senza `--input-csv`, lo step `scan` percorre la cartella Drive configurata e scr
 In `mapping/events/`, `files.csv` riporta lo stato di ogni file, `file_employees.csv` elenca le associazioni e `identity_coverage.csv` conta le pagine di timbrature per parser ed esito. In `mapping/grouped/`, `current.txt` contiene il nome della cartella della generazione corrente. Ogni gruppo contiene gli input sotto `events/` e i risultati degli step richiesti. Gli elementi senza attribuzione restano in `unresolved/`.
 
 Un codice fiscale o una matricola con azienda riconosciuta permette di unire file distinti. Con il solo nome il gruppo ha ambito documento. Per confermare un collegamento tra file passare `--identities abbinamenti.csv` con colonne `file_id,employee,employee_id` allo step `group_by_employee`.
+
+### Ripresa selettiva dei conteggi del Blocco 1
+
+`src/scripts/ricalcola_lacune.py` legge i rami da `Consegna/<gruppo>/copertura_cartelle.csv`.
+La modalita ordinaria riusa gli eventi filtrati. Se manca il CSV degli eventi, lo
+rigenera dai manifest disponibili. Se manca il filtro mezzanotte o precede il CSV
+grezzo, aggiorna il filtro. I conteggi CSV ed Excel e lo stato per la ripresa sono
+in `runs/Blocco 1/Ricalcolo/<gruppo>/`. Il ricalcolo unisce i lotti della stessa
+azienda prima di abbinare le entrate e le uscite di ogni dipendente.
+
+```powershell
+.\.venv\Scripts\python.exe src\scripts\ricalcola_lacune.py
+.\.venv\Scripts\python.exe src\scripts\ricalcola_lacune.py --recupera --gruppo "Pisa AOUP"
+```
+
+Con `--recupera` lo script confronta gli ID dei candidati dello scan con gli eventi
+grezzi attuali. Riusa il parser gia eseguito quando la pagina risulta registrata
+e aggiornata. Per i documenti mancanti o i cartellini espliciti a zero con pagine
+OCR tenta l'originale locale o Drive e registra le lacune residue. `--offline`
+limita la ricerca agli originali locali. Un errore su un gruppo compare in
+`errore_gruppo.json` e gli altri gruppi proseguono. Il codice di uscita 2 indica
+che restano casi da verificare. I risultati sono distinti dagli elaborati pubblicati
+in `Consegna`.

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from io import BytesIO
 import logging
-import time
 
 import pdfplumber
 
@@ -61,50 +60,64 @@ def extract_document_pages(
         total_pages = len(pdf.pages)
         logger.info("PDF opened: %s | %s pages", document_label, total_pages)
         for page in pdf.pages:
-            started = time.monotonic()
-            logger.info("Page %s/%s started: %s", page.page_number, total_pages, document_label)
-            native_text = extract_page_text(page)
+            index = page.page_number
+            if index == 1:
+                logger.info("Page %s/%s started: %s", index, total_pages, document_label)
+            native_text = selected_text = ""
+            mode = "blank"
+            reason = error = confidence = None
+            tried_vertical = has_text_layer = False
+            layout = {
+                "page_no": index,
+                "width": float(page.width),
+                "height": float(page.height),
+                "words": [],
+                "lines": [],
+            }
+            try:
+                has_text_layer = bool(page.chars)
+                native_text = extract_page_text(page)
+                selected_text = native_text
+                mode = "normal" if native_text.strip() else "blank"
+                layout = extract_page_layout(page, page_index=index)
+                if native_text.strip():
+                    selection = select_best_text(
+                        native_text,
+                        lambda: extract_page_text(page, vertical=True),
+                        min_normal_score,
+                        min_score_delta,
+                    )
+                    selected_text, mode = selection["text"], selection["mode"]
+                    tried_vertical = selection["tried_vertical"]
+                    if tried_vertical:
+                        vertical_texts.append(extract_page_text(page, vertical=True))
+                if ocr.enabled:
+                    reason = ocr_reason(page, selected_text, layout, ocr, min_normal_score)
+                if reason:
+                    recognized = recognize_page(page, ocr)
+                    text = "\n".join(line["text"] for line in recognized["lines"])
+                    if not text.strip():
+                        raise OcrError(f"ocr_empty_page: page {index}")
+                    confidence = round(
+                        sum(w["confidence"] for w in recognized["words"])
+                        / len(recognized["words"]),
+                        3,
+                    )
+                    layout, selected_text, mode = recognized, text, "ocr"
+            except Exception as exc:
+                error = f"{type(exc).__name__}: {exc}"
+                logger.warning("Page %s of %s: %s", index, document_label, error)
+            finally:
+                page.close()
             normal_texts.append(native_text)
-            layout = extract_page_layout(page, page_index=page.page_number)
-            selection = None
-            if native_text.strip():
-                selection = select_best_text(
-                    native_text,
-                    lambda: extract_page_text(page, vertical=True),
-                    min_normal_score,
-                    min_score_delta,
-                )
-            selected_text = selection["text"] if selection else ""
-            reason = ocr_reason(page, selected_text, layout, ocr, min_normal_score)
-            mode = selection["mode"] if selection else "blank"
-            confidence = None
-            if reason:
-                logger.info(
-                    "OCR started: %s | page %s/%s | reason=%s | timeout=%ss",
-                    document_label,
-                    page.page_number,
-                    total_pages,
-                    reason,
-                    ocr.timeout_seconds,
-                )
-                layout = recognize_page(page, ocr)
-                selected_text = "\n".join(line["text"] for line in layout["lines"])
-                if not selected_text.strip():
-                    raise OcrError(f"ocr_empty_page: page {page.page_number}")
-                mode = "ocr"
-                confidence = round(
-                    sum(w["confidence"] for w in layout["words"]) / len(layout["words"]), 3
-                )
-            tried_vertical = bool(selection and selection["tried_vertical"])
-            if tried_vertical:
-                vertical_texts.append(extract_page_text(page, vertical=True))
             metadata.append(
                 {
-                    "page_no": page.page_number,
+                    "page_no": index,
                     "method": mode,
-                    "has_text_layer": bool(page.chars),
+                    "has_text_layer": has_text_layer,
                     "ocr_reason": reason,
                     "tried_vertical": tried_vertical,
+                    "error": error,
                     "normal_quality": score_text_quality(native_text),
                     "selected_quality": score_text_quality(selected_text),
                     "ocr_confidence": confidence,
@@ -112,18 +125,13 @@ def extract_document_pages(
             )
             layouts.append(layout)
             texts.append(selected_text)
-            logger.info(
-                "Page %s/%s finished: %s | method=%s chars=%s | %.1fs",
-                page.page_number,
-                total_pages,
-                document_label,
-                mode,
-                len(selected_text),
-                time.monotonic() - started,
-            )
-            page.close()
+            if index == total_pages:
+                logger.info("Page %s/%s finished: %s", index, total_pages, document_label)
     text = "\n".join(texts)
+    page_errors = [{"page_no": p["page_no"], "error": p["error"]} for p in metadata if p["error"]]
     if not text.strip():
+        if page_errors:
+            raise OcrError(str(page_errors[0]["error"]))
         raise ValueError("Extracted text is empty after native/OCR attempts")
     modes = {p["method"] for p in metadata if p["method"] != "blank"}
     mode = next(iter(modes)) if len(modes) == 1 else "mixed"
@@ -137,6 +145,7 @@ def extract_document_pages(
         if vertical_texts
         else None,
         "pages": metadata,
+        "page_errors": page_errors,
         "ocr_pages": sum(p["method"] == "ocr" for p in metadata),
         "layout": {"page_count": len(layouts), "pages": layouts},
     }

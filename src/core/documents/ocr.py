@@ -6,6 +6,7 @@ from io import StringIO
 import math
 import logging
 import os
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -13,6 +14,7 @@ from tempfile import TemporaryDirectory
 
 from core.documents.ocr_options import OcrOptions
 from core.pdf import group_words_into_lines
+from core.parsing import parse_day_header
 
 
 logger = logging.getLogger(__name__)
@@ -105,46 +107,54 @@ def layout_from_tsv(
 
 def recognize_page(page, options: OcrOptions) -> dict:
     executable = check_tesseract(options)
-    pixels = math.ceil(page.width * options.dpi / 72) * math.ceil(page.height * options.dpi / 72)
-    if pixels > options.max_pixels:
-        raise OcrError(f"ocr_page_too_large: page {page.page_number}, {pixels} pixels")
-    # Force the same page box used by native extraction, even on cropped PDFs.
-    logger.info(
-        "OCR rendering page %s at %s DPI (%s pixels)", page.page_number, options.dpi, pixels
-    )
-    image = page.to_image(resolution=options.dpi, force_mediabox=True).original
+    dpi = options.dpi
+    while math.ceil(page.width * dpi / 72) * math.ceil(page.height * dpi / 72) > options.max_pixels:
+        dpi -= 1
+        if dpi < 1:
+            raise OcrError(f"ocr_page_too_large: page {page.page_number}")
+    image = page.to_image(resolution=dpi, force_mediabox=True).original
     try:
         with TemporaryDirectory(prefix="nursind-ocr-") as directory:
             image_path = Path(directory) / "page.png"
             image.save(image_path)
-            logger.info(
-                "Tesseract running: page %s | languages=%s | timeout=%ss",
-                page.page_number,
-                options.language,
-                options.timeout_seconds,
-            )
-            tsv = _run_tesseract(
-                [
-                    executable,
-                    str(image_path),
-                    "stdout",
-                    "-l",
-                    options.language,
-                    "--dpi",
-                    str(options.dpi),
-                    "--psm",
-                    str(options.psm),
-                    "tsv",
-                ],
-                options,
-            )
-        return layout_from_tsv(
-            tsv,
-            page_no=page.page_number,
-            width=float(page.width),
-            height=float(page.height),
-            image_size=image.size,
-            origin=(float(page.bbox[0]), float(page.bbox[1])),
-        )
+            arguments = [
+                executable, str(image_path), "stdout", "-l", options.language,
+                "--dpi", str(dpi), "--psm", str(options.psm), "tsv",
+            ]
+
+            def recognize(image_size, width, height):
+                return layout_from_tsv(
+                    _run_tesseract(arguments, options), page_no=page.page_number,
+                    width=float(width), height=float(height), image_size=image_size,
+                    origin=(float(page.bbox[0]), float(page.bbox[1])),
+                )
+
+            original = recognize(image.size, page.width, page.height)
+            if len(original["words"]) < 30 or _attendance_rows(original) >= 3:
+                return original
+            # Only dense, low-confidence output warrants the extra renderings.
+            confidences = sorted(w["confidence"] for w in original["words"])
+            if confidences[len(confidences) // 2] >= 75:
+                return original
+            image.close()
+            image = page.to_image(resolution=dpi, force_mediabox=True, antialias=True).original
+            for angle in (90, 270):
+                with image.rotate(angle, expand=True) as rotated:
+                    rotated.save(image_path)
+                    try:
+                        candidate = recognize(rotated.size, page.height, page.width)
+                    except OcrError:
+                        continue
+                title = " ".join(l["text"] for l in candidate["lines"]).lower()
+                if _attendance_rows(candidate) >= 3 and re.search(
+                    r"timbratur|cartellino|rilevazione presenze", title
+                ):
+                    candidate["rotation_ccw"] = angle
+                    return candidate
+            return original
     finally:
         image.close()
+
+
+def _attendance_rows(layout: dict) -> int:
+    return len({day[0] for line in layout["lines"] if (day := parse_day_header(line["text"]))})

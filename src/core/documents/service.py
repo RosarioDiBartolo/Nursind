@@ -338,6 +338,18 @@ def finalize_extraction_run(
         for item in items
         if item.get("status") != "success"
     ]
+    partial_documents = sum(bool(item.get("page_errors")) for item in items)
+    state["stats"]["partial_documents"] = partial_documents
+    for item in items:
+        for failure in item.get("page_errors", []):
+            issues.append(
+                {
+                    "code": "page_extraction_error",
+                    "source_file_id": item["file_id"],
+                    "page_no": failure["page_no"],
+                    "message": failure["error"],
+                }
+            )
     issues.extend(dict(issue) for issue in state.get("runtime_issues", []))
 
     payload = {
@@ -361,7 +373,9 @@ def finalize_extraction_run(
             row_totals={"items": len(items), "issues": len(issues)},
             items=items,
             issues=issues,
-            status="interrupted" if int(state["stats"].get("interrupted") or 0) else "ok",
+            status="interrupted"
+            if int(state["stats"].get("interrupted") or 0)
+            else ("warning" if partial_documents else "ok"),
         ),
         "duration_s": round(time.time() - start_ts, 3),
     }

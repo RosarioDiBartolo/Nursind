@@ -124,17 +124,17 @@ def events_to_partial_pairs(events_df: pd.DataFrame) -> pd.DataFrame:
     ).copy()
 
     entry = events.loc[events["event_kind"] == "E"].copy()
-    entry.loc[:, "entry_ts"] = entry["event_ts"]
-    entry.loc[:, "exit_ts"] = pd.NaT
-    entry.loc[:, "entry_raw"] = entry.get("event_raw")
-    entry.loc[:, "exit_raw"] = None
+    entry["entry_ts"] = entry["event_ts"]
+    entry["exit_ts"] = pd.NaT
+    entry["entry_raw"] = entry.get("event_raw")
+    entry["exit_raw"] = None
     entry.loc[:, "source_csv"] = entry["source_events_csv"]
 
     exit_ = events.loc[events["event_kind"] == "U"].copy()
-    exit_.loc[:, "entry_ts"] = pd.NaT
-    exit_.loc[:, "exit_ts"] = exit_["event_ts"]
-    exit_.loc[:, "entry_raw"] = None
-    exit_.loc[:, "exit_raw"] = exit_.get("event_raw")
+    exit_["entry_ts"] = pd.NaT
+    exit_["exit_ts"] = exit_["event_ts"]
+    exit_["entry_raw"] = None
+    exit_["exit_raw"] = exit_.get("event_raw")
     exit_.loc[:, "source_csv"] = exit_["source_events_csv"]
 
     for prefix, frame in (("entry", entry), ("exit", exit_)):

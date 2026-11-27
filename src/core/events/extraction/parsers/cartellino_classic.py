@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from datetime import date
 import re
 
 from core.parsing import ALT_DAY_HEADER_RE, DAY_HEADER_RE
-from core.parsing import normalize_text, parse_day_header
+from core.parsing import calendar_dow, infer_year_month_from_text, normalize_text, parse_day_header
 
 from .base import BaseFormatParser
+from .punch_columns import column_events, ocr_columns
 from .common import (
     document_text,
     explicit_events_for_line,
@@ -27,6 +29,8 @@ class CartellinoClassicParser(BaseFormatParser):
             score += 120
         if "rilevazione del mese di" in norm:
             score += 80
+        if "rilevazione presenze del mese" in norm and "ricon" in norm:
+            score += 40
         if "totali fine mese" in norm:
             score += 40
         if "data t i m b r a t u r e o r e" in norm:
@@ -51,20 +55,51 @@ class CartellinoClassicParser(BaseFormatParser):
 
     def parse_document(self, document: dict[str, object]):
         rows = []
-        for line in iter_preferred_lines(document):
+        lines = iter_preferred_lines(document)
+        periods = {}
+        page_columns = {}
+        for line in lines:
+            if re.search(r"\bricon\b", line.text, re.I):
+                columns = ocr_columns(line, presenze=True)
+                if len(columns) == 4:
+                    page_columns[line.page_no] = columns
+            if "rilevazione del mese di" in line.text.lower():
+                period = infer_year_month_from_text(line.text)
+                periods[line.page_no] = (
+                    period if periods.get(line.page_no, period) == period else (None, None)
+                )
+        for line in lines:
             if not line.text.strip():
                 continue
             header = parse_day_header(line.text)
+            if header is None and line.page_no in periods:
+                # Some scans clip the first letter of the two-letter weekday.
+                # Accept a surviving suffix only when the printed period confirms it.
+                match = re.match(r"^[\s.\u2018']*([uaeio])\*?\s*(\d{2})\b", line.text, re.I)
+                year, month = periods[line.page_no]
+                if match and year and month:
+                    day = int(match[2])
+                    try:
+                        dow = calendar_dow(date(year, month, day))
+                    except ValueError:
+                        continue
+                    if dow and dow.endswith(match[1].upper()):
+                        header = day, dow
             if header is None:
                 continue
             day, dow = header
+            events = explicit_events_for_line(line, day=day, dow=dow)
+            if not events and line.page_no in page_columns:
+                events = column_events(
+                    parser_id=self.parser_id, day=day, dow=dow, line=line,
+                    columns=page_columns[line.page_no], centered=True, roll_overnight=False,
+                )
             rows.append(
                 to_row_result(
                     day,
                     dow,
                     line,
-                    explicit_events_for_line(line, day=day, dow=dow),
+                    events,
                 )
             )
         return tuple(rows)
-

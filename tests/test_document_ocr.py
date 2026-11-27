@@ -96,6 +96,20 @@ def test_native_header_does_not_hide_scanned_body(fake_tesseract):
     assert "07:58" in result["text"]
 
 
+def test_sideways_attendance_requires_recognizable_rotated_rows(monkeypatch):
+    monkeypatch.setattr(engine, "check_tesseract", lambda _: "tesseract")
+    def recognize(arguments, _options):
+        with Image.open(arguments[1]) as image:
+            upright = image.width > image.height
+        tokens = ["Cartellino", "1 lun", "2 mar", "3 mer"] if upright else ["xx"] * 30
+        records = [f"5\t1\t1\t1\t{i}\t1\t50\t{i * 80}\t50\t20\t40\t{word}"
+                   for i, word in enumerate(tokens, 1)]
+        return "\n".join([TSV.splitlines()[0], *records])
+    monkeypatch.setattr(engine, "_run_tesseract", recognize)
+    layout = extract(make_pdf("scan"))["layout"]["pages"][0]
+    assert (layout["rotation_ccw"], layout["width"], layout["height"]) == (90, 400, 300)
+
+
 @pytest.mark.parametrize("kind", ["native", "numeric"])
 def test_short_native_pdf_needs_no_tesseract(monkeypatch, kind):
     monkeypatch.setattr(engine, "check_tesseract", lambda _: pytest.fail("unexpected OCR"))
@@ -123,22 +137,24 @@ def test_scanned_artifact_records_original_text_layer_and_layout(tmp_path, fake_
 
 
 @pytest.mark.parametrize("failure", ["ocr_timeout", "ocr_missing_languages", "ocr_unavailable"])
-def test_failed_scanned_page_does_not_write_partial_native_document(tmp_path, monkeypatch, failure):
+def test_failed_scanned_page_keeps_surrounding_native_pages(tmp_path, monkeypatch, failure):
     def fail(_options):
         raise OcrError(failure)
 
     monkeypatch.setattr(engine, "check_tesseract", fail)
     result = extract_and_write(
-        make_pdf("native", "scan"),
+        make_pdf("native", "scan", "native"),
         {"file_id": "local::mixed"},
         str(tmp_path),
         0.72,
         0.08,
         OcrOptions(enabled=True),
     )
-    assert result["status"] == "failed"
-    assert failure in result["reason"]
-    assert not list(tmp_path.rglob("*.json"))
+    assert result["status"] == "success"
+    assert result["page_errors"] == [{"page_no": 2, "error": f"OcrError: {failure}"}]
+    doc = json.loads((tmp_path / result["doc_json"]).read_bytes())
+    assert [p["method"] for p in doc["extraction"]["pages"]] == ["normal", "blank", "normal"]
+    assert doc["layout"]["pages"][2]["lines"][0]["line_id"] == "p3_l1"
 
 
 def test_disabled_ocr_retains_missing_text_layer_behavior(tmp_path):
@@ -189,9 +205,21 @@ def test_missing_language_fails_even_if_tesseract_can_run(monkeypatch):
     engine.check_tesseract.cache_clear()
 
 
+def test_oversized_page_reduces_render_resolution(fake_tesseract):
+    result = extract_document_pages(
+        make_pdf("scan"),
+        min_normal_score=0.72,
+        min_score_delta=0.08,
+        ocr=OcrOptions(enabled=True, dpi=600, max_pixels=1_000_000),
+    )
+    _, (width, height) = fake_tesseract[0]
+    assert width * height <= 1_000_000
+    assert result["ocr_pages"] == 1
+
+
 def test_oversized_page_is_rejected_before_render(monkeypatch):
     monkeypatch.setattr(engine, "check_tesseract", lambda _: "tesseract")
-    page = SimpleNamespace(width=10000, height=10000, page_number=1)
+    page = SimpleNamespace(width=1000000, height=1000000, page_number=1)
     with pytest.raises(OcrError, match="ocr_page_too_large"):
         engine.recognize_page(page, OcrOptions())
 

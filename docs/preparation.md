@@ -15,6 +15,17 @@ Implementation: `core.events.extraction`, `core.events.filtering`, and
 
 ## Damaged monthly attendance text
 
+For `cartellino_unico`, explicit E/U punches take priority over unlabelled
+durations when no punch-column layout is available. Numbered entry and exit
+headings can also identify punch columns on OCR pages. Undated candidates appear
+in the extraction report under `issues[].undated_events`, with day, time, kind
+and source line.
+
+For `cartellino_unico` and `timbrature_web`, a repaired title requires at least
+three distinct printed days and agreement with every parsed weekday on the page.
+A printed month alone can be resolved between two dated titles exactly two months
+apart if the intervening month and the printed weekdays agree.
+
 For `situazione_mensile`, month/year recovery uses the title before the daily
 table. Supported OCR substitutions in four-character year tokens and an
 unambiguous month match are allowed; footer print dates are never substitutes

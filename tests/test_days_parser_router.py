@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from core.events.extraction.parsers import load_parsers, resolve_parser
 
 
@@ -67,16 +69,18 @@ def test_cartellino_unico_explicit_punches_exclude_hours_totals() -> None:
     ] == [[("E", "20:49")], [("U", "07:15"), ("E", "20:36")], []]
 
 
-def test_cartellino_unico_columns_keep_exit_without_an_entry() -> None:
-    header = [("Giorno", 10), ("Orario", 50), ("Anomalie", 80)]
-    for index in range(12):
-        pos = 114 + 31 * index
-        header.extend([("Usc" if index % 2 else "Ent", pos), (str(index // 2 + 1), pos + 13)])
-    raw_lines = [
-        header,
-        [("1", 14), ("ven", 24), ("07:16", 145), ("o", 164), ("07:03", 496)],
-        [("2", 14), ("sab", 24), ("08:02", 114), ("13:10", 145), ("05:08", 725)],
+def test_unico_without_column_heading_preserves_punches_and_skips_leave_totals():
+    doc = _document(
+        "Cartellino Unico\nDom 03 E13:34 U21:08 07:34 07:15\n"
+        "Mar 05 E08:34S U1240S 04:06 06:00\nMer 06 FERIE 06:00 08:00"
+    )
+    parsed = resolve_parser(doc).parse_document(doc)
+    assert [[(e.event_kind, e.event_time_hhmm) for e in row.events] for row in parsed] == [
+        [("E", "13:34"), ("U", "21:08")], [("E", "08:34"), ("U", "12:40")], [],
     ]
+
+
+def _positioned_document(raw_lines, title):
     words = []
     lines = []
     for index, raw_line in enumerate(raw_lines):
@@ -96,10 +100,29 @@ def test_cartellino_unico_columns_keep_exit_without_an_entry() -> None:
             "text": " ".join(token for token, _ in raw_line),
             "word_indices": list(range(first, len(words))),
         })
-    document = {
-        "document": {"full_text": "Cartellino Unico"},
+    return {
+        "document": {"full_text": "\n".join([title, *(line["text"] for line in lines)])},
         "layout": {"pages": [{"page_no": 1, "words": words, "lines": lines}]},
     }
+
+
+@pytest.mark.parametrize("ocr_labels", [False, True])
+def test_cartellino_unico_columns_keep_exit_without_an_entry(ocr_labels) -> None:
+    header = [("Giorno", 10), ("Orario", 50), ("Anomalie", 80)]
+    for index in range(12):
+        pos = 114 + 31 * index
+        label = "Usc" if index % 2 else "Ent"
+        number = str(index // 2 + 1)
+        if ocr_labels:
+            header.append((label + number.replace("1", "i"), pos))
+        else:
+            header.extend([(label, pos), (number, pos + 13)])
+    raw_lines = [
+        header,
+        [("1", 14), ("ven", 24), ("07:16", 145), ("o", 164), ("07:03", 496)],
+        [("2", 14), ("sab", 24), ("08:02", 114), ("13:10", 145), ("05:08", 725)],
+    ]
+    document = _positioned_document(raw_lines, "Cartellino Unico")
     parser = resolve_parser(document)
 
     assert [
@@ -108,3 +131,21 @@ def test_cartellino_unico_columns_keep_exit_without_an_entry() -> None:
     ] == [[("usc_1", "07:16")], [("ent_1", "08:02"), ("usc_1", "13:10")]]
 
 
+
+
+def test_clipped_weekday_requires_matching_calendar_and_month():
+    document = _document("RILEVAZIONE DEL MESE DI APRILE 2021\ni 08 E0755 U1813\na 09 E0805 U1800")
+    rows = resolve_parser(document).parse_document(document)
+    assert [(r.day, r.dow, len(r.events)) for r in rows] == [(8, "GI", 2)]
+
+def test_presenze_columns_distinguish_exit_from_contractual_hours():
+    title = "RILEVAZIONE PRESENZE del mese di Gennaio 2024"
+    document = _positioned_document([
+        [("Enti", 70), ("Usc-1", 100), ("Ent?", 130), ("Use72", 160), ("Ricon.", 210)],
+        [("02", 10), ("Ma", 24), ("7,45", 100), ("11,25", 210), ("6,00", 250)],
+        [("03", 10), ("Me", 24), ("REC", 45), ("6,00", 250)],
+    ], title)
+    parser = resolve_parser(document)
+    assert parser.parser_id == "cartellino_classic"
+    assert [[(e.event_kind, e.event_time_hhmm) for e in row.events]
+            for row in parser.parse_document(document)] == [[("U", "07:45")], []]

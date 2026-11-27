@@ -3,6 +3,8 @@ from pathlib import Path
 import pandas as pd
 
 from core.events.extraction.monthly_header import monthly_title_year_month
+from core.events.extraction.attendance_period import recover_attendance_period
+from types import SimpleNamespace
 from core.events.extraction.page_analysis import parse_document_pages
 from core.events.extraction.service import process_many_text_rows
 from core.parsing import extract_events
@@ -14,6 +16,19 @@ def test_title_recovers_only_supported_tokens_and_never_footer():
     assert monthly_title_year_month("2017\nn\ufffdvembre;\nMese chiuso") == (2017, 11)
     assert monthly_title_year_month("2099 maggio\nMese chiuso\n27/05/2022") == (None, None)
     assert monthly_title_year_month("Mese chiuso\nTotale maggio 2022") == (None, None)
+
+
+def test_undated_month_requires_title_and_matching_calendar():
+    rows = [SimpleNamespace(day=n, dow=d) for n, d in enumerate(("GI", "VE", "SA"), 1)]
+    texts = {1: "novembre 2022", 2: "dicembre\nGio 01", 3: "gennaio 2023"}
+    assert recover_attendance_period(texts, 2, rows) == (2022, 12, "neighbor_titles_calendar")
+    texts[2] = "DICEMBRE202 2\nGio 01"
+    assert recover_attendance_period(texts, 2, rows) == (2022, 12, "ocr_title_calendar")
+    texts[2] = "Gio 01\nCodice tipo stampa: dicembre 2022"
+    assert recover_attendance_period(texts, 2, rows) is None
+    texts[2] = "dicembre"
+    texts[1] = "novembre 2021"
+    assert recover_attendance_period(texts, 2, rows) is None
 
 
 def test_ocr_time_repair_preserves_original_spans():
@@ -77,5 +92,6 @@ def test_extraction_report_exposes_missing_title(tmp_path):
     report = process_many_text_rows([row], input_dir=str(tmp_path), output_dir=str(tmp_path / "events"))
     assert report["status"] == "warning"
     assert report["issues"][0]["code"] == "error_missing_year_month"
+    assert [e["time"] for e in report["issues"][0]["undated_events"]] == ["13:32", "21:21"]
     assert report["stats"]["pages_relevant"] == 1
     assert report["stats"]["coverage_ratio_relevant_pages"] == 0

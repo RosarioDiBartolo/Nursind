@@ -185,12 +185,24 @@ def extract_and_write(
             )
             layout = extracted["layout"]
         else:
-            extracted = extract_best_text(
-                pdf_bytes,
-                min_normal_score=min_normal_score,
-                min_score_delta=min_score_delta,
-            )
-            layout = extract_layout(BytesIO(pdf_bytes))
+            try:
+                extracted = extract_best_text(
+                    pdf_bytes,
+                    min_normal_score=min_normal_score,
+                    min_score_delta=min_score_delta,
+                )
+                layout = extract_layout(BytesIO(pdf_bytes))
+            except Exception as exc:
+                if str(exc) == "PDF_HAS_NO_TEXT_LAYER":
+                    raise
+                extracted = extract_document_pages(
+                    pdf_bytes,
+                    min_normal_score=min_normal_score,
+                    min_score_delta=min_score_delta,
+                    ocr=OcrOptions(enabled=False),
+                    document_label=f"{file_name} [{file_id}]",
+                )
+                layout = extracted["layout"]
         extracted_text = extracted.get("text", "")
         if not extracted_text.strip():
             raise ValueError("Extracted text is empty; skipping output write")
@@ -221,6 +233,7 @@ def extract_and_write(
                     "vertical_quality": extracted["vertical_quality"],
                     "pages": extracted.get("pages", []),
                     "ocr_pages": extracted.get("ocr_pages", 0),
+                    "page_errors": extracted.get("page_errors", []),
                 },
                 "document": {
                     "page_count": layout["page_count"],
@@ -272,6 +285,7 @@ def extract_and_write(
         "file_link": file_link,
         "selected_mode": extracted["mode"],
         "ocr_pages": extracted.get("ocr_pages", 0),
+        "page_errors": extracted.get("page_errors", []),
         "tried_vertical": extracted["tried_vertical"],
         "normal_quality": extracted["normal_quality"],
         "vertical_quality": extracted["vertical_quality"],

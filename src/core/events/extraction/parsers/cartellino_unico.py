@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import re
+from collections import defaultdict
 
 from core.parsing import normalize_text, parse_day_header
 
 from ..models import DocumentLine, ParsedEvent
+from .punch_columns import column_events, ocr_columns, parse_time
 from .base import BaseFormatParser
 from .common import (
     document_text,
@@ -20,7 +22,6 @@ class CartellinoUnicoParser(BaseFormatParser):
     parser_id = "cartellino_unico"
     legacy_doc_format = "cartellino_classic"
     priority = 10
-    _TIME_RE = re.compile(r"^(?P<h>[0-2]?\d)[:.,](?P<m>[0-5]\d)$")
     _EXPLICIT_PUNCH_HEADER = re.compile(r"\bgiorno\s+timbrature\s+mensa\b")
     _SIX_PAIR_HEADER = re.compile(
         r"\bgiorno\s+orario\s+anomalie\s+"
@@ -32,33 +33,29 @@ class CartellinoUnicoParser(BaseFormatParser):
         text = document_text(document)
         norm = normalize_text(text)
         score = -100
+        if "stampa cartellino esteso" in norm and "giorno timbrature tot." in norm:
+            score += 200
         if "cartellino unico" in norm:
             score += 160
         if "giorno orario anomalie ent 1 usc 1" in norm:
             score += 80
         if "data e ora stampa" in norm:
             score += 20
+        if re.search(r"\bent\W*1\(a\).*?usc\W*1\(b\).*?ent\W*2\(c\).*?usc\W*2\(d\)", norm):
+            score += 240
+        if re.search(r"giorno\s+orario\s+anomalie\W+ent\W*[i1]?\W+_?usc", norm):
+            score += 160
         return score
 
-    def _parse_time(self, token: str) -> tuple[str, int] | None:
-        match = self._TIME_RE.match(token)
-        if not match:
-            return None
-        hour = int(match.group("h"))
-        minute = int(match.group("m"))
-        if not ((0 <= hour <= 23) or (hour == 24 and minute == 0)):
-            return None
-        hhmm = f"{hour:02d}:{minute:02d}"
-        minutes = hour * 60 + minute
-        return hhmm, minutes
-
-    def _aligned_events(self, *, day: int, dow: str, line, norm_body: str) -> tuple[ParsedEvent, ...]:
+    def _aligned_events(
+        self, *, day: int, dow: str, line, norm_body: str
+    ) -> tuple[ParsedEvent, ...]:
         tokens = norm_body.split()
         marker_positions: set[int] = set()
         all_times: list[tuple[int, str, int]] = []
 
         for idx, token in enumerate(tokens):
-            parsed = self._parse_time(token)
+            parsed = parse_time(token)
             if parsed is None:
                 continue
             hhmm, minutes = parsed
@@ -107,52 +104,41 @@ class CartellinoUnicoParser(BaseFormatParser):
                     event_kind=kind,
                     event_time_hhmm=hhmm,
                     event_raw=f"{kind} {hhmm}",
-                    event_pattern=f"{self.parser_id}:aligned_{idx+1}",
+                    event_pattern=f"{self.parser_id}:aligned_{idx + 1}",
                     source_origin="text_alignment",
                 )
             )
         return tuple(events)
 
-    def _column_events(
-        self, *, day: int, dow: str, line: DocumentLine, columns: tuple[float, ...]
-    ) -> tuple[ParsedEvent, ...]:
-        tolerance = min(right - left for left, right in zip(columns, columns[1:])) / 4
-        events = []
-        occupied = set()
-        entry_times: dict[int, int] = {}
-        for index, word in enumerate(line.words):
-            token = str(word["text"])
-            parsed = self._parse_time(token)
+    def _extended_events(self, line, day, dow, total_x):
+        # The punch block lies between the weekday and the separate total column.
+        punches = []
+        for index, word in enumerate(line.words[2:], start=2):
+            if float(word["x1"]) >= total_x:
+                break
+            raw = word["text"]
+            parsed = parse_time(raw.rstrip("*"))
             if parsed is None:
-                continue
-            hhmm, minutes = parsed
-            x0 = float(word["x0"])
-            slot = min(range(len(columns)), key=lambda candidate: abs(columns[candidate] - x0))
-            if abs(columns[slot] - x0) > tolerance or slot in occupied:
-                continue
-            occupied.add(slot)
-            pair = slot // 2
-            kind = "U" if slot % 2 else "E"
-            if kind == "E":
-                entry_times[pair] = minutes
+                return ()
+            punches.append((index, raw, parsed))
+        if len(punches) % 2:
+            return ()
+        events = []
+        for slot, (index, raw, (hhmm, minutes)) in enumerate(punches):
+            if slot % 2 and minutes < punches[slot - 1][2][1]:
+                return ()
             events.append(
                 ParsedEvent(
                     line=line,
                     day=day,
                     dow=dow,
-                    event_kind=kind,
+                    event_kind="U" if slot % 2 else "E",
                     event_time_hhmm=hhmm,
-                    event_raw=token,
-                    event_pattern=f"{self.parser_id}:column_{slot + 1}",
+                    event_raw=raw,
+                    event_pattern="extended_punch",
                     source_origin="layout_column",
-                    day_offset=int(kind == "U" and minutes < entry_times.get(pair, minutes)),
-                    source_slot=f"{'ent' if kind == 'E' else 'usc'}_{pair + 1}",
                     source_word_start=index,
                     source_word_end=index,
-                    source_bbox_x0=x0,
-                    source_bbox_y0=float(word["y0"]),
-                    source_bbox_x1=float(word["x1"]),
-                    source_bbox_y1=float(word["y1"]),
                 )
             )
         return tuple(events)
@@ -164,17 +150,47 @@ class CartellinoUnicoParser(BaseFormatParser):
             for line in lines
             if self._EXPLICIT_PUNCH_HEADER.search(normalize_text(line.text))
         }
-        page_columns = {}
+        marked_days = defaultdict(set)
         for line in lines:
+            header = parse_day_header(line.text)
+            if header and re.search(r"\b[EU]\d{1,2}:\d{2}", line.text, re.I):
+                marked_days[line.page_no].add(header[0])
+        explicit_pages.update(page for page, days in marked_days.items() if len(days) >= 2)
+        extended_totals = {}
+        extended_pages = {
+            line.page_no for line in lines if "stampa cartellino esteso" in line.text.lower()
+        }
+        for line in lines:
+            if line.page_no in extended_pages and line.text.lower().startswith(
+                "giorno timbrature tot."
+            ):
+                for word in line.words:
+                    if word["text"].lower() == "tot.":
+                        extended_totals[line.page_no] = float(word["x0"])
+                        break
+        page_columns = {}
+        centered_pages = set()
+        numbered_pages = set()
+        for line in lines:
+            if re.search(r"\bent\W*2\b.*?usc\W*2\b", line.text, re.I):
+                numbered_pages.add(line.page_no)
             if not self._SIX_PAIR_HEADER.search(normalize_text(line.text)):
+                if re.search(r"(?:ent\W*[i1]|usc\W*[i1])", line.text, re.I):
+                    positions = ocr_columns(line)
+                    if positions:
+                        page_columns[line.page_no] = positions
+                        centered_pages.add(line.page_no)
                 continue
             columns = tuple(
                 float(word["x0"])
                 for word in line.words
                 if str(word["text"]).lower() in {"ent", "usc"}
             )
-            if len(columns) == 12 and all(left < right for left, right in zip(columns, columns[1:])):
+            if len(columns) == 12 and all(
+                left < right for left, right in zip(columns, columns[1:])
+            ):
                 page_columns[line.page_no] = columns
+                centered_pages.discard(line.page_no)
         rows = []
         for line in lines:
             if not line.text.strip():
@@ -183,17 +199,24 @@ class CartellinoUnicoParser(BaseFormatParser):
             if header is None:
                 continue
             day, dow = header
-            if line.page_no in page_columns:
-                events = self._column_events(
-                    day=day, dow=dow, line=line, columns=page_columns[line.page_no]
+            if line.page_no in extended_pages:
+                events = (
+                    self._extended_events(line, day, dow, extended_totals[line.page_no])
+                    if line.page_no in extended_totals
+                    else ()
                 )
-            elif line.page_no in explicit_pages:
+            elif line.page_no in page_columns:
+                events = column_events(
+                    parser_id=self.parser_id,
+                    day=day, dow=dow, line=line, columns=page_columns[line.page_no],
+                    centered=line.page_no in centered_pages,
+                )
+            elif line.page_no in explicit_pages or line.page_no in numbered_pages:
                 events = explicit_events_for_line(line, day=day, dow=dow)
             else:
-                rest = strip_day_prefix(normalized_raw(line.text))
-                events = self._aligned_events(day=day, dow=dow, line=line, norm_body=rest)
+                events = explicit_events_for_line(line, day=day, dow=dow)
                 if not events:
-                    events = explicit_events_for_line(line, day=day, dow=dow)
+                    rest = strip_day_prefix(normalized_raw(line.text))
+                    events = self._aligned_events(day=day, dow=dow, line=line, norm_body=rest)
             rows.append(to_row_result(day, dow, line, events))
         return tuple(rows)
-
